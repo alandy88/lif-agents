@@ -11,6 +11,11 @@
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "verbatimModuleSyntax": true,
+    // Sources import `./x.mts` (unchanged from the donor repos, and the only
+    // specifier `node --experimental-strip-types` can resolve when running the
+    // tests off src/). tsc rewrites them to `./x.mjs` in the emit.
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
     // TS 7 does not auto-include @types/*; node builtins need this explicitly.
     "types": ["node"],
     "skipLibCheck": true

@@ -5,9 +5,10 @@ pipelines in `lif-studio`, `comfyui-lif-nodes`, and `Morrow`.
 
 Design and phasing: [docs/2026-07-26-sandcastle-kit-shared-package-prd.md](docs/2026-07-26-sandcastle-kit-shared-package-prd.md).
 
-**Status: scaffold.** Only `templatePath()` exists. P1 moves `host-exec`,
-`task-list`, `task-loop`, `profiles`, `github-issue`, and `defangShellExpansion`
-in from `comfyui-lif-nodes` with their tests.
+**Status: P1 landed.** `host-exec`, `task-list`, `task-loop`, `profiles`,
+`github-issue`, `defang`, and `templatePath` are here with their tests. No
+consumer has cut over yet (P2 is `Morrow`); the `presets/` entrypoints are still
+empty.
 
 ## Consuming
 
@@ -57,6 +58,12 @@ drifts from source.
 
 Raw `.mts` is deliberately not shipped: `.mts` inside `node_modules` is exactly
 where tsx/bun dependency-transpilation behaviour is inconsistent.
+
+Sources import each other by `.mts` — unchanged from the donor repos, and the
+only specifier `node --experimental-strip-types` resolves when the tests run off
+`src/`. `rewriteRelativeImportExtensions` turns those into `.mjs` in the JS emit.
+Declaration files keep the `.mts` specifier, which TS 7 resolves to the sibling
+`.d.mts`; a consumer typechecking against `dist/` sees real types, not `any`.
 
 ## Reusable workflow
 

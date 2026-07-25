@@ -1,6 +1,6 @@
 # Sandcastle Kit — Shared Agent-Orchestration Package
 
-**Status:** Accepted (2026-07-26). D1–D3 settled. This repo is scaffolded (public, CI green); no modules extracted yet — P-pre and P1 are the next steps.
+**Status:** Accepted (2026-07-26). D1–D3 settled. This repo is public and CI green. **P-pre done** (2026-07-26, in `lif-studio`). **P1 done** (2026-07-26) — the core is extracted here with its tests; no consumer has cut over. **P2 (`Morrow`) is next**, with P0 runnable in parallel.
 
 **Owner:** Peter Yu
 
@@ -125,11 +125,20 @@ const promptFile = templatePath("implement/task-prompt.md", {
 
 ## Phasing
 
-**P-pre — Backport `defangShellExpansion` immediately, outside the extraction.** Cherry-pick the defence into `lif-studio`'s issue-driven pipeline (and `Morrow`'s if its prompt inputs are ever attacker-writable) *now*, as plain copies. A third copy for a few weeks is acceptable; an unattended pipeline substituting undefanged issue bodies for the duration of a multi-phase extraction is not. The kit's regression test (acceptance criterion 6) is the durable fix; this is the stopgap. Nothing else in the plan depends on it and nothing blocks it.
+**P-pre — Backport `defangShellExpansion` immediately, outside the extraction. ✅ Done 2026-07-26.** Cherry-pick the defence into `lif-studio`'s issue-driven pipeline (and `Morrow`'s if its prompt inputs are ever attacker-writable) *now*, as plain copies. A third copy for a few weeks is acceptable; an unattended pipeline substituting undefanged issue bodies for the duration of a multi-phase extraction is not. The kit's regression test (acceptance criterion 6) is the durable fix; this is the stopgap. Nothing else in the plan depends on it and nothing blocks it.
+
+> **Landed:** `lif-studio/.sandcastle/lib/defang.mts` + `defang.test.mts` (verbatim copy of the `comfyui-lif-nodes` inline pair), applied at the two `promptArgs` construction sites — `lib/run-session.mts` (the live vector: implement+review share one args map, and `templates/implement/review-prompt.md` is the one template that expands `` !`…` `` after arg substitution) and `lib/run-retro.mts`. Registered in the `typecheck` and `test:sandcastle-lib` scripts; suite green at 208 tests. `Morrow` needs no backport — it has no issue source and no template in `.sandcastle/` uses `` !` `` expansion. The `templates/agent-spike/` scaffold was left alone: it is not the production pipeline and uses no expansion. P1 replaces this copy with the kit module.
 
 **P0 — Version unification (blocks P4 only).** Bring `lif-studio` from `@ai-hero/sandcastle@^0.10` to `^0.12`, matching the other two. The kit's base (`comfyui-lif-nodes`) is already on `^0.12`, so P1–P3 do not need this — only `lif-studio`'s own cutover does. P0 is plausibly the most expensive single step (~8,300 lines across two sandcastle minors); run it in parallel with P1–P3 rather than in front of them.
 
-**P1 — Extract the identical core.** Move `host-exec`, `task-list`, `task-loop`, `profiles`, `github-issue` into the kit with their tests, plus `defangShellExpansion` extracted out of `workflows/implement/main.mts` into a kit module with its regression test. Behaviour-preserving; no consumer changes yet.
+**P1 — Extract the identical core. ✅ Done 2026-07-26.** Move `host-exec`, `task-list`, `task-loop`, `profiles`, `github-issue` into the kit with their tests, plus `defangShellExpansion` extracted out of `workflows/implement/main.mts` into a kit module with its regression test. Behaviour-preserving; no consumer changes yet.
+
+> **Landed** in `src/lib/` (from `comfyui-lif-nodes`, per the base-implementation decision), re-exported from `src/index.mts`, built to `dist/`. Suite is 46 tests green: `profiles`, `task-list`, `task-loop`, and `templates` as migrated, plus `host-exec` and `defang` tests taken from `lif-studio` (`comfyui-lif-nodes` had none for either — its defang tests lived inside `workflows/implement/main.test.mts`).
+>
+> Two things the move corrected, both worth carrying into the consumer cutovers:
+>
+> - **`host-exec` was *not* three copies of one file.** Problem statement 1 is right that `Morrow` and `comfyui-lif-nodes` are byte-identical, but `lif-studio`'s `capture` also *buffers* stderr and returns it (`{ stdout, stderr, exitCode }`) — `green-check` puts it in the failure detail. The kit ships **`lif-studio`'s superset**; had the kit taken the byte-identical pair at face value, P4 would have silently dropped that failure detail. The `GitRunner`/`GhRunner` type annotations on `hostGit`/`ghCapture` stay repo-local, so the wrappers keep the plain signatures. The extra `stderr` field is additive for the other two consumers.
+> - **Import specifiers.** Sources import `./x.mts` (unchanged from the donors — and the only form `node --experimental-strip-types` resolves when tests run off `src/`); `rewriteRelativeImportExtensions` rewrites them to `.mjs` in the JS emit. Declaration files keep `.mts`, which TS 7 resolves to the sibling `.d.mts` — verified by typechecking a scratch consumer against the built `dist/`, including that a deliberate mismatch still errors (types are real, not `any`).
 
 **P2 — Cut `Morrow` over.** ~450 lines, no GitHub issue source, lowest blast radius — the canary that proves the contract without risking the issue-driven pipelines.
 
