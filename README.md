@@ -3,7 +3,7 @@
 `@lif/sandcastle-kit` — the repo-agnostic engine behind the `.sandcastle/` agent
 pipelines in `lif-studio`, `comfyui-lif-nodes`, and `Morrow`.
 
-Design and phasing: `lif-studio/docs/superpowers/specs/2026-07-26-sandcastle-kit-shared-package-prd.md`.
+Design and phasing: [docs/2026-07-26-sandcastle-kit-shared-package-prd.md](docs/2026-07-26-sandcastle-kit-shared-package-prd.md).
 
 **Status: scaffold.** Only `templatePath()` exists. P1 moves `host-exec`,
 `task-list`, `task-loop`, `profiles`, `github-issue`, and `defangShellExpansion`
