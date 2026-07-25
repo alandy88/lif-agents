@@ -3,6 +3,7 @@ export type { TemplatePathOptions } from "./lib/templates.mts";
 export { capture, ghCapture, ghJson, hostGit, json } from "./lib/host-exec.mts";
 export type { CaptureResult } from "./lib/host-exec.mts";
 export { defangPromptArgs, defangShellExpansion } from "./lib/defang.mts";
+export { isEntrypoint } from "./lib/entrypoint.mts";
 export { checkOffTask, parseTaskDoneTrailers, parseTaskList, renderTaskList, stripTaskSection, taskDoneTrailer, } from "./lib/task-list.mts";
 export type { TaskItem } from "./lib/task-list.mts";
 export { ensureTaskList, runTaskLoop } from "./lib/task-loop.mts";

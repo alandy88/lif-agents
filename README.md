@@ -5,16 +5,50 @@ pipelines in `lif-studio`, `comfyui-lif-nodes`, and `Morrow`.
 
 Design and phasing: [docs/2026-07-26-sandcastle-kit-shared-package-prd.md](docs/2026-07-26-sandcastle-kit-shared-package-prd.md).
 
-**Status: P1 landed.** `host-exec`, `task-list`, `task-loop`, `profiles`,
-`github-issue`, `defang`, and `templatePath` are here with their tests. No
-consumer has cut over yet (P2 is `Morrow`); the `presets/` entrypoints are still
-empty.
+**Status: P1 landed, plus `presets/implement`.** `host-exec`, `task-list`,
+`task-loop`, `profiles`, `github-issue`, `defang`, and `templatePath` are here
+with their tests, and the issue-driven lifecycle from `comfyui-lif-nodes` now
+ships as `presets/implement` with its default prompt templates. No consumer has
+cut over yet. `presets/task` (the `Morrow` ledger lifecycle) is not written.
 
 ## Consuming
 
 ```bash
 npm i -D github:alandy88/lif-sandcastle#v0.1.0
 ```
+
+An issue-driven consumer's `.sandcastle/config.mts` is both the config and the
+CLI entrypoint — `npx tsx .sandcastle/config.mts --issue 42 --trigger issues`:
+
+```ts
+import * as sandcastle from "@ai-hero/sandcastle";
+import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
+import {
+  isEntrypoint,
+  runImplementLoop,
+  type ImplementConfig,
+} from "@lif/sandcastle-kit/presets/implement";
+
+const config: ImplementConfig = {
+  createAgent: (profile) =>
+    profile.provider === "claude"
+      ? sandcastle.claudeCode(profile.model, { effort: profile.effort })
+      : sandcastle.codex(profile.model, { effort: profile.effort }),
+  createSandboxProvider: () => docker(),
+  preflightCommands: () => ["uv sync"],
+  conventions: "- Python: `uv run python -m pytest tests/`\n- Lint: `uv run pre-commit run --all-files`",
+  verify: "uv run python -m pytest tests/",
+  templateDir: ".sandcastle/templates", // optional; kit defaults win when absent
+};
+
+export default config;
+
+if (isEntrypoint(import.meta.url)) await runImplementLoop(config);
+```
+
+`conventions` and `verify` are the only repo knowledge the default prompts carry
+— a unit test asserts the shipped templates name no package manager or test
+runner of their own.
 
 **Pin a tag, never `#main`.** AFK runs fire unattended; a kit change must not
 reach a repo's next run without an explicit bump.

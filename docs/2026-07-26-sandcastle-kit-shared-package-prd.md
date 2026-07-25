@@ -1,6 +1,6 @@
 # Sandcastle Kit — Shared Agent-Orchestration Package
 
-**Status:** Accepted (2026-07-26). D1–D3 settled. This repo is public and CI green. **P-pre done** (2026-07-26, in `lif-studio`). **P1 done** (2026-07-26) — the core is extracted here with its tests; no consumer has cut over. **P2 (`Morrow`) is next**, with P0 runnable in parallel.
+**Status:** Accepted (2026-07-26). D1–D3 settled. This repo is public and CI green. **P-pre done** (2026-07-26, in `lif-studio`). **P1 done** (2026-07-26) — the core is extracted here with its tests; no consumer has cut over. **`presets/implement` done** (2026-07-26), ported from `comfyui-lif-nodes` — see below. **P3 (`comfyui-lif-nodes`) is next**, with P0 runnable in parallel; P2 (`Morrow`) follows once `presets/task` exists.
 
 **Owner:** Peter Yu
 
@@ -140,7 +140,17 @@ const promptFile = templatePath("implement/task-prompt.md", {
 > - **`host-exec` was *not* three copies of one file.** Problem statement 1 is right that `Morrow` and `comfyui-lif-nodes` are byte-identical, but `lif-studio`'s `capture` also *buffers* stderr and returns it (`{ stdout, stderr, exitCode }`) — `green-check` puts it in the failure detail. The kit ships **`lif-studio`'s superset**; had the kit taken the byte-identical pair at face value, P4 would have silently dropped that failure detail. The `GitRunner`/`GhRunner` type annotations on `hostGit`/`ghCapture` stay repo-local, so the wrappers keep the plain signatures. The extra `stderr` field is additive for the other two consumers.
 > - **Import specifiers.** Sources import `./x.mts` (unchanged from the donors — and the only form `node --experimental-strip-types` resolves when tests run off `src/`); `rewriteRelativeImportExtensions` rewrites them to `.mjs` in the JS emit. Declaration files keep `.mts`, which TS 7 resolves to the sibling `.d.mts` — verified by typechecking a scratch consumer against the built `dist/`, including that a deliberate mismatch still errors (types are real, not `any`).
 
-**P2 — Cut `Morrow` over.** ~450 lines, no GitHub issue source, lowest blast radius — the canary that proves the contract without risking the issue-driven pipelines.
+**`presets/implement` — the issue-driven lifecycle. ✅ Done 2026-07-26.** The target-design table already placed `workflows/implement` in the kit as an opt-in preset; this builds it, from `comfyui-lif-nodes` per the base-implementation decision. Behaviour-preserving: the guards, trailer resume, plan-when-absent, checklist ralph loop, artifact strip, and PR create/refresh are unchanged.
+
+> **Landed** as `src/presets/implement.mts` + `templates/implement/{plan,task,review}-prompt.md`. Suite is 61 tests green (was 46). Three things the port had to settle:
+>
+> - **The config seam.** The donor read `createAgent`, `createSandboxProvider`, and `preflightCommands` from its own `.sandcastle/config.mts` by relative import. Those are now the injected `ImplementConfig`, and `runImplementLoop(config)` is the consumer entrypoint. `runIssue` takes the config as its first argument; `main(options, deps)` keeps the donor's signature so the guard tests moved unchanged.
+> - **The templates were not repo-agnostic.** They named `uv run`, `pytest`, `pre-commit`, `web/js/`, and a specific source file. Those collapse to two injected args — `{{CONVENTIONS}}` (the toolchain block) and `{{VERIFY}}` (the canonical test command) — which is the "kit defaults + repo override + injected `CONVENTIONS`" row of the table. Two regression tests hold the line: every `{{ARG}}` in a shipped template must be in the preset's `promptArgs` for that phase (an unsupplied placeholder reaches the agent as literal `{{ARG}}`, which reads as a corrupted prompt rather than an error), and no shipped template may name a package manager or test runner.
+> - **`isEntrypoint`.** The donor's `invokedDirectly` guard is generic, so it moved to `lib/entrypoint.mts`. It is what lets a consumer's `config.mts` be *both* the config module and the CLI entry — which is how acceptance criterion 7's "no `lib/` code" holds without the consumer also writing a `workflows/` shim.
+>
+> Not addressed: the base branch is still hardcoded `main` (`origin/main..`, `--base main`, and `main..HEAD` inside the review template). All three consumers use `main`, so this is deliberate rather than overlooked — but it is repo knowledge sitting in the kit, and a fourth consumer on `master` or `trunk` is the trigger to lift it into `ImplementConfig`.
+
+**P2 — Cut `Morrow` over.** ~450 lines, no GitHub issue source, lowest blast radius. Blocked on `presets/task`, which does not exist; P3 now runs first.
 
 **P3 — Cut `comfyui-lif-nodes` over.** Its `config.mts` is already 36 lines of purely repo-specific configuration, so this is close to a straight deletion of `lib/`.
 

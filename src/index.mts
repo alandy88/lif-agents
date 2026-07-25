@@ -6,6 +6,8 @@ export type { CaptureResult } from "./lib/host-exec.mts";
 
 export { defangPromptArgs, defangShellExpansion } from "./lib/defang.mts";
 
+export { isEntrypoint } from "./lib/entrypoint.mts";
+
 export {
   checkOffTask,
   parseTaskDoneTrailers,
