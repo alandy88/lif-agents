@@ -1,0 +1,38 @@
+{
+  "name": "@lif/sandcastle-kit",
+  "version": "0.1.0",
+  "description": "Repo-agnostic agent-orchestration engine for sandcastle pipelines.",
+  "type": "module",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alandy88/lif-sandcastle.git"
+  },
+  "files": [
+    "dist",
+    "templates"
+  ],
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./lib/*": "./dist/lib/*.mjs",
+    "./presets/*": "./dist/presets/*.mjs",
+    "./templates/": "./templates/"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepare": "npm run build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --experimental-strip-types --test \"src/**/*.test.mts\""
+  },
+  "peerDependencies": {
+    "@ai-hero/sandcastle": "^0.12.0"
+  },
+  "devDependencies": {
+    "@ai-hero/sandcastle": "^0.12.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^7.0.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

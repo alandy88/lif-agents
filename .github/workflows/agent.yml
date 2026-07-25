@@ -1,0 +1,114 @@
+name: sandcastle-agent (reusable)
+
+# Reusable half of each consumer's sandcastle-agent.yml. The consumer keeps the
+# trigger (issues: labeled / workflow_dispatch) and passes its runner labels,
+# entrypoint, and issue number down here.
+#
+# Cross-owner note: this only resolves for repos outside alandy88/ while this
+# repo is public. See PRD D2.
+
+on:
+  workflow_call:
+    inputs:
+      issue:
+        description: GitHub issue number
+        required: true
+        type: string
+      runs-on:
+        description: JSON array of runner labels, e.g. '["self-hosted","peter-3090-u","agent"]'
+        required: true
+        type: string
+      entrypoint:
+        description: Workflow entrypoint run inside the repo
+        required: false
+        default: .sandcastle/workflows/implement/main.mts
+        type: string
+      install-command:
+        description: Host dependency install (the runner image ships bun, not npm)
+        required: false
+        default: bun install
+        type: string
+      runtime:
+        description: Runtime used to execute the entrypoint
+        required: false
+        default: bun
+        type: string
+      profile:
+        description: Model profile (default | mixed | claude | gpt)
+        required: false
+        default: default
+        type: string
+      model:
+        description: Exact model override within the selected profile
+        required: false
+        default: ""
+        type: string
+      trigger:
+        description: Originating event name
+        required: false
+        default: workflow_call
+        type: string
+      default-profile:
+        description: Profile used when the dispatch profile is "default"
+        required: false
+        default: mixed
+        type: string
+    secrets:
+      AGENT_PAT:
+        required: false
+      CLAUDE_CODE_OAUTH_TOKEN:
+        required: false
+      OPENAI_API_KEY:
+        required: false
+      CODEX_AUTH_JSON:
+        required: false
+
+permissions:
+  issues: write
+  contents: write
+  pull-requests: write
+
+jobs:
+  run:
+    name: sandcastle-agent
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    steps:
+      - name: Checkout main (full history for branch and push)
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+          # Push with the PAT (when set) so agent branch pushes and PRs trigger
+          # CI — GITHUB_TOKEN-created events don't.
+          token: ${{ secrets.AGENT_PAT || github.token }}
+
+      - name: Configure bot git identity
+        run: |
+          git config user.name "sandcastle-agent[bot]"
+          git config user.email "sandcastle-agent[bot]@users.noreply.github.com"
+
+      - name: Install host dependencies
+        run: ${{ inputs.install-command }}
+
+      - name: Run sandcastle-agent
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_PAT || github.token }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CODEX_AUTH_JSON: ${{ secrets.CODEX_AUTH_JSON }}
+          AGENT_DEFAULT_PROFILE: ${{ inputs.default-profile }}
+        run: |
+          ${{ inputs.runtime }} ${{ inputs.entrypoint }} \
+            --issue "${{ inputs.issue }}" \
+            --profile "${{ inputs.profile }}" \
+            --model "${{ inputs.model }}" \
+            --trigger "${{ inputs.trigger }}"
+
+      - name: Failure backstop — comment on the issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_PAT || github.token }}
+        run: |
+          gh issue comment "${{ inputs.issue }}" \
+            --repo "${{ github.repository }}" \
+            --body "sandcastle-agent failed — see the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details." || true
