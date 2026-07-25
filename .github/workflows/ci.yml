@@ -12,7 +12,12 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          # 24, not 22: `npm test` runs off src/ under --experimental-strip-types,
+          # which strips types without downleveling, so the `await using` in
+          # presets/implement reaches V8 as-is and Node 22 cannot parse it. This
+          # is a dev-only floor — tsc downlevels it for dist/, which is what
+          # consumers import, and package.json engines stays >=22.
+          node-version: "24"
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
