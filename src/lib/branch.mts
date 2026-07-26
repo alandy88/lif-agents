@@ -173,6 +173,12 @@ export async function dropArtifacts(
   sandbox: ExecSandbox,
   files: readonly string[],
 ): Promise<boolean> {
+  // No artifacts configured is a no-op, and has to be spelled out: an empty
+  // pathspec list is not "nothing" to git, it is "everything" — `git ls-files
+  // --` enumerates the whole index, which would read as artifacts to strip, and
+  // the `git rm` that followed would abort the run on "No pathspec was given".
+  if (files.length === 0) return false;
+
   // Two separate hazards, two separate defences. `shellQuote` stops `sh` seeing
   // a space as an argument break or a metacharacter as syntax. `:(literal)`
   // stops GIT globbing what survives: a pathspec matches wildcards on its own,

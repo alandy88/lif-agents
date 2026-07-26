@@ -82,6 +82,15 @@ test("dropArtifacts: nothing tracked → the ls-files probe is the only exec", a
   assert.match(sandbox.commands[0]!, /^git ls-files/);
 });
 
+test("dropArtifacts: an empty list is a no-op, never a probe of the whole index", async () => {
+  // An empty pathspec means "everything" to git, not "nothing": `git ls-files
+  // --` would enumerate the entire index. Asserting no exec at all is the point
+  // — the guard has to sit in front of the probe, not after it.
+  const sandbox = fakeSandbox([]);
+  assert.equal(await dropArtifacts(sandbox, []), false);
+  assert.deepEqual(sandbox.commands, []);
+});
+
 test("dropArtifacts: a failed probe throws instead of reading as nothing tracked", async () => {
   // An unreadable index exits non-zero with empty stdout — byte-identical to a
   // clean repo unless the exit code is checked. Returning false there would
