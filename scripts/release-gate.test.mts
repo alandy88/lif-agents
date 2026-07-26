@@ -16,10 +16,18 @@ const replies =
     return { stdout: reply.stdout ?? "", stderr: "", exitCode: reply.exitCode ?? 0 };
   };
 
-test("a git that cannot enumerate tags reads as no tags, not as a crash", async () => {
-  // The shell's `|| true`. An empty enumeration is the ordinary first-release
-  // case, and a first release must not need an operator to unblock it.
-  assert.equal(await lastReleaseTag(replies({ tag: { exitCode: 128 } })), null);
+test("a git that cannot enumerate tags throws rather than claiming a first release", async () => {
+  // No tags is exit 0 with empty output, so a non-zero exit is git failing. Read
+  // as "no tags" it would derive from v0.0.0 and try to re-cut an existing
+  // version — wrong silently, and only failing later at `git tag`.
+  await assert.rejects(
+    () => lastReleaseTag(replies({ tag: { exitCode: 128 } })),
+    /enumerating release tags exited 128/,
+  );
+});
+
+test("a repo with no tags is still absent, not an error", async () => {
+  assert.equal(await lastReleaseTag(replies({ tag: { stdout: "" } })), null);
 });
 
 test("a working package.json that will not parse releases rather than throwing", async () => {

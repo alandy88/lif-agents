@@ -49,11 +49,18 @@ export const TAG_FORM = /^v[0-9]+\.[0-9]+\.[0-9]+$/;
  * a sensible zero. `git log v0.0.0..HEAD` against a tag that does not exist is
  * a fatal ambiguous-revision error, which would fail every first release.
  *
- * A non-zero `git tag --list` reads as "no tags", matching the shell's
- * `|| true`: an empty enumeration is the ordinary first-release case.
+ * A repo with no tags exits 0 with empty output, so a NON-zero exit is git
+ * itself failing, not a first release. Throwing keeps those apart: read as "no
+ * tags", a broken checkout would derive from v0.0.0 and try to re-cut a version
+ * that already exists — wrong silently, and only failing later at `git tag`.
+ * The shell's `|| true` covered grep's empty-match exit; carrying it onto git's
+ * own exit code widened it into that hole.
  */
 export async function lastReleaseTag(git: GitRunner = hostGit): Promise<string | null> {
   const listed = await git(["tag", "--list", "v[0-9]*", "--sort=-v:refname"]);
+  if (listed.exitCode !== 0) {
+    throw new Error(`enumerating release tags exited ${listed.exitCode}: ${listed.stderr}`);
+  }
   const tags = listed.stdout
     .split("\n")
     .map((tag) => tag.trim())
