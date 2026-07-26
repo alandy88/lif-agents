@@ -1,12 +1,11 @@
-// Deliver phase — the branch becomes a pull request. This is one of the two
-// adapter seams the consumers genuinely diverge on: PR-per-issue (open it and
-// leave it for a human) vs. squash-merge-and-continue (the ledger loop merges
-// its own task and moves to the next one).
-//
-// No sandbox and no agent: delivery is host-side `git`/`gh`, which is why this
-// phase takes plain inputs rather than a PhaseContext.
+// Pull-request adapter — the branch becomes a pull request. Host-side `git`/`gh`,
+// the sibling of github-issue.mts: no sandbox and no agent, so it takes plain
+// inputs rather than a PhaseContext. This is one of the two adapter seams the
+// consumers genuinely diverge on: PR-per-issue (open it and leave it for a
+// human) vs. squash-merge-and-continue (the ledger loop merges its own task
+// and moves to the next one).
 
-import { ghCapture, ghJson, hostGit, type CaptureResult } from "../lib/host-exec.mts";
+import { ghCapture, ghJson, hostGit, type CaptureResult } from "./host-exec.mts";
 
 export interface DeliverInput {
   branch: string;
@@ -27,7 +26,7 @@ export interface DeliverResult {
   created: boolean;
 }
 
-/** The host commands this phase runs. Injectable so the tests can drive them. */
+/** The host commands this adapter runs. Injectable so the tests can drive them. */
 export interface DeliverDeps {
   gh: (args: string[]) => Promise<CaptureResult>;
   ghJson: (args: string[]) => Promise<string>;
@@ -36,7 +35,7 @@ export interface DeliverDeps {
 
 const hostDeps: DeliverDeps = { gh: ghCapture, ghJson, git: hostGit };
 
-export async function runDeliverPhase(
+export async function deliverPullRequest(
   input: DeliverInput,
   deps: DeliverDeps = hostDeps,
 ): Promise<DeliverResult> {

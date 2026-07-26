@@ -19,7 +19,7 @@ import { renderConventions, toolchains, type Toolchain } from "../../lib/toolcha
 import type { PhaseContext } from "../../phases/context.mts";
 import { runTaskPhase } from "../../phases/task.mts";
 import { runVerifyPhase } from "../../phases/verify.mts";
-import { runDeliverPhase } from "../../phases/deliver.mts";
+import { deliverPullRequest } from "../../lib/github-pr.mts";
 import { parseNextTask, taskBranch, type NextTask } from "./state.mts";
 
 /** The ledger preset's prompts; `templateDir` overrides them by the same path. */
@@ -176,7 +176,7 @@ export async function runIteration(
     );
   }
 
-  return runDeliverPhase({
+  return deliverPullRequest({
     branch,
     title: `Task ${label}`,
     body:

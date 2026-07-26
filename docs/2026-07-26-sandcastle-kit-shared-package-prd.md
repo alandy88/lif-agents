@@ -1,6 +1,6 @@
 # Sandcastle Kit — Shared Agent-Orchestration Package
 
-**Status:** Accepted (2026-07-26). D1–D3 settled. This repo is public and CI green. **P-pre done** (2026-07-26, in `lif-studio`). **P1 done** (2026-07-26) — the core is extracted here with its tests; no consumer has cut over. **`presets/implement` done** (2026-07-26), ported from `comfyui-lif-nodes` — see below. **Architecture section accepted** (2026-07-26) and implemented: the phase layer (`src/phases/`) exists, both presets are compositions, and **`presets/task` is done** (98 tests green) — P2 is no longer blocked. Packaging revised the same day: `dist/` ships in release tags, not on `main`. **P3 (`comfyui-lif-nodes`) is next**, with P0 runnable in parallel; P2 (`Morrow`) follows. No release tag has been cut through the new workflow yet — that precedes any consumer cutover.
+**Status:** Accepted (2026-07-26). D1–D3 settled. This repo is public and CI green. **P-pre done** (2026-07-26, in `lif-studio`). **P1 done** (2026-07-26) — the core is extracted here with its tests; no consumer has cut over. **`presets/implement` done** (2026-07-26), ported from `comfyui-lif-nodes` — see below. **Architecture section accepted** (2026-07-26) and implemented: the phase layer (`src/phases/`) exists, both presets are compositions, and **`presets/task` is done** (98 tests green) — P2 is no longer blocked. Packaging revised the same day: `dist/` ships in release tags, not on `main`. **P3 (`comfyui-lif-nodes`) is next**, with P0 runnable in parallel; P2 (`Morrow`) follows. No release tag has been cut through the new workflow yet — that precedes any consumer cutover. **`deliver` reclassified as a `lib/` adapter, not a phase** (2026-07-26) — see Architecture.
 
 **Owner:** Peter Yu
 
@@ -60,8 +60,8 @@ The kit's core is derived from **`comfyui-lif-nodes`**, not `lif-studio`: the ch
 ```
 lif-sandcastle/
   package.json          "@lif/sandcastle-kit", "type": "module"
-  src/lib/*.mts         host-exec, task-list, task-loop, profiles, github-issue, …
-  src/phases/*.mts      modular stages: plan, task, review, verify, deliver (see Architecture)
+  src/lib/*.mts         host-exec, task-list, task-loop, profiles, github-issue, github-pr, …
+  src/phases/*.mts      modular stages: plan, task, review, verify (see Architecture)
   src/presets/*.mts     implement (GitHub issues), task (local state) — compositions of phases
   templates/*.md        default prompts
   dist/                 tsc output — .mjs + .d.mts (in release tags only; see below)
@@ -133,12 +133,14 @@ const promptFile = templatePath("implement/task-prompt.md", {
 
 **Added 2026-07-26.** Settled in review with the owner after the P1/`presets/implement` landings, before P2/P3. This section is the target the phasing builds toward; nothing in it reorders the phasing.
 
+**Amended 2026-07-26.** `deliver` moved from `src/phases/` to `src/lib/github-pr.mts`: it has no template and no `PhaseContext`, so it failed this section's own three-part definition of a phase — it is a host adapter beside `github-issue`, not a lifecycle stage.
+
 ### Two contracts, different rigidity
 
 The kit's job splits into two contracts, and they deliberately differ in how negotiable they are:
 
 - **The practice layer is non-negotiable.** Toolchain choice from the kit-owned standard (`python` *is* uv), `defang` on every prompt argument, tag-pinned installs, the sandcastle boundary (consumers never name `@ai-hero/sandcastle`), provider credential handling, and the conventions block. A consumer that composes a custom lifecycle still gets all of it, because it is baked into the primitives every phase runs through. There is no mix-and-match here.
-- **The lifecycle layer is composable.** Stages of a lifecycle — plan, task, review, verify, deliver — are the unit of reuse, not whole lifecycles. Consumers either run a shipped preset as-is, override its templates, or compose phases directly.
+- **The lifecycle layer is composable.** Stages of a lifecycle — plan, task, review, verify — are the unit of reuse, not whole lifecycles. Consumers either run a shipped preset as-is, override its templates, or compose phases directly.
 
 ### Layers
 
@@ -146,8 +148,9 @@ The kit's job splits into two contracts, and they deliberately differ in how neg
 Layer 0  @ai-hero/sandcastle       kit-internal dependency; never consumer-visible
 Layer 1  src/lib/                  primitives = the practice layer
                                    (host-exec, defang, toolchains, profiles,
-                                    provider-setup, templates, task-list, task-loop)
-Layer 2  src/phases/               modular stages: plan · task · review · verify · deliver
+                                    provider-setup, templates, task-list, task-loop,
+                                    github-issue, github-pr)
+Layer 2  src/phases/               modular stages: plan · task · review · verify
                                    each = runner fn + default template + typed inputs/outputs
 Layer 3  src/presets/              standard compositions
                                    implement = github-issue → plan? → loop(task) → review → PR

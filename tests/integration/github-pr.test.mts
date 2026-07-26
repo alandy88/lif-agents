@@ -1,13 +1,13 @@
-// Deliver's cleanup against real git. The unit tests drive DeliverDeps with
-// canned exit codes; this manufactures the actual conditions — a worktree
-// holding the branch (the `4933566` incident), a free branch, a real remote —
-// and lets git produce the exit codes. Only `gh` is stubbed: it needs a
-// GitHub, and its contract is already pinned in phases.test.mts.
+// The pull-request adapter's cleanup against real git. The unit tests drive
+// DeliverDeps with canned exit codes; this manufactures the actual conditions
+// — a worktree holding the branch (the `4933566` incident), a free branch, a
+// real remote — and lets git produce the exit codes. Only `gh` is stubbed: it
+// needs a GitHub, and its contract is already pinned in github-pr.test.mts.
 
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";
-import { runDeliverPhase, type DeliverDeps } from "../../src/phases/deliver.mts";
+import { deliverPullRequest, type DeliverDeps } from "../../src/lib/github-pr.mts";
 import type { CaptureResult } from "../../src/lib/host-exec.mts";
 import { gitIn, makeTempRoot, must, removeTempRoot } from "./helpers.mts";
 
@@ -55,7 +55,7 @@ test("a worktree holding the branch degrades cleanup, never the delivery", async
   // out, so `git branch -D` genuinely fails on the host.
   await must(git, ["worktree", "add", join(root, "wt-held"), branch]);
 
-  const result = await runDeliverPhase(
+  const result = await deliverPullRequest(
     { branch, title: "t", body: "b", squashMerge: true },
     deps,
   );
@@ -71,7 +71,7 @@ test("an unheld branch is fully cleaned up, local and remote", async () => {
   const branch = "agent/free";
   await makeDeliveredBranch(branch);
 
-  const result = await runDeliverPhase(
+  const result = await deliverPullRequest(
     { branch, title: "t", body: "b", squashMerge: true },
     deps,
   );

@@ -25,7 +25,10 @@ const DECLARATIONS = [
   "phases/task.d.mts",
   "phases/review.d.mts",
   "phases/verify.d.mts",
-  "phases/deliver.d.mts",
+  // lib/ is not blanket-covered — lib/provider-setup.mts legitimately names
+  // @ai-hero types — but github-pr.mts carries none and kept the assertion it
+  // had as a phase.
+  "lib/github-pr.d.mts",
 ];
 
 for (const file of DECLARATIONS) {

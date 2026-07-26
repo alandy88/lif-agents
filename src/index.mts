@@ -63,6 +63,9 @@ export type { Issue, IssueBodySource } from "./lib/github-issue.mts";
 
 export { readFlag } from "./lib/cli.mts";
 
+export { deliverPullRequest } from "./lib/github-pr.mts";
+export type { DeliverInput, DeliverResult, DeliverDeps } from "./lib/github-pr.mts";
+
 // Phases (./phases/*) and presets (./presets/*) are imported by subpath, not
 // re-exported: a consumer picks the lifecycle it runs, or composes the stages
 // itself, and neither should arrive by importing the kit's root.
