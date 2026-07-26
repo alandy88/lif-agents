@@ -8,9 +8,10 @@ import { fileURLToPath } from "node:url";
 // a single `createAgent?: (p) => AgentProvider` in the config interface drags
 // the whole dependency back into the consumer's typecheck.
 //
-// This reads the committed dist/, which is the artifact consumers actually
-// resolve. CI's `git diff --exit-code -- dist` is what keeps it honest against
-// src; this test is what keeps the boundary honest against both.
+// This reads dist/, which is the artifact consumers actually resolve. dist/
+// is gitignored on main (release tags carry it); it exists at test time
+// because ci.yml runs `npm run build` before `npm test` — and locally because
+// `npm ci`'s prepare script runs tsc.
 //
 // Phases are covered too: a Layer-4 consumer composes them directly (that is the
 // whole point of the layer), so a sandcastle type in `PhaseContext` would leak

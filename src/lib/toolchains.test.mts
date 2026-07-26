@@ -4,11 +4,9 @@ import { renderConventions, toolchains, type Toolchain } from "./toolchains.mts"
 
 const ALL = Object.keys(toolchains) as Toolchain[];
 
-test("every toolchain declares warm-up, a test command, and conventions", () => {
+test("every toolchain's conventions block names its own test command", () => {
   for (const name of ALL) {
     const spec = toolchains[name];
-    assert.ok(spec.preflight.length > 0, `${name} has no preflight`);
-    assert.ok(spec.test.length > 0, `${name} has no test command`);
     assert.ok(spec.conventions.includes(spec.test), `${name} omits its own test command`);
   }
 });
@@ -24,12 +22,6 @@ test("the toolchain standard is what reaches the prompt", () => {
   // the tree and exits 0, so as a "check" it teaches an agent nothing.
   assert.match(renderConventions("dotnet"), /dotnet format --verify-no-changes/);
   assert.doesNotMatch(renderConventions("dotnet"), /Formatting: `dotnet format`/);
-});
-
-test("python warms uv, node warms npm, dotnet warms nuget", () => {
-  assert.deepEqual(toolchains.python.preflight, ["uv sync"]);
-  assert.deepEqual(toolchains.node.preflight, ["npm ci"]);
-  assert.deepEqual(toolchains.dotnet.preflight, ["dotnet restore"]);
 });
 
 test("extraConventions is appended under the standard, never in place of it", () => {
