@@ -1,0 +1,43 @@
+name: release
+
+# Cuts a version tag whose commit contains the built dist/ (gitignored on
+# main). Consumers pin these tags (`npm i -D github:alandy88/lif-sandcastle#vX.Y.Z`),
+# so the tag — not main — is the installable artifact. The release commit is a
+# child of main HEAD that exists only behind the tag ref; main itself stays
+# clean and is deliberately NOT installable.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Tag to cut, e.g. v0.2.0"
+        required: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24" # same floor as ci.yml (tests run off src/)
+      - name: validate version
+        run: |
+          [[ "${{ inputs.version }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "version must look like v1.2.3"; exit 1; }
+          if git ls-remote --exit-code --tags origin "refs/tags/${{ inputs.version }}" >/dev/null 2>&1; then
+            echo "tag ${{ inputs.version }} already exists"; exit 1
+          fi
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: tag with dist
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f dist
+          git commit -m "release ${{ inputs.version }}: build dist/"
+          git tag "${{ inputs.version }}"
+          git push origin "refs/tags/${{ inputs.version }}"

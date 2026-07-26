@@ -160,6 +160,12 @@ export function resolvePhases(input: ProfileResolutionInput = {}): ResolvedPhase
   return { name: MIXED_PROFILE_NAME, phases: phaseProfiles };
 }
 
+/** One line naming the models a run uses, for logs, comments, and the PR body. */
+export function describeRun(run: ResolvedPhases): string {
+  if (run.name !== MIXED_PROFILE_NAME) return `${run.name} → ${run.phases.task.model}`;
+  return `mixed → plan ${run.phases.plan.model}, tasks ${run.phases.task.model}, review ${run.phases.review.model}`;
+}
+
 /**
  * Credential names forwarded for only the providers used by the run. Each
  * provider has both a bare-token form the CLI reads itself and a

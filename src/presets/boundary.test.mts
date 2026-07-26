@@ -11,18 +11,32 @@ import { fileURLToPath } from "node:url";
 // This reads the committed dist/, which is the artifact consumers actually
 // resolve. CI's `git diff --exit-code -- dist` is what keeps it honest against
 // src; this test is what keeps the boundary honest against both.
-const PRESETS = ["implement"];
+//
+// Phases are covered too: a Layer-4 consumer composes them directly (that is the
+// whole point of the layer), so a sandcastle type in `PhaseContext` would leak
+// exactly as far as one in a preset config.
+const DECLARATIONS = [
+  "presets/implement.d.mts",
+  "presets/task/index.d.mts",
+  "presets/task/state.d.mts",
+  "phases/context.d.mts",
+  "phases/plan.d.mts",
+  "phases/task.d.mts",
+  "phases/review.d.mts",
+  "phases/verify.d.mts",
+  "phases/deliver.d.mts",
+];
 
-for (const preset of PRESETS) {
-  test(`presets/${preset} exposes no @ai-hero type in its public declaration`, () => {
+for (const file of DECLARATIONS) {
+  test(`${file} exposes no @ai-hero type in its public declaration`, () => {
     const declaration = readFileSync(
-      fileURLToPath(new URL(`../../dist/presets/${preset}.d.mts`, import.meta.url)),
+      fileURLToPath(new URL(`../../dist/${file}`, import.meta.url)),
       "utf8",
     );
     assert.doesNotMatch(
       declaration,
       /@ai-hero/,
-      `${preset}.d.mts names @ai-hero — a consumer typechecking against it would ` +
+      `${file} names @ai-hero — a consumer typechecking against it would ` +
         `need @ai-hero/sandcastle installed, which the kit exists to hide`,
     );
   });

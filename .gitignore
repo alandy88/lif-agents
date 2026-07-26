@@ -1,4 +1,6 @@
 node_modules/
 *.tsbuildinfo
 
-# dist/ is intentionally NOT ignored — see README ("Why dist/ is committed").
+# Build output lives only in release tags, never on main — see README
+# ("Why dist/ ships in release tags"). The release workflow force-adds it.
+dist/

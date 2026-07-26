@@ -5,11 +5,13 @@ pipelines in `lif-studio`, `comfyui-lif-nodes`, and `Morrow`.
 
 Design and phasing: [docs/2026-07-26-sandcastle-kit-shared-package-prd.md](docs/2026-07-26-sandcastle-kit-shared-package-prd.md).
 
-**Status: P1 landed, plus `presets/implement`.** `host-exec`, `task-list`,
-`task-loop`, `profiles`, `github-issue`, `defang`, and `templatePath` are here
-with their tests, and the issue-driven lifecycle from `comfyui-lif-nodes` now
-ships as `presets/implement` with its default prompt templates. No consumer has
-cut over yet. `presets/task` (the `Morrow` ledger lifecycle) is not written.
+**Status: P1 landed, plus both presets and the phase layer.** `host-exec`,
+`task-list`, `task-loop`, `profiles`, `github-issue`, `defang`, and
+`templatePath` are here with their tests. The lifecycle stages live in
+`src/phases/` (`plan`, `task`, `review`, `verify`, `deliver`), and the two
+shipped lifecycles are compositions of them: `presets/implement` (the
+issue-driven loop from `comfyui-lif-nodes`) and `presets/task` (the `STATE.md`
+ledger loop from `Morrow`). No consumer has cut over yet.
 
 ## Consuming
 
@@ -34,7 +36,48 @@ export default config;
 if (isEntrypoint(import.meta.url)) await runImplementLoop(config);
 ```
 
+A ledger-driven consumer (no GitHub issue source; `PLAN.md` is the plan and
+`STATE.md` the progress ledger) picks the other preset instead —
+`npx tsx .sandcastle/config.mts --iterations 3`:
+
+```ts
+import { isEntrypoint, runTaskLoop, type TaskConfig } from "@lif/sandcastle-kit/presets/task";
+
+const config: TaskConfig = { toolchain: "dotnet" };
+
+export default config;
+
+if (isEntrypoint(import.meta.url)) await runTaskLoop(config);
+```
+
 That is the whole interface — one required field, no imports beyond the kit.
+
+## Phases
+
+A lifecycle's stages are the unit of reuse, not whole lifecycles. Each phase in
+`src/phases/` is an async function taking a `PhaseContext` (sandbox, branch,
+per-phase agent, template resolver) plus typed inputs, returning a typed result,
+and paired with a default prompt template:
+
+| phase | contract |
+|---|---|
+| `plan` | slices the work into a checklist, editing the source of truth itself |
+| `task` | ONE fresh agent context delivering ONE unit of work; commit count is the landing signal |
+| `review` | artifact-producing — reads the whole change and leaves prose behind |
+| `verify` | binary gate — `COMPLETE` or the run stops |
+| `deliver` | host-side `git`/`gh`: open the PR, optionally squash-merge it |
+
+Composition is plain TypeScript. **No pipeline engine, no DAG config format, no
+plugin registry** — a preset is a thin file calling phase functions in order, and
+a consumer that wants mix-and-match (`lif-studio`'s swarm lanes) writes exactly
+what a preset writes internally.
+
+Two things are baked into the phases rather than into the presets, so no call
+site can forget them: every prompt argument is defanged, and `{{BRANCH}}` comes
+from the context. The `PhaseContext` sandbox and agent are typed *structurally*
+by the kit — naming sandcastle's types there would leak the dependency into a
+consumer composing phases, and the boundary test covers `phases/` for that
+reason.
 
 ## The toolchain standard
 
@@ -118,13 +161,20 @@ The returned path is workspace-relative, as sandcastle's `promptFile` requires.
 Two consequences are load-bearing: `node_modules` must sit **inside** the mounted
 sandbox workspace, and install must have run before the first template read.
 
-## Why `dist/` is committed
+## Why `dist/` ships in release tags
 
 Git-URL consumers install without a registry. `npm` runs `prepare` for git
 dependencies, but the runner images use `bun install`, whose `prepare` handling
-for git deps is not something the pipeline should depend on. Committing `dist/`
-makes the install work identically under both. CI fails if the committed output
-drifts from source.
+for git deps is not something the pipeline should depend on. So the built
+output must be in the git tree consumers install — but it does not belong in
+`main`'s history. `dist/` is gitignored on `main`; the release workflow
+(`.github/workflows/release.yml`) builds, tests, and cuts each `vX.Y.Z` tag
+from a commit that force-adds `dist/`. That commit lives only behind the tag
+ref, so both installers see identical built output while `main` stays clean.
+
+A consequence worth stating: **`#main` is not installable** — it has no
+`dist/`. That is aligned with the standing rule that consumers pin a tag and
+never `#main`; the packaging now enforces what was previously only policy.
 
 Raw `.mts` is deliberately not shipped: `.mts` inside `node_modules` is exactly
 where tsx/bun dependency-transpilation behaviour is inconsistent.

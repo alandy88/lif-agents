@@ -21,8 +21,6 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      # dist/ is not committed on main; the build here only proves the emit
+      # compiles. Release tags carry the built dist/ — see release.yml.
       - run: npm run build
-
-      # dist/ ships to git-URL consumers, so a stale commit is a real defect.
-      - name: dist/ is up to date
-        run: git diff --exit-code -- dist

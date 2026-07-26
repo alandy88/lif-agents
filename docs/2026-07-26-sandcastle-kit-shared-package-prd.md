@@ -1,6 +1,6 @@
 # Sandcastle Kit — Shared Agent-Orchestration Package
 
-**Status:** Accepted (2026-07-26). D1–D3 settled. This repo is public and CI green. **P-pre done** (2026-07-26, in `lif-studio`). **P1 done** (2026-07-26) — the core is extracted here with its tests; no consumer has cut over. **`presets/implement` done** (2026-07-26), ported from `comfyui-lif-nodes` — see below. **P3 (`comfyui-lif-nodes`) is next**, with P0 runnable in parallel; P2 (`Morrow`) follows once `presets/task` exists.
+**Status:** Accepted (2026-07-26). D1–D3 settled. This repo is public and CI green. **P-pre done** (2026-07-26, in `lif-studio`). **P1 done** (2026-07-26) — the core is extracted here with its tests; no consumer has cut over. **`presets/implement` done** (2026-07-26), ported from `comfyui-lif-nodes` — see below. **Architecture section accepted** (2026-07-26) and implemented: the phase layer (`src/phases/`) exists, both presets are compositions, and **`presets/task` is done** (98 tests green) — P2 is no longer blocked. Packaging revised the same day: `dist/` ships in release tags, not on `main`. **P3 (`comfyui-lif-nodes`) is next**, with P0 runnable in parallel; P2 (`Morrow`) follows. No release tag has been cut through the new workflow yet — that precedes any consumer cutover.
 
 **Owner:** Peter Yu
 
@@ -64,7 +64,7 @@ lif-sandcastle/
   src/phases/*.mts      modular stages: plan, task, review, verify, deliver (see Architecture)
   src/presets/*.mts     implement (GitHub issues), task (local state) — compositions of phases
   templates/*.md        default prompts
-  dist/                 tsc output — .mjs + .d.mts (committed; see below)
+  dist/                 tsc output — .mjs + .d.mts (in release tags only; see below)
   .github/workflows/agent.yml   on: workflow_call
 ```
 
@@ -77,7 +77,7 @@ Version skew (problem 3) is not reintroduced: the kit owns the version, and a sa
 Two details the scaffold settled:
 
 - **Output is `.mjs`, not `.js`.** `.mts` sources under `module: nodenext` emit `.mjs`. Sources stay `.mts` so P1 modules move over unchanged, and the exports map follows the emit rather than the other way round.
-- **`dist/` is committed, not built on install.** Git-URL consumers install without a registry; `npm` runs `prepare` for git deps, but the runners use `bun install`, whose `prepare`-on-git-dep handling is not something an unattended pipeline should rest on. Committing the output makes both installers behave identically. Kit CI runs `git diff --exit-code -- dist` so a stale commit fails loudly. (Also noted for P1: TS 7 does not auto-include `@types/*` — `"types": ["node"]` is required for node builtins.)
+- **`dist/` ships in release tags, not on `main`.** **Revised 2026-07-26** — originally `dist/` was committed on `main` (with CI running `git diff --exit-code -- dist` against staleness), because git-URL consumers install without a registry and the runners' `bun install` `prepare`-on-git-dep handling is not something an unattended pipeline should rest on. The premise holds — built output must be in the git tree consumers install — but it never needed to be in `main`'s history: consumers pin tags, never `#main`. So `dist/` is now gitignored on `main`, and `.github/workflows/release.yml` builds, tests, and cuts each `vX.Y.Z` tag from a commit that force-adds `dist/` (a child of `main` HEAD living only behind the tag ref). Both installers still see identical built output; `main` loses the build-artifact diff noise; and `#main` becomes uninstallable, which converts the tag-pinning rule from policy into packaging. (Also noted for P1: TS 7 does not auto-include `@types/*` — `"types": ["node"]` is required for node builtins.)
 
 ```json
 "exports": {

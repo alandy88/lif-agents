@@ -26,6 +26,7 @@ export type { TaskLoopDeps, TaskLoopResult } from "./lib/task-loop.mts";
 
 export {
   DEFAULT_PROFILE_SENTINEL,
+  describeRun,
   forwardedEnvKeys,
   MIXED_PROFILE_NAME,
   phaseProfiles,
@@ -60,4 +61,8 @@ export {
 } from "./lib/github-issue.mts";
 export type { Issue, IssueBodySource } from "./lib/github-issue.mts";
 
-// Presets (implement, task) land in ./presets and are imported by path, not re-exported.
+export { readFlag } from "./lib/cli.mts";
+
+// Phases (./phases/*) and presets (./presets/*) are imported by subpath, not
+// re-exported: a consumer picks the lifecycle it runs, or composes the stages
+// itself, and neither should arrive by importing the kit's root.

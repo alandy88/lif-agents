@@ -9,10 +9,14 @@
 // provider, and the preflight commands — are now injected as `ImplementConfig`,
 // and the prompt templates resolve through `templatePath()` so a consumer can
 // override any of them by path.
+//
+// The lifecycle stages themselves live in `../phases/`; what is left here is the
+// composition glue — guards, the issue/PR adapter, and the order the phases run
+// in.
 
 import { writeFileSync } from "node:fs";
 import { createSandbox } from "@ai-hero/sandcastle";
-import { ghCapture, ghJson, hostGit } from "../lib/host-exec.mts";
+import { hostGit } from "../lib/host-exec.mts";
 import {
   githubIssueSource,
   issueIsEpic,
@@ -28,12 +32,12 @@ import {
 } from "../lib/task-list.mts";
 import { ensureTaskList, runTaskLoop } from "../lib/task-loop.mts";
 import {
+  describeRun,
   forwardedEnvKeys,
-  MIXED_PROFILE_NAME,
   resolvePhases,
   type ResolvedPhases,
 } from "../lib/profiles.mts";
-import { defangPromptArgs } from "../lib/defang.mts";
+import { readFlag } from "../lib/cli.mts";
 import { templatePath } from "../lib/templates.mts";
 import { isEntrypoint } from "../lib/entrypoint.mts";
 import {
@@ -42,6 +46,11 @@ import {
   providerPreflight,
 } from "../lib/provider-setup.mts";
 import { renderConventions, toolchains, type Toolchain } from "../lib/toolchains.mts";
+import type { PhaseContext } from "../phases/context.mts";
+import { runPlanPhase } from "../phases/plan.mts";
+import { runTaskPhase } from "../phases/task.mts";
+import { runReviewPhase } from "../phases/review.mts";
+import { runDeliverPhase } from "../phases/deliver.mts";
 
 /**
  * The per-repo half of the pipeline — and only that half. Everything keyed off
@@ -82,15 +91,7 @@ export type CliOptions = {
   trigger?: string;
 };
 
-export function readFlag(argv: string[], name: string): string | undefined {
-  const index = argv.indexOf(name);
-  if (index === -1) return undefined;
-  const value = argv[index + 1];
-  if (value === undefined || value.startsWith("--")) {
-    throw new Error(`${name} requires a value`);
-  }
-  return value;
-}
+export { readFlag };
 
 export function parseCli(argv: string[] = process.argv.slice(2)): CliOptions {
   const rawIssue = readFlag(argv, "--issue");
@@ -141,11 +142,7 @@ export function renderNotes(raw: string): string {
   return body.length > 0 ? body : NO_NOTES_PLACEHOLDER;
 }
 
-/** One line naming the models a run uses, for logs, comments, and the PR body. */
-export function describeRun(run: ResolvedPhases): string {
-  if (run.name !== MIXED_PROFILE_NAME) return `${run.name} → ${run.phases.task.model}`;
-  return `mixed → plan ${run.phases.plan.model}, tasks ${run.phases.task.model}, review ${run.phases.review.model}`;
-}
+export { describeRun };
 
 /**
  * The PR body for a run: the issue link and model line, plus the reviewer's
@@ -186,8 +183,7 @@ export async function runIssue(
   issueSource: IssueBodySource,
 ): Promise<{ prUrl: string }> {
   const branch = `agent/issue-${issueNumber}`;
-  const prompt = (name: string) =>
-    templatePath(`implement/${name}`, { overrideDir: config.templateDir });
+  const prompt = (name: string) => templatePath(name, { overrideDir: config.templateDir });
 
   // Resume: when a prior run pushed this branch, recreate it locally from
   // origin so the sandbox continues it (and its trailers) instead of starting
@@ -219,10 +215,13 @@ export async function runIssue(
     },
   });
 
-  const agents = {
-    plan: createAgent(run.phases.plan),
-    task: createAgent(run.phases.task),
-    review: createAgent(run.phases.review),
+  // One context per phase: the sandbox, branch and template resolver are shared;
+  // only the agent differs, which is where per-phase model routing lands.
+  const shared = { sandbox, branch, prompt };
+  const ctx: Record<"plan" | "task" | "review", PhaseContext> = {
+    plan: { ...shared, agent: createAgent(run.phases.plan) },
+    task: { ...shared, agent: createAgent(run.phases.task) },
+    review: { ...shared, agent: createAgent(run.phases.review) },
   };
 
   /** Read a run artifact off the branch; absent and unreadable both read empty
@@ -231,10 +230,10 @@ export async function runIssue(
     const read = await sandbox.exec(`cat ${file} 2>/dev/null || true`);
     return read.exitCode === 0 ? read.stdout : "";
   };
+  // `BRANCH` is injected by the phase from `ctx.branch`.
   const baseArgs = {
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: issue.title,
-    BRANCH: branch,
     CONVENTIONS: renderConventions(config.toolchain, config.extraConventions),
   };
 
@@ -244,11 +243,8 @@ export async function runIssue(
   let issueBody = issue.body;
   const { tasks, planned } = await ensureTaskList(issueBody, {
     plan: async () => {
-      await sandbox.run({
-        agent: agents.plan,
-        promptFile: prompt("plan-prompt.md"),
-        promptArgs: defangPromptArgs({ ...baseArgs, ISSUE_BODY: issueBody }),
-        maxIterations: 2,
+      await runPlanPhase(ctx.plan, {
+        args: { ...baseArgs, ISSUE_BODY: issueBody },
         name: `plan-${issueNumber}`,
       });
     },
@@ -269,10 +265,8 @@ export async function runIssue(
       // Injected, not merely mentioned: a session told to "read the notes file
       // if it exists" frequently won't, which is the exact cross-session
       // amnesia the file exists to fix.
-      const taskRun = await sandbox.run({
-        agent: agents.task,
-        promptFile: prompt("task-prompt.md"),
-        promptArgs: defangPromptArgs({
+      return runTaskPhase(ctx.task, {
+        args: {
           ...baseArgs,
           ISSUE_BODY: stripTaskSection(issueBody),
           NOTES: renderNotes(await readArtifact(NOTES_FILE)),
@@ -280,11 +274,9 @@ export async function runIssue(
           TASK_COUNT: String(tasks.length),
           TASK_TEXT: task.text,
           TASK_LIST: renderTaskList(tasks, done),
-        }),
-        maxIterations: 5,
+        },
         name: `task-${issueNumber}-${index}${attempt > 1 ? "-retry" : ""}`,
       });
-      return { commits: taskRun.commits.length };
     },
     recordDone: async (index) => {
       // An empty commit carrying only the trailer (the task's work is already
@@ -328,27 +320,25 @@ export async function runIssue(
     throw new Error(detail);
   }
 
-  const review = await sandbox.run({
-    agent: agents.review,
-    promptFile: prompt("review-prompt.md"),
+  const review = await runReviewPhase(ctx.review, {
     // Full body here (not stripTaskSection): the reviewer's spec axis walks the
     // `## Tasks` checklist against the diff, so it needs the section verbatim.
-    promptArgs: defangPromptArgs({
+    args: {
       ...baseArgs,
       ISSUE_BODY: issueBody,
       NOTES: renderNotes(await readArtifact(NOTES_FILE)),
-    }),
+    },
     name: `review-${issueNumber}`,
+    summaryFile: SUMMARY_FILE,
   });
   console.log(
     `Tasks: ${result.completed.length} built, ${result.skippedDone.length} resumed; ` +
-      `review: ${review.commits.length} commit(s).`,
+      `review: ${review.commits} commit(s).`,
   );
 
-  // Harvest the reviewer's summary, then strip both artifacts — the deletion is
-  // the host's job, not an instruction the review session has to remember, so a
-  // forgetful reviewer cannot leak scratch files onto main.
-  const summary = await readArtifact(SUMMARY_FILE);
+  // Strip both artifacts — the deletion is the host's job, not an instruction
+  // the review session has to remember, so a forgetful reviewer cannot leak
+  // scratch files onto main.
   const tracked = await sandbox.exec(`git ls-files -- ${NOTES_FILE} ${SUMMARY_FILE}`);
   if (tracked.stdout.trim().length > 0) {
     await sandbox.exec(
@@ -364,32 +354,11 @@ export async function runIssue(
     throw new Error(`git push origin ${branch} exited ${push.exitCode}`);
   }
 
-  const body = renderPrBody(issueNumber, run, summary);
-  const created = await ghCapture([
-    "pr",
-    "create",
-    "--head",
+  const { prUrl } = await runDeliverPhase({
     branch,
-    "--base",
-    "main",
-    "--title",
-    `Fix #${issueNumber}: ${issue.title}`,
-    "--body",
-    body,
-  ]);
-
-  if (created.exitCode === 0) return { prUrl: created.stdout.trim() };
-
-  // gh pr create exits non-zero when a PR for the branch already exists (a
-  // re-run on the same issue); look it up, and refresh the body so a resumed
-  // run's PR describes the work as it now stands rather than as it stood when
-  // the first run stopped.
-  const prUrl = (await ghJson(["pr", "view", branch, "--json", "url", "--jq", ".url"])).trim();
-  const edited = await ghCapture(["pr", "edit", branch, "--body", body]);
-  if (edited.exitCode !== 0) {
-    console.error(`Could not refresh the PR body on ${branch}; it still describes the prior run.`);
-  }
-
+    title: `Fix #${issueNumber}: ${issue.title}`,
+    body: renderPrBody(issueNumber, run, review.summary),
+  });
   return { prUrl };
 }
 
