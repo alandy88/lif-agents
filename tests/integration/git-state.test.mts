@@ -128,6 +128,51 @@ test("a wildcard in an artifact name matches nothing rather than every sibling",
   await must(git, ["checkout", "main"]);
 });
 
+test("dropArtifacts reports the failure instead of claiming a commit", async () => {
+  // `git rm` refuses a directory without -r: exit 128, nothing staged, nothing
+  // committed. The return value has to be the exec's verdict rather than "we
+  // got as far as running it", or the caller pushes a branch it believes was
+  // cleaned. Reachable through the exported helper, hence the real-git check.
+  await must(git, ["checkout", "-b", "agent/rm-failure"]);
+  await mkdir(join(repo, "scratch"), { recursive: true });
+  await writeFile(join(repo, "scratch", "kept.md"), "keep me");
+  await must(git, ["add", "-A"]);
+  await must(git, ["commit", "-m", "scratch"]);
+  const before = (await must(git, ["rev-parse", "HEAD"])).stdout.trim();
+
+  const committed = await dropArtifacts(sandboxIn(repo), ["scratch"]);
+
+  assert.equal(committed, false, "a refused `git rm` is not a successful cleanup");
+  assert.equal((await must(git, ["rev-parse", "HEAD"])).stdout.trim(), before, "no commit landed");
+  assert.match((await must(git, ["ls-files"])).stdout, /scratch\/kept\.md/);
+  await must(git, ["checkout", "main"]);
+});
+
+test("resumeFromOrigin declines when a worktree holds the branch", async () => {
+  // The `4933566` incident shape, on the resume side: `branch --force` refuses
+  // while a worktree has the branch checked out. Reporting true there would
+  // leave the caller on a stale local ref believing it had the remote tip.
+  const origin = join(root, "held-origin.git");
+  await must(gitIn(root), ["init", "--bare", "-b", "main", origin]);
+  const writer = join(root, "held-writer");
+  await must(gitIn(root), ["clone", origin, writer]);
+  await must(gitIn(writer), ["commit", "--allow-empty", "-m", "init"]);
+  await must(gitIn(writer), ["push", "origin", "main"]);
+  await must(gitIn(writer), ["checkout", "-b", BRANCH]);
+  await must(gitIn(writer), ["commit", "--allow-empty", "-m", "task 1"]);
+  await must(gitIn(writer), ["push", "-u", "origin", BRANCH]);
+
+  const runner = join(root, "held-runner");
+  await must(gitIn(root), ["clone", origin, runner]);
+  const runnerGit = gitIn(runner);
+  await must(runnerGit, ["branch", BRANCH, `origin/${BRANCH}`]);
+  // A worktree still holding it — exactly what a preserved sandbox worktree
+  // leaves behind, and what makes `branch --force` refuse.
+  await must(runnerGit, ["worktree", "add", join(root, "held-wt"), BRANCH]);
+
+  assert.equal(await resumeFromOrigin(BRANCH, runnerGit), false);
+});
+
 test("resumeFromOrigin resets a stale local branch to origin's tip", async () => {
   const origin = join(root, "resume-origin.git");
   await must(gitIn(root), ["init", "--bare", "-b", "main", origin]);

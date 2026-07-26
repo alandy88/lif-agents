@@ -62,12 +62,18 @@ export async function syncMain(git: GitRunner = hostGit): Promise<boolean> {
  * returning whether it resumed. Without this a re-fired run starts a fresh
  * branch off main that could never fast-forward-push over the pushed one — and
  * the trailers that make up the resume set would be invisible.
+ *
+ * False covers both ways it can decline: origin has no such branch (a first
+ * run), and the reset itself failing. The second is reachable — `branch
+ * --force` refuses while a worktree holds the branch, which is precisely the
+ * preserved-worktree state the ledger preset warns about — and reporting a
+ * resume that did not happen would leave the caller on a stale local ref.
  */
 export async function resumeFromOrigin(branch: string, git: GitRunner = hostGit): Promise<boolean> {
   const originBranch = await git(["rev-parse", "--verify", "--quiet", `origin/${branch}`]);
   if (originBranch.exitCode !== 0) return false;
-  await git(["branch", "--force", branch, `origin/${branch}`]);
-  return true;
+  const reset = await git(["branch", "--force", branch, `origin/${branch}`]);
+  return reset.exitCode === 0;
 }
 
 /**
@@ -142,6 +148,11 @@ export async function commitOnBranch(
  * The `rm` and the commit stay ONE chained exec rather than reusing
  * `commitOnBranch`: split in two, a failed `rm` would still be followed by a
  * commit, leaving an orphan commit claiming a removal that never happened.
+ *
+ * The exec's exit code IS the return value, not an assumption: `git rm` refuses
+ * a directory without `-r` (exit 128, nothing changed), and a commit hook can
+ * reject the commit. Returning true regardless would tell a caller the branch
+ * is clean while the artifacts are still on it, ready to be pushed.
  */
 export async function dropArtifacts(
   sandbox: ExecSandbox,
@@ -155,11 +166,11 @@ export async function dropArtifacts(
   const list = files.map((file) => shellQuote(`:(literal)${file}`)).join(" ");
   const tracked = await sandbox.exec(`git ls-files -- ${list}`);
   if (tracked.stdout.trim().length === 0) return false;
-  await sandbox.exec(
+  const removed = await sandbox.exec(
     // -f: the session that produced an artifact may have left it dirty in the
     // worktree, and a plain `git rm` refuses on modified files.
     `git rm -q -f --ignore-unmatch ${list} && ` +
       `git ${BOT_IDENTITY} commit -m 'chore(agent): drop run artifacts'`,
   );
-  return true;
+  return removed.exitCode === 0;
 }
