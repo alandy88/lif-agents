@@ -1,17 +1,22 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { type Issue } from "../lib/github-issue.mts";
+import { type Issue, type IssueBodySource } from "../lib/github-issue.mts";
 import {
   main,
   NO_NOTES_PLACEHOLDER,
   parseCli,
   renderNotes,
   renderPrBody,
+  runIssue,
   type MainDeps,
 } from "./implement.mts";
 import { MIXED_PROFILE_NAME, resolvePhases } from "../lib/profiles.mts";
+import type { RunSession } from "../lib/run.mts";
+import type { PhaseRunOptions, PhaseSandbox } from "../phases/context.mts";
 
 function makeDeps(overrides: {
   issue?: Partial<Issue>;
@@ -165,6 +170,118 @@ for (const [file, supplied] of Object.entries(SUPPLIED)) {
     assert.deepEqual(missing, [], `unsupplied placeholders in ${file}`);
   });
 }
+
+/**
+ * A `RunSession` that records what runIssue asked of the sandbox. Every agent
+ * session reports zero commits; `exec` answers from `replies` (first matching
+ * substring wins) and otherwise reads empty, exit 0.
+ */
+function fakeSession(branch: string, replies: Record<string, string> = {}) {
+  const runs: PhaseRunOptions[] = [];
+  const execs: string[] = [];
+  const sandbox: PhaseSandbox = {
+    run: async (options) => {
+      runs.push(options);
+      return { commits: [] };
+    },
+    exec: async (command) => {
+      execs.push(command);
+      const hit = Object.entries(replies).find(([needle]) => command.includes(needle));
+      return { stdout: hit?.[1] ?? "", exitCode: 0 };
+    },
+  };
+  const session: RunSession = {
+    ctx: (phase) => ({
+      sandbox,
+      branch,
+      agent: { phase },
+      prompt: (name) => `templates/${name}`,
+    }),
+    exec: (command) => sandbox.exec(command),
+    close: async () => ({}),
+    [Symbol.asyncDispose]: async () => {},
+  };
+  return { session, runs, execs };
+}
+
+function fakeIssueSource(issue: Issue, comments: string[]): IssueBodySource {
+  return {
+    getIssue: async () => issue,
+    comment: async (_issueNumber, body) => {
+      comments.push(body);
+    },
+    setBody: async () => {},
+  };
+}
+
+const RUN = resolvePhases({ labels: ["agent:claude"] });
+const CONFIG = { toolchain: "node" } as const;
+
+// The most consequential branch in the preset, and the one the guard-level tests
+// cannot reach: a task that makes no commits even after its retry must stop the
+// run, say so on the issue, and open NO PR — completed work stays pushed on the
+// branch for the next run to resume from.
+test("a task stuck after its retry is reported on the issue and opens no PR", async () => {
+  const issue: Issue = {
+    title: "Fix the widget",
+    body: "It is broken.\n\n## Tasks\n\n- [ ] narrow the leak\n- [ ] add a regression test\n",
+    state: "OPEN",
+    labels: [],
+  };
+  const comments: string[] = [];
+  const { session, runs } = fakeSession("agent/issue-9001");
+
+  await assert.rejects(
+    runIssue(CONFIG, RUN, 9001, issue, fakeIssueSource(issue, comments), async () => session),
+    /made no commits after a retry/,
+  );
+
+  assert.equal(comments.length, 1);
+  assert.match(comments[0]!, /^Task 1\/2 \("narrow the leak"\) made no commits after a retry\./);
+  assert.match(comments[0]!, /Completed this run: 0; remaining unbuilt: 1/);
+  assert.match(comments[0]!, /pushed on `agent\/issue-9001`/);
+  // The task attempt plus its retry, and nothing else: no review session runs
+  // past a stuck task, so no summary and no PR body can be produced.
+  assert.equal(runs.length, 2);
+  assert.deepEqual(
+    runs.map((options) => options.name),
+    ["task-9001-1", "task-9001-1-retry"],
+  );
+});
+
+// The artifact strip is deliberately the host's job rather than an instruction
+// the review session has to remember — a forgetful reviewer must not be able to
+// leak scratch files onto main. Nothing asserted it.
+test("run artifacts are git rm'd and committed before the PR", async () => {
+  const issue: Issue = {
+    title: "Fix the widget",
+    body: "## Tasks\n\n- [x] narrow the leak\n",
+    state: "OPEN",
+    labels: [],
+  };
+  const { session, execs } = fakeSession("agent/issue-9002", {
+    "git ls-files": "AGENT_NOTES.md\nAGENT_SUMMARY.md\n",
+  });
+
+  // Run from a non-repo cwd so the host `git push` that follows the strip fails
+  // deterministically (and reaches no network): the strip is what we assert, and
+  // the rejection proves delivery was never attempted.
+  const cwd = process.cwd();
+  process.chdir(mkdtempSync(join(tmpdir(), "sandcastle-kit-")));
+  try {
+    await assert.rejects(
+      runIssue(CONFIG, RUN, 9002, issue, fakeIssueSource(issue, []), async () => session),
+      /git push origin agent\/issue-9002 exited/,
+    );
+  } finally {
+    process.chdir(cwd);
+  }
+
+  const strip = execs.find((command) => command.includes("git rm"))!;
+  assert.ok(strip, "the host never issued the artifact strip");
+  assert.match(strip, /git rm -q -f --ignore-unmatch AGENT_NOTES\.md AGENT_SUMMARY\.md/);
+  assert.match(strip, /commit -m 'chore\(agent\): drop run artifacts'/);
+});
 
 test("the default templates no longer name a repo toolchain", () => {
   // The whole point of {{CONVENTIONS}}: a kit default that says `uv run` has

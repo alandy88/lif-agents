@@ -11,6 +11,11 @@ export { isEntrypoint } from "./lib/entrypoint.mts";
 export { renderConventions, toolchains } from "./lib/toolchains.mts";
 export type { Toolchain, ToolchainSpec } from "./lib/toolchains.mts";
 
+export type { RepoConfig } from "./lib/repo-config.mts";
+
+export { assemblePreflight, openRun } from "./lib/run.mts";
+export type { RunSession } from "./lib/run.mts";
+
 export {
   checkOffTask,
   parseTaskDoneTrailers,

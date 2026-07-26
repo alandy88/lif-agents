@@ -26,6 +26,9 @@ const DECLARATIONS = [
   "phases/review.d.mts",
   "phases/verify.d.mts",
   "phases/deliver.d.mts",
+  // The run scaffold: it CALLS createSandbox, so its declaration is the one most
+  // likely to grow a sandcastle type by accident.
+  "lib/run.d.mts",
 ];
 
 for (const file of DECLARATIONS) {
