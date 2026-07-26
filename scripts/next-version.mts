@@ -59,7 +59,11 @@ export function classify(messages: readonly string[]): Impact {
 export function bump(version: string, impact: Impact): string {
   const parts = version.split(".").map(Number);
   const [major = 0, minor = 0, patch = 0] = parts;
-  if (parts.length !== 3 || parts.some((n) => !Number.isInteger(n) || n < 0)) {
+  // Safe, not merely integer: `Number("999999999999999999999999")` is 1e+24,
+  // which IS an integer, and this guard used to wave it through and return the
+  // string `1e+24.0.1`. `TAG_FORM` now bounds discovered tags, but this function
+  // is exported and reachable on its own, so it checks what it actually needs.
+  if (parts.length !== 3 || parts.some((n) => !Number.isSafeInteger(n) || n < 0)) {
     throw new Error(`not a semver version: ${version}`);
   }
   if (major === 0) {

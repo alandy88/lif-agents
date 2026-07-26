@@ -69,10 +69,19 @@ jobs:
       # having created nothing is the worst of the three outcomes. So the derived
       # path skips quietly (the newer run covers this commit) and the explicit
       # path stops loudly, telling the operator what to do about it.
+      #
+      # The input reaches the shell as an environment variable, never as `${{ }}`
+      # inside `run:`. GitHub substitutes those expressions into the script TEXT
+      # before bash parses it, so a dispatch of `$(...)` would execute inside the
+      # quoted echo — with `contents: write` and the release token, and before the
+      # regex in next-version.mts ever sees the value. Every other step here
+      # already passes dispatch input through `env:`; this one was the exception.
       - name: reject a stale explicit dispatch
         if: inputs.version != '' && steps.check.outputs.stale == 'true'
+        env:
+          EXPLICIT: ${{ inputs.version }}
         run: |
-          echo "::error::main advanced past this run's commit, so ${{ inputs.version }} would tag superseded code. Re-dispatch from the current tip of main."
+          echo "::error::main advanced past this run's commit, so $EXPLICIT would tag superseded code. Re-dispatch from the current tip of main."
           exit 1
 
       - name: decide the version

@@ -52,6 +52,15 @@ test("bump rejects a version it cannot parse rather than emitting NaN", () => {
   assert.throws(() => bump("0.0.0-development", "fix"), /not a semver/);
 });
 
+test("bump rejects a component too large to be exact, not just any non-integer", () => {
+  // `Number("999999999999999999999999")` is 1e+24 and IS an integer, so an
+  // isInteger guard waved it through and returned the string `1e+24.0.1`, which
+  // `npm version` then rejects. TAG_FORM keeps such tags out of discovery, but
+  // this function is exported and reachable on its own.
+  assert.throws(() => bump("999999999999999999999999.0.0", "fix"), /not a semver/);
+  assert.throws(() => bump("9007199254740993.0.0", "fix"), /not a semver/);
+});
+
 test("an explicit tag must be well-formed and must move forward", () => {
   assert.equal(resolveExplicit("v0.3.0", "v0.2.3"), "0.3.0");
   assert.throws(() => resolveExplicit("0.3.0", "v0.2.3"), /must look like/);

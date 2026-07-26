@@ -24,8 +24,29 @@ import type { GitRunner } from "../src/lib/branch.mts";
  * The strict form a release tag must take. Shared with `next-version.mts`,
  * which holds an operator's explicit version to the same rule: a tag that would
  * be derived from has to be a tag that can be derived from.
+ *
+ * Each component is bounded rather than `[0-9]+`, and rejects leading zeros,
+ * because "parses as a number" is not the same as "npm can version it". A tag
+ * that passes here becomes the BASELINE the next release is bumped from, so
+ * every way `Number` can quietly misread one is a way to strand releases:
+ *
+ * - `v999999999999999999999999.0.0` -> `Number` gives 1e+24, which is an
+ *   integer, so `bump` accepts it and returns the string `1e+24.0.1`. The later
+ *   `npm version` rejects that, and every automatic release stays blocked until
+ *   somebody deletes the tag.
+ * - `v9007199254740993.0.0` -> past 2^53 the value rounds DOWN by one, so the
+ *   bump derives from a version that is not the tag it read.
+ * - `v01.0.0` -> the worst of the three, because it fails silently: it bumps to
+ *   `1.0.1`, which may already exist. SemVer forbids leading zeros for exactly
+ *   this reason.
+ *
+ * 15 digits keeps every component inside `Number.MAX_SAFE_INTEGER`. Bounding it
+ * HERE rather than throwing in `bump` is what the `v1` fix established: a tag
+ * that is not a release tag should be filtered out of discovery and ignored, not
+ * turned into a fatal error that blocks the releases it has nothing to do with.
  */
-export const TAG_FORM = /^v[0-9]+\.[0-9]+\.[0-9]+$/;
+const COMPONENT = "(0|[1-9][0-9]{0,14})";
+export const TAG_FORM = new RegExp(`^v${COMPONENT}\\.${COMPONENT}\\.${COMPONENT}$`);
 
 /**
  * The newest release tag, or `null` when none exists yet.

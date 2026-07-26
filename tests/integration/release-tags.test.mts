@@ -70,6 +70,26 @@ test("non-release tags are skipped, even when they sort above every release", as
   assert.equal(await lastReleaseTag(git), "v0.10.0");
 });
 
+test("a tag npm could not version is skipped, digits or not", async () => {
+  // These all parse as three numbers, which is why the shape alone is not the
+  // rule. Each becomes the BASELINE the next release bumps from, and each fails
+  // differently: 1e24 makes bump() emit the string `1e+24.0.1` that `npm
+  // version` rejects, 2^53+1 rounds DOWN by one so the bump derives from a
+  // version that is not the tag, and `v01.0.0` is the quiet one — it bumps to
+  // `1.0.1`, a version that may already exist.
+  const fresh = join(root, "unversionable-tags");
+  await must(gitIn(root), ["init", "-b", "main", fresh]);
+  const git = gitIn(fresh);
+  await must(git, ["commit", "--allow-empty", "-m", "root"]);
+  await must(git, ["tag", "v0.1.0"]);
+  for (const stray of ["v999999999999999999999999.0.0", "v9007199254740993.0.0", "v01.0.0"]) {
+    await must(git, ["tag", stray]);
+  }
+  const listed = await must(git, ["tag", "--list", "v[0-9]*", "--sort=-v:refname"]);
+  assert.ok(!listed.stdout.startsWith("v0.1.0\n"), "setup: a stray should sort above the release");
+  assert.equal(await lastReleaseTag(git), "v0.1.0");
+});
+
 test("no tags at all reads as absent, not as a v0.0.0 that could be logged", async () => {
   // null rather than "v0.0.0": the caller uses this as a git revision as well
   // as a version, and `git log v0.0.0..HEAD` against a tag that does not exist
