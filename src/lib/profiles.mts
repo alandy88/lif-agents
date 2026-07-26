@@ -13,12 +13,13 @@ export type ModelProfile = {
 export const profiles = {
   claude: {
     provider: "claude",
-    model: "claude-sonnet-4-6",
+    model: "claude-opus-5",
+    effort: "medium",
   },
   gpt: {
     provider: "codex",
-    model: "gpt-5.4",
-    effort: "high",
+    model: "gpt-5.6-sol",
+    effort: "medium",
   },
 } as const satisfies Record<string, ModelProfile>;
 
@@ -26,9 +27,9 @@ export type Phase = "plan" | "task" | "review";
 
 /** Opus plans/reviews and Codex builds unless a named profile is forced. */
 export const phaseProfiles = {
-  plan: { provider: "claude", model: "claude-opus-4-8", effort: "medium" },
+  plan: { provider: "claude", model: "claude-opus-5", effort: "medium" },
   task: { provider: "codex", model: "gpt-5.6-sol", effort: "medium" },
-  review: { provider: "claude", model: "claude-opus-4-8", effort: "medium" },
+  review: { provider: "claude", model: "claude-opus-5", effort: "medium" },
 } as const satisfies Record<Phase, ModelProfile>;
 
 export type ProfileName = keyof typeof profiles;
