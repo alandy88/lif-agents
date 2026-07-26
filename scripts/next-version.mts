@@ -130,7 +130,13 @@ export function lastReleaseTag(run: GitRunner = git): string | null {
   const tags = run(["tag", "--list", "v[0-9]*", "--sort=-v:refname"])
     .split("\n")
     .map((tag) => tag.trim())
-    .filter((tag) => tag.length > 0);
+    // `TAG_FORM`, the same rule an explicit version is held to — the glob is
+    // only a cheap prefilter and admits plenty that is not a release: a moving
+    // `v1` major alias (which this repo invites, since consumers reference
+    // .github/workflows/agent.yml by tag), a `v0.3.0-rc.1`, a `v0.2-backup`.
+    // Version sort puts `v1` FIRST, and `bump("1")` throws on it, so one stray
+    // tag would block every automatic release from then on.
+    .filter((tag) => TAG_FORM.test(tag));
   return tags[0] ?? null;
 }
 

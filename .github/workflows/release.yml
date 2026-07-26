@@ -60,7 +60,15 @@ jobs:
           # never reachable from main (the release commit below is an unmerged
           # child of it, and only the tag ref is pushed), so ancestry-based
           # lookup finds nothing and would restart the derivation at v0.0.0.
-          LAST=$(git tag --list 'v[0-9]*' --sort=-v:refname | head -n 1)
+          # The grep is not redundant with the glob: `v[0-9]*` also matches a
+          # moving `v1` major alias, a `v0.3.0-rc.1` and a `v0.2-backup`, and
+          # version sort puts `v1` first. Deriving from one of those blocks
+          # every later release, so hold tags to the same strict form an
+          # explicit version is held to.
+          # `|| true` because grep exits non-zero when nothing matches, which is
+          # the ordinary first-release case, not an error.
+          LAST=$(git tag --list 'v[0-9]*' --sort=-v:refname \
+                 | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1 || true)
           echo "last=$LAST" >> "$GITHUB_OUTPUT"
           if [ -z "$LAST" ]; then
             echo "No release tag yet — releasing." >> "$GITHUB_STEP_SUMMARY"
@@ -74,9 +82,13 @@ jobs:
           # template edit is as consumer-visible as a code change and ships with
           # no dist/ diff at all.
           #
-          # dist/ is force-added because it is gitignored on main; that also
-          # leaves it staged for the release commit below.
-          git add -f dist templates
+          # Only dist/ is staged, and only because it is gitignored on main —
+          # that also leaves it staged for the release commit below. templates/
+          # is tracked, so the index already carries whatever the merge did to
+          # it, including deleting the directory outright; naming it here would
+          # instead abort the gate with "pathspec 'templates' did not match any
+          # files" on exactly that change.
+          git add -f dist
           if ! git diff --cached --quiet "$LAST" -- dist templates; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
             exit 0
@@ -145,8 +157,14 @@ jobs:
       - name: publish notes for the newest tag
         env:
           GH_TOKEN: ${{ github.token }}
+          CUT: ${{ steps.version.outputs.version }}
+          LAST: ${{ steps.check.outputs.last }}
         run: |
-          TAG=$(git tag --list 'v[0-9]*' --sort=-v:refname | head -n 1)
+          # The tag this run cut, or the newest one it found. Taken from the
+          # earlier steps rather than re-queried, so the strict tag rule lives
+          # in one place per language instead of three.
+          TAG="${CUT:+v$CUT}"
+          TAG="${TAG:-$LAST}"
           if [ -z "$TAG" ]; then
             echo "No tags yet — nothing to publish."
             exit 0

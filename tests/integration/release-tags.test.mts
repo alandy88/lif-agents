@@ -64,6 +64,20 @@ test("the sort is numeric, not lexical", async () => {
   assert.equal(lastReleaseTag(() => listed.stdout), "v0.10.0");
 });
 
+test("non-release tags are skipped, even when they sort above every release", async () => {
+  // `v[0-9]*` is only a prefilter. A moving `v1` major alias is the realistic
+  // one here — consumers reference .github/workflows/agent.yml by tag — and
+  // version sort puts it FIRST, ahead of every real release. Deriving from it
+  // would throw in bump() and block automatic releases from then on.
+  const git = gitIn(repo);
+  for (const stray of ["v1", "v0.99.0-rc.1", "v0.99-backup"]) {
+    await must(git, ["tag", stray]);
+  }
+  const listed = await must(git, LIST_TAGS);
+  assert.ok(listed.stdout.includes("v1\n"), "setup: the stray tag should be listed");
+  assert.equal(lastReleaseTag(() => listed.stdout), "v0.10.0");
+});
+
 test("no tags at all reads as absent, not as a v0.0.0 that could be logged", () => {
   // null rather than "v0.0.0": the caller uses this as a git revision as well
   // as a version, and `git log v0.0.0..HEAD` against a tag that does not exist
