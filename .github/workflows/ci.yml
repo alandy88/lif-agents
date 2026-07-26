@@ -27,3 +27,15 @@ jobs:
       - run: npm run build
       - run: npm test
       - run: npm run test:integration
+      # `npm ci` fails on a lockfile that disagrees with package.json, but not on
+      # one that is merely stale against the registry — a dependency edit that
+      # forgot to regenerate it lands green and rewrites the tracked file on the
+      # next routine install. Commit 328db55 was exactly that, found in review
+      # rather than by CI.
+      - name: lockfile tracks the manifest
+        run: |
+          npm install --package-lock-only
+          if ! git diff --exit-code -- package-lock.json; then
+            echo "::error::run 'npm install --package-lock-only' and commit the result"
+            exit 1
+          fi

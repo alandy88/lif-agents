@@ -1,6 +1,6 @@
 {
   "name": "@lif/sandcastle-kit",
-  "version": "0.2.3",
+  "version": "0.0.0-development",
   "description": "Repo-agnostic agent-orchestration engine for sandcastle pipelines.",
   "type": "module",
   "license": "UNLICENSED",
@@ -23,8 +23,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "prepare": "npm run build",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --experimental-strip-types --test \"src/**/*.test.mts\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.scripts.json",
+    "test": "node --experimental-strip-types --test \"src/**/*.test.mts\" \"scripts/**/*.test.mts\"",
     "test:integration": "node --experimental-strip-types --test \"tests/integration/**/*.test.mts\""
   },
   "dependencies": {

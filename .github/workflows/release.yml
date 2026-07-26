@@ -1,17 +1,36 @@
 name: release
 
-# Cuts a version tag whose commit contains the built dist/ (gitignored on
-# main). Consumers pin these tags (`npm i -D github:alandy88/lif-sandcastle#vX.Y.Z`),
+# Cuts a version tag whose commit carries both the built dist/ and the stamped
+# version. Consumers pin these tags (`npm i -D github:alandy88/lif-sandcastle#vX.Y.Z`),
 # so the tag — not main — is the installable artifact. The release commit is a
 # child of main HEAD that exists only behind the tag ref; main itself stays
 # clean and is deliberately NOT installable.
+#
+# The version is a property of the release, not of main. `package.json` on main
+# reads `0.0.0-development` and is never bumped by a PR or by this workflow —
+# only the release commit carries a real version. That is semantic-release's
+# model, and it is what keeps a bot from ever having to push to a protected
+# main. See README, "Why `dist/` ships in release tags".
+#
+# Release test: did `dist/` change? NOT: did a commit subject say `feat`. A
+# subject is a claim about intent and `bb2f75a` proved it can be silent about a
+# change every consumer feels; the built output cannot. Commit types still pick
+# how big the bump is — see scripts/next-version.mts.
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       version:
-        description: "Tag to cut, e.g. v0.2.0"
-        required: true
+        description: "Explicit tag, e.g. v0.3.0. Leave empty to derive from the commits."
+        required: false
+
+# Two merges seconds apart must not race for the same version or tag. Never
+# cancel: a half-run release has already pushed a tag.
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
@@ -20,32 +39,71 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # tags and full log — the version is derived from both
       - uses: actions/setup-node@v4
         with:
           node-version: "24" # same floor as ci.yml (tests run off src/)
-      - name: validate version
-        env:
-          VERSION: ${{ inputs.version }}
-        run: |
-          [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "version must look like v1.2.3"; exit 1; }
-          if git ls-remote --exit-code --tags origin "refs/tags/$VERSION" >/dev/null 2>&1; then
-            echo "tag $VERSION already exists"; exit 1
-          fi
-          # The manifest version is what npm ls reports to consumers — bump it
-          # on main before cutting the tag so the two never disagree.
-          PKG="v$(node -p "require('./package.json').version")"
-          [[ "$VERSION" == "$PKG" ]] || { echo "tag $VERSION != package.json $PKG — bump package.json first"; exit 1; }
+
       - run: npm ci
       - run: npm run typecheck
-      - run: npm test
+      # Before the tests, not after: boundary.test.mts reads dist/*.d.mts. This
+      # is also the artifact the release decision below is made against.
       - run: npm run build
-      - name: tag with dist
+      - run: npm test
+      - run: npm run test:integration
+
+      - name: is there anything to release?
+        id: check
+        run: |
+          LAST=$(git describe --tags --match 'v[0-9]*' --abbrev=0 2>/dev/null || echo "")
+          echo "last=$LAST" >> "$GITHUB_OUTPUT"
+          if [ -z "$LAST" ]; then
+            echo "No release tag yet — releasing." >> "$GITHUB_STEP_SUMMARY"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Force-added because dist/ is gitignored on main; this also leaves it
+          # staged for the release commit below. Comparing the index against the
+          # tag asks the only question that matters: would a consumer installing
+          # the next tag receive different bytes?
+          git add -f dist
+          if git diff --cached --quiet "$LAST" -- dist; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "dist/ is unchanged since $LAST — no release." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: decide the version
+        id: version
+        # An explicit dispatch releases even when dist/ is unchanged: naming a
+        # version is a deliberate act (marking a milestone, re-cutting a tag),
+        # and the artifact test exists to catch silence, not to overrule intent.
+        if: steps.check.outputs.changed == 'true' || inputs.version != ''
         env:
-          VERSION: ${{ inputs.version }}
+          EXPLICIT: ${{ inputs.version }}
+          LAST_TAG: ${{ steps.check.outputs.last }}
+        run: node --experimental-strip-types scripts/next-version.mts
+
+      - name: stamp, tag and release
+        if: steps.version.outputs.version != ''
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -f dist
-          git commit -m "release $VERSION: build dist/"
-          git tag "$VERSION"
-          git push origin "refs/tags/$VERSION"
+          # --no-git-tag-version: npm writes package.json and package-lock.json
+          # and touches git not at all. The commit below is this workflow's, and
+          # it is never pushed to main — only the tag ref leaves this runner.
+          npm version --no-git-tag-version "$VERSION"
+          git add -f dist package.json package-lock.json
+          git commit -m "release v$VERSION: stamp version, build dist/"
+          git tag "v$VERSION"
+          git push origin "refs/tags/v$VERSION"
+          # --verify-tag: fail rather than invent a tag if the push above did not
+          # land. --generate-notes gives consumers a diff summary at the tag,
+          # which is the only place a pinning consumer looks.
+          gh release create "v$VERSION" --verify-tag --generate-notes
+          echo "Released [v$VERSION](https://github.com/${GITHUB_REPOSITORY}/releases/tag/v$VERSION)." >> "$GITHUB_STEP_SUMMARY"
