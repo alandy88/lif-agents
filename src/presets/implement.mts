@@ -16,7 +16,14 @@
 
 import { writeFileSync } from "node:fs";
 import { createSandbox } from "@ai-hero/sandcastle";
-import { hostGit } from "../lib/host-exec.mts";
+import {
+  commitOnBranch,
+  dropArtifacts,
+  logSince,
+  push,
+  pushCheckpoint,
+  resumeFromOrigin,
+} from "../lib/branch.mts";
 import {
   githubIssueSource,
   issueIsEpic,
@@ -125,11 +132,6 @@ const MAX_TASKS = 12;
 const NOTES_FILE = "AGENT_NOTES.md";
 const SUMMARY_FILE = "AGENT_SUMMARY.md";
 
-/** Git identity for the host-issued commits; the sandbox has no global one. */
-const BOT_IDENTITY =
-  `-c user.name='sandcastle-agent[bot]' ` +
-  `-c user.email='sandcastle-agent[bot]@users.noreply.github.com'`;
-
 /**
  * What a session sees in place of an absent or empty notes file. Stated rather
  * than blank: an empty `<notes>` block reads as "notes were not kept", which
@@ -190,13 +192,8 @@ export async function runIssue(
   // Resume: when a prior run pushed this branch, recreate it locally from
   // origin so the sandbox continues it (and its trailers) instead of starting
   // a fresh branch that could never fast-forward-push.
-  const originBranch = await hostGit(["rev-parse", "--verify", "--quiet", `origin/${branch}`]);
-  if (originBranch.exitCode === 0) {
-    await hostGit(["branch", "--force", branch, `origin/${branch}`]);
-  }
-  const trailerLog = await hostGit(["log", `origin/main..${branch}`]);
-  const done =
-    trailerLog.exitCode === 0 ? parseTaskDoneTrailers(trailerLog.stdout) : new Set<number>();
+  await resumeFromOrigin(branch);
+  const done = parseTaskDoneTrailers(await logSince(branch));
 
   // Toolchain warm-up, then repo extras, then provider auth — the donor's
   // order, and the one that fails on a missing toolchain before it fails on a
@@ -282,12 +279,10 @@ export async function runIssue(
     },
     recordDone: async (index) => {
       // An empty commit carrying only the trailer (the task's work is already
-      // committed by the session). Identity is pinned inline; the sandbox has no
-      // global git identity of its own.
-      await sandbox.exec(
-        `git ${BOT_IDENTITY} ` +
-          `commit --allow-empty -m 'chore(tasks): complete task ${index}' --trailer '${taskDoneTrailer(index)}'`,
-      );
+      // committed by the session).
+      await commitOnBranch(sandbox, `chore(tasks): complete task ${index}`, {
+        trailer: taskDoneTrailer(index),
+      });
     },
     checkOff: async (index) => {
       // Display only — the trailer above is the durable state, so a gh hiccup
@@ -299,13 +294,10 @@ export async function runIssue(
         console.error(`Could not check off task ${index} on the issue: ${errorMessage(error)}`);
       }
     },
+    // Mid-loop push is the crash-resilience push; the terminal push below still
+    // throws, so a transient failure here only narrows the checkpoint.
     pushBranch: async () => {
-      const push = await hostGit(["push", "-u", "origin", branch]);
-      if (push.exitCode !== 0) {
-        // Mid-loop push is the crash-resilience push; the terminal push below
-        // still throws, so a transient failure here only narrows the checkpoint.
-        console.error(`Mid-loop git push origin ${branch} exited ${push.exitCode}; continuing.`);
-      }
+      await pushCheckpoint(branch);
     },
     log: (message) => console.log(message),
   });
@@ -341,20 +333,9 @@ export async function runIssue(
   // Strip both artifacts — the deletion is the host's job, not an instruction
   // the review session has to remember, so a forgetful reviewer cannot leak
   // scratch files onto main.
-  const tracked = await sandbox.exec(`git ls-files -- ${NOTES_FILE} ${SUMMARY_FILE}`);
-  if (tracked.stdout.trim().length > 0) {
-    await sandbox.exec(
-      // -f: the review session may have left an artifact dirty in the worktree,
-      // and a plain `git rm` refuses on modified files.
-      `git rm -q -f --ignore-unmatch ${NOTES_FILE} ${SUMMARY_FILE} && ` +
-        `git ${BOT_IDENTITY} commit -m 'chore(agent): drop run artifacts'`,
-    );
-  }
+  await dropArtifacts(sandbox, [NOTES_FILE, SUMMARY_FILE]);
 
-  const push = await hostGit(["push", "-u", "origin", branch]);
-  if (push.exitCode !== 0) {
-    throw new Error(`git push origin ${branch} exited ${push.exitCode}`);
-  }
+  await push(branch);
 
   const { prUrl } = await deliverPullRequest({
     branch,

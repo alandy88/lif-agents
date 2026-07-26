@@ -1,10 +1,13 @@
-// The task loop's preflight is `git pull --ff-only origin main` and it treats
-// a non-zero exit as "main diverged, stop before spending tokens". That
-// reading is an assumption about git, not about kit code — pin it here.
+// The task loop's preflight is `syncMain()`, whose whole contract is that a
+// clean fast-forward reads true and a diverged main reads false — "stop before
+// spending tokens". Run the real function against real clones: the kit code and
+// the git behaviour it depends on are pinned together, which a hand-rolled
+// `git pull` here would not do.
 
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";
+import { syncMain } from "../../src/lib/branch.mts";
 import { gitIn, makeTempRoot, must, removeTempRoot } from "./helpers.mts";
 
 let root: string;
@@ -30,14 +33,12 @@ before(async () => {
 
 after(() => removeTempRoot(root));
 
-test("a clean clone behind origin fast-forwards: exit 0", async () => {
-  const pull = await gitIn(join(root, "behind"))(["pull", "--ff-only", "origin", "main"]);
-  assert.equal(pull.exitCode, 0);
+test("a clean clone behind origin fast-forwards: syncMain true", async () => {
+  assert.equal(await syncMain(gitIn(join(root, "behind"))), true);
 });
 
-test("a diverged main refuses to fast-forward: non-zero exit", async () => {
+test("a diverged main refuses to fast-forward: syncMain false", async () => {
   const git = gitIn(join(root, "diverged"));
   await must(git, ["commit", "--allow-empty", "-m", "local divergence"]);
-  const pull = await git(["pull", "--ff-only", "origin", "main"]);
-  assert.notEqual(pull.exitCode, 0);
+  assert.equal(await syncMain(git), false);
 });
