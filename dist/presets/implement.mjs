@@ -71,6 +71,8 @@ import { forwardedEnvKeys, MIXED_PROFILE_NAME, resolvePhases, } from "../lib/pro
 import { defangPromptArgs } from "../lib/defang.mjs";
 import { templatePath } from "../lib/templates.mjs";
 import { isEntrypoint } from "../lib/entrypoint.mjs";
+import { createAgent, createSandboxProvider, providerPreflight, } from "../lib/provider-setup.mjs";
+import { renderConventions, toolchains } from "../lib/toolchains.mjs";
 export function readFlag(argv, name) {
     const index = argv.indexOf(name);
     if (index === -1)
@@ -170,21 +172,27 @@ export async function runIssue(config, run, issueNumber, issue, issueSource) {
         }
         const trailerLog = await hostGit(["log", `origin/main..${branch}`]);
         const done = trailerLog.exitCode === 0 ? parseTaskDoneTrailers(trailerLog.stdout) : new Set();
+        // Toolchain warm-up, then repo extras, then provider auth — the donor's
+        // order, and the one that fails on a missing toolchain before it fails on a
+        // missing credential.
+        const preflight = [
+            ...toolchains[config.toolchain].preflight,
+            ...(config.preflight?.() ?? []),
+            ...providerPreflight(Object.values(run.phases)),
+        ];
         const sandbox = __addDisposableResource(env_1, await createSandbox({
             branch,
-            sandbox: config.createSandboxProvider(),
+            sandbox: createSandboxProvider(),
             hooks: {
                 sandbox: {
-                    onSandboxReady: config.preflightCommands(Object.values(run.phases)).map((command) => ({
-                        command,
-                    })),
+                    onSandboxReady: preflight.map((command) => ({ command })),
                 },
             },
         }), true);
         const agents = {
-            plan: config.createAgent(run.phases.plan),
-            task: config.createAgent(run.phases.task),
-            review: config.createAgent(run.phases.review),
+            plan: createAgent(run.phases.plan),
+            task: createAgent(run.phases.task),
+            review: createAgent(run.phases.review),
         };
         /** Read a run artifact off the branch; absent and unreadable both read empty
          *  (`|| true` keeps a missing file from surfacing as a failed exec). */
@@ -196,8 +204,7 @@ export async function runIssue(config, run, issueNumber, issue, issueSource) {
             ISSUE_NUMBER: String(issueNumber),
             ISSUE_TITLE: issue.title,
             BRANCH: branch,
-            CONVENTIONS: config.conventions,
-            VERIFY: config.verify,
+            CONVENTIONS: renderConventions(config.toolchain, config.extraConventions),
         };
         // Ensure the checklist, running the planner session when the body lacks one.
         // The planner edits the issue body itself via gh (it holds GH_TOKEN); the

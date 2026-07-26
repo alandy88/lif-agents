@@ -12,7 +12,6 @@
 
 import { writeFileSync } from "node:fs";
 import { createSandbox } from "@ai-hero/sandcastle";
-import type { AgentProvider, SandboxProvider } from "@ai-hero/sandcastle";
 import { ghCapture, ghJson, hostGit } from "../lib/host-exec.mts";
 import {
   githubIssueSource,
@@ -32,32 +31,46 @@ import {
   forwardedEnvKeys,
   MIXED_PROFILE_NAME,
   resolvePhases,
-  type ModelProfile,
   type ResolvedPhases,
 } from "../lib/profiles.mts";
 import { defangPromptArgs } from "../lib/defang.mts";
 import { templatePath } from "../lib/templates.mts";
 import { isEntrypoint } from "../lib/entrypoint.mts";
+import {
+  createAgent,
+  createSandboxProvider,
+  providerPreflight,
+} from "../lib/provider-setup.mts";
+import { renderConventions, toolchains, type Toolchain } from "../lib/toolchains.mts";
 
 /**
- * The per-repo half of the pipeline — everything the preset cannot know. This
- * is what a consumer's `.sandcastle/config.mts` is.
+ * The per-repo half of the pipeline — and only that half. Everything keyed off
+ * `profile.provider` (agent construction, credential materialization, the CLI
+ * smoke check) is the kit's, because a consumer writing it would be copying the
+ * same block into every repo. What is left here cannot be written without
+ * naming this repo's package manager or test command, which is exactly the
+ * PRD's module-boundary test.
  */
 export interface ImplementConfig {
-  /** Build the agent for one resolved phase profile (claude / codex / …). */
-  createAgent: (profile: ModelProfile) => AgentProvider;
-  /** The sandbox provider, e.g. `docker()`. */
-  createSandboxProvider: () => SandboxProvider;
-  /** Commands run inside the sandbox once ready, before the first agent turn. */
-  preflightCommands: (profiles: readonly ModelProfile[]) => string[];
   /**
-   * The repo's toolchain rules, injected as `{{CONVENTIONS}}` — the test, lint,
-   * and formatting commands a session must run before committing. This is the
-   * one place the kit's default templates name a package manager.
+   * This repo's toolchain. Picking one selects the kit's standard for it —
+   * `python` means uv, `node` means npm — which drives the sandbox warm-up and
+   * the checks the prompts tell a session to run. The kit owns the commands so
+   * three repos cannot drift into three dialects of the same toolchain.
    */
-  conventions: string;
-  /** The canonical test command, injected as `{{VERIFY}}` into the review prompt. */
-  verify: string;
+  toolchain: Toolchain;
+  /**
+   * Checks the toolchain name cannot imply: a second test suite, a generated
+   * file to refresh. Appended under the standard block. Not for restating the
+   * toolchain's own commands.
+   */
+  extraConventions?: string;
+  /**
+   * Sandbox warm-up beyond the toolchain's own, e.g. a docs-generation step.
+   * The toolchain's commands and provider authentication are both the kit's
+   * job — this is only what neither can know.
+   */
+  preflight?: () => string[];
   /** Workspace-relative template override directory, e.g. `.sandcastle/templates`. */
   templateDir?: string;
 }
@@ -187,22 +200,29 @@ export async function runIssue(
   const done =
     trailerLog.exitCode === 0 ? parseTaskDoneTrailers(trailerLog.stdout) : new Set<number>();
 
+  // Toolchain warm-up, then repo extras, then provider auth — the donor's
+  // order, and the one that fails on a missing toolchain before it fails on a
+  // missing credential.
+  const preflight = [
+    ...toolchains[config.toolchain].preflight,
+    ...(config.preflight?.() ?? []),
+    ...providerPreflight(Object.values(run.phases)),
+  ];
+
   await using sandbox = await createSandbox({
     branch,
-    sandbox: config.createSandboxProvider(),
+    sandbox: createSandboxProvider(),
     hooks: {
       sandbox: {
-        onSandboxReady: config.preflightCommands(Object.values(run.phases)).map((command) => ({
-          command,
-        })),
+        onSandboxReady: preflight.map((command) => ({ command })),
       },
     },
   });
 
   const agents = {
-    plan: config.createAgent(run.phases.plan),
-    task: config.createAgent(run.phases.task),
-    review: config.createAgent(run.phases.review),
+    plan: createAgent(run.phases.plan),
+    task: createAgent(run.phases.task),
+    review: createAgent(run.phases.review),
   };
 
   /** Read a run artifact off the branch; absent and unreadable both read empty
@@ -215,8 +235,7 @@ export async function runIssue(
     ISSUE_NUMBER: String(issueNumber),
     ISSUE_TITLE: issue.title,
     BRANCH: branch,
-    CONVENTIONS: config.conventions,
-    VERIFY: config.verify,
+    CONVENTIONS: renderConventions(config.toolchain, config.extraConventions),
   };
 
   // Ensure the checklist, running the planner session when the body lacks one.

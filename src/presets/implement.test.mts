@@ -136,7 +136,7 @@ test("the happy path runs and reports the PR on the issue", async () => {
 // contract with no compiler between them: a `{{ARG}}` the preset never supplies
 // reaches the agent as a literal `{{ARG}}`, which reads as a corrupted prompt
 // rather than an error. Pin the per-phase arg sets against the shipped defaults.
-const BASE_ARGS = ["ISSUE_NUMBER", "ISSUE_TITLE", "BRANCH", "CONVENTIONS", "VERIFY"];
+const BASE_ARGS = ["ISSUE_NUMBER", "ISSUE_TITLE", "BRANCH", "CONVENTIONS"];
 const SUPPLIED: Record<string, string[]> = {
   "plan-prompt.md": [...BASE_ARGS, "ISSUE_BODY"],
   "task-prompt.md": [

@@ -21,41 +21,77 @@ An issue-driven consumer's `.sandcastle/config.mts` is both the config and the
 CLI entrypoint — `npx tsx .sandcastle/config.mts --issue 42 --trigger issues`:
 
 ```ts
-import * as sandcastle from "@ai-hero/sandcastle";
-import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
 import {
   isEntrypoint,
   runImplementLoop,
   type ImplementConfig,
 } from "@lif/sandcastle-kit/presets/implement";
 
-const config: ImplementConfig = {
-  createAgent: (profile) =>
-    profile.provider === "claude"
-      ? sandcastle.claudeCode(profile.model, { effort: profile.effort })
-      : sandcastle.codex(profile.model, { effort: profile.effort }),
-  createSandboxProvider: () => docker(),
-  preflightCommands: () => ["uv sync"],
-  conventions: "- Python: `uv run python -m pytest tests/`\n- Lint: `uv run pre-commit run --all-files`",
-  verify: "uv run python -m pytest tests/",
-  templateDir: ".sandcastle/templates", // optional; kit defaults win when absent
-};
+const config: ImplementConfig = { toolchain: "python" };
 
 export default config;
 
 if (isEntrypoint(import.meta.url)) await runImplementLoop(config);
 ```
 
-`conventions` and `verify` are the only repo knowledge the default prompts carry
-— a unit test asserts the shipped templates name no package manager or test
-runner of their own.
+That is the whole interface — one required field, no imports beyond the kit.
+
+## The toolchain standard
+
+`toolchain` is a choice, not a description. Picking `python` **is** picking uv;
+the kit owns what follows from it:
+
+| | warm-up | test | conventions block |
+|---|---|---|---|
+| `python` | `uv sync` | `uv run python -m pytest` | + `uv run pre-commit run --all-files`, and the rule that Python tooling always goes through `uv run` |
+| `node` | `npm ci` | `npm test` | + `npm run typecheck`, `npm run lint`, and npm-not-yarn/pnpm |
+| `dotnet` | `dotnet restore` | `dotnet test` | + `dotnet build`, `dotnet format` |
+
+A free-text `conventions` string was the earlier design and it was wrong: it let
+three repos invent three dialects of the same toolchain, and the one that told
+an agent to run bare `pytest` instead of `uv run pytest` would fail only at
+runtime, inside an unattended sandbox, as a confusing import error. Adding a
+toolchain is a kit change with a test, reviewed once, and every consumer that
+picks it gets the same commands.
+
+The remaining options are all additive, never replacements:
+
+- `extraConventions` — checks the toolchain name cannot imply, like a second
+  test suite at repo-specific paths. Appended under the standard block.
+- `preflight` — sandbox warm-up beyond the toolchain's, like a generated-file
+  step. Appended after it.
+- `templateDir` — a workspace-relative directory whose same-named files win over
+  the kit's default prompts.
+
+Deliberately **not** offered: a `createAgent` or `createSandboxProvider` hook.
+Either one would be typed as a sandcastle object and so would drag
+`@ai-hero/sandcastle` back into the consumer's imports and typecheck — the exact
+leak this boundary exists to close. When a consumer genuinely needs a different
+sandbox, the kit grows a *declarative* option (`sandbox: { mounts: [...] }`)
+whose types it owns, not a function returning somebody else's.
+
+### Provider authentication
+
+Each provider CLI authenticates two ways: a bare token the CLI reads itself
+(`CLAUDE_CODE_OAUTH_TOKEN`, `OPENAI_API_KEY`), or the credentials blob
+`<cli> login` writes to disk, forwarded as `CLAUDE_CREDENTIALS_JSON` /
+`CODEX_AUTH_JSON`. `providerPreflight` materializes the blob back to the path
+the CLI expects, guarded so the API-key path is a no-op rather than an error.
+
+`forwardedEnvKeys` and `providerPreflight` are two halves of one contract — a
+unit test asserts every `$VAR` the preflight consumes is one the kit forwards.
+They were split across the package boundary before, which is precisely the leak
+that put a `~/.codex/auth.json` heredoc in a consumer's config file.
 
 **Pin a tag, never `#main`.** AFK runs fire unattended; a kit change must not
 reach a repo's next run without an explicit bump.
 
-`@ai-hero/sandcastle` is a **peerDependency** (`^0.12`). Consumers keep pinning
-sandcastle themselves; the peer range makes the kit's API assumption
-installable-checkable rather than implicit.
+**That is the only pin a consumer has.** `@ai-hero/sandcastle` is a regular
+**dependency** of the kit, not a peer — a consumer never installs it, never
+names it in `package.json`, and never imports it. The kit is the abstraction;
+sandcastle is its implementation detail. A unit test asserts both halves: no
+`@ai-hero` type reaches a preset's public declaration, and the manifest declares
+no peer range.
 
 ## Module boundary
 

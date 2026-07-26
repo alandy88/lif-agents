@@ -1,26 +1,35 @@
-import type { AgentProvider, SandboxProvider } from "@ai-hero/sandcastle";
 import { type Issue, type IssueBodySource } from "../lib/github-issue.mts";
-import { type ModelProfile, type ResolvedPhases } from "../lib/profiles.mts";
+import { type ResolvedPhases } from "../lib/profiles.mts";
 import { isEntrypoint } from "../lib/entrypoint.mts";
+import { type Toolchain } from "../lib/toolchains.mts";
 /**
- * The per-repo half of the pipeline — everything the preset cannot know. This
- * is what a consumer's `.sandcastle/config.mts` is.
+ * The per-repo half of the pipeline — and only that half. Everything keyed off
+ * `profile.provider` (agent construction, credential materialization, the CLI
+ * smoke check) is the kit's, because a consumer writing it would be copying the
+ * same block into every repo. What is left here cannot be written without
+ * naming this repo's package manager or test command, which is exactly the
+ * PRD's module-boundary test.
  */
 export interface ImplementConfig {
-    /** Build the agent for one resolved phase profile (claude / codex / …). */
-    createAgent: (profile: ModelProfile) => AgentProvider;
-    /** The sandbox provider, e.g. `docker()`. */
-    createSandboxProvider: () => SandboxProvider;
-    /** Commands run inside the sandbox once ready, before the first agent turn. */
-    preflightCommands: (profiles: readonly ModelProfile[]) => string[];
     /**
-     * The repo's toolchain rules, injected as `{{CONVENTIONS}}` — the test, lint,
-     * and formatting commands a session must run before committing. This is the
-     * one place the kit's default templates name a package manager.
+     * This repo's toolchain. Picking one selects the kit's standard for it —
+     * `python` means uv, `node` means npm — which drives the sandbox warm-up and
+     * the checks the prompts tell a session to run. The kit owns the commands so
+     * three repos cannot drift into three dialects of the same toolchain.
      */
-    conventions: string;
-    /** The canonical test command, injected as `{{VERIFY}}` into the review prompt. */
-    verify: string;
+    toolchain: Toolchain;
+    /**
+     * Checks the toolchain name cannot imply: a second test suite, a generated
+     * file to refresh. Appended under the standard block. Not for restating the
+     * toolchain's own commands.
+     */
+    extraConventions?: string;
+    /**
+     * Sandbox warm-up beyond the toolchain's own, e.g. a docs-generation step.
+     * The toolchain's commands and provider authentication are both the kit's
+     * job — this is only what neither can know.
+     */
+    preflight?: () => string[];
     /** Workspace-relative template override directory, e.g. `.sandcastle/templates`. */
     templateDir?: string;
 }

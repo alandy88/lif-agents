@@ -42,7 +42,7 @@ Understand the change, then review it on both axes.
 
 **Axis 2 — Standards: is the code good?** Unnecessary complexity, duplicated code, unclear names, missing tests, and drift from the conventions in `AGENTS.md`. Preserve the requested behavior and avoid speculative scope changes.
 
-Run the most relevant deterministic tests you can before finishing (`{{VERIFY}}`). The repo's toolchain rules:
+Run the most relevant deterministic checks you can before finishing:
 
 {{CONVENTIONS}}
 

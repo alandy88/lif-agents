@@ -64,9 +64,12 @@ test("rejects a model override that doesn't match the provider", () => {
 });
 
 test("forwarded env keys are scoped to the providers in use", () => {
+  // Both auth modes per provider: the bare token the CLI reads itself, and the
+  // `<cli> login` credentials blob providerPreflight materializes to disk.
   assert.deepEqual(forwardedEnvKeys([resolveProfile({ dispatchProfile: "claude" })]), [
     "GH_TOKEN",
     "CLAUDE_CODE_OAUTH_TOKEN",
+    "CLAUDE_CREDENTIALS_JSON",
   ]);
   assert.deepEqual(forwardedEnvKeys([resolveProfile({ dispatchProfile: "gpt" })]), [
     "GH_TOKEN",
@@ -76,6 +79,7 @@ test("forwarded env keys are scoped to the providers in use", () => {
   assert.deepEqual(forwardedEnvKeys(Object.values(phaseProfiles)), [
     "GH_TOKEN",
     "CLAUDE_CODE_OAUTH_TOKEN",
+    "CLAUDE_CREDENTIALS_JSON",
     "OPENAI_API_KEY",
     "CODEX_AUTH_JSON",
   ]);

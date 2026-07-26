@@ -67,7 +67,9 @@ lif-sandcastle/
   .github/workflows/agent.yml   on: workflow_call
 ```
 
-**`@ai-hero/sandcastle` is a peerDependency of the kit**, with an explicit version range (initially `^0.12`). Consumers keep pinning sandcastle themselves; the peer range makes the kit's API assumption installable-checkable instead of implicit. Without this, the version skew of problem 3 reappears one level down. A sandcastle major bump is then, by construction, a kit release plus N consumer bumps.
+**`@ai-hero/sandcastle` is a regular dependency of the kit** (`^0.12`), ~~a peerDependency~~. **Revised 2026-07-26** — the original decision made consumers keep pinning sandcastle themselves, on the reasoning that a peer range makes the kit's API assumption installable-checkable rather than implicit. That reasoning holds only if consumers also *call* sandcastle directly. Under the target design they do not: the kit is the abstraction and sandcastle is its implementation detail, so a peer range is a demand on the consumer's `package.json` — the same leak as a sandcastle import, one level up. A consumer now names exactly one dependency, the kit, at one pinned tag.
+
+Version skew (problem 3) is not reintroduced: the kit owns the version, and a sandcastle major bump is still a kit release plus N consumer tag bumps. `lif-studio` keeps its own direct sandcastle dependency through P4 because its repo-local swarm lifecycle calls the API directly (`Output`, `StructuredOutputError`, `docker`, `OutputDefinition`); npm hoists the two to one copy while the ranges overlap. If that repo ever adopts a preset, the kit re-exports that surface rather than letting a second pin exist.
 
 **Build to `dist/`; do not ship raw `.mts`.** All three consumers run TypeScript directly today (tsx or bun), which makes shipping sources tempting — but `.mts` inside `node_modules` is exactly where tsx/bun dependency-transpilation behaviour is inconsistent. `tsc` with declarations is cheap now that the repos are on TS 7.
 
@@ -92,16 +94,19 @@ npm i -D github:alandy88/lif-sandcastle#v0.1.0
 ```
 
 ```ts
-// .sandcastle/config.mts — the only file a consumer writes
-import { runImplementLoop } from "@lif/sandcastle-kit/presets/implement";
+// .sandcastle/config.mts — the only file a consumer writes, and the CLI entry
+import { isEntrypoint, runImplementLoop } from "@lif/sandcastle-kit/presets/implement";
 
-export default {
-  preflight: () => ["uv sync"],       // repo toolchain
-  verify: "uv run pytest",            // repo test command
-  conventions: "…",                   // injected into prompt templates
-  templateDir: ".sandcastle/templates", // optional override
-};
+const config = { toolchain: "python" } as const;
+
+export default config;
+
+if (isEntrypoint(import.meta.url)) await runImplementLoop(config);
 ```
+
+**The toolchain is a choice from a kit-owned standard, not a description.** `python` means uv, `node` means npm, `dotnet` means the dotnet CLI — the kit owns the warm-up commands, the canonical test command, and the conventions block each implies. The rejected alternative was a free-text `conventions` string (and a sibling `verify`), which let three repos invent three dialects of the same toolchain; the repo that told an agent to run bare `pytest` would fail only at runtime, unattended, as a confusing import error. Adding or amending a toolchain is a kit change with a test, and every consumer that picks it inherits the fix — the same argument as the rest of the extraction, applied to the prompts. `extraConventions` and `preflight` remain for what a toolchain name genuinely cannot imply (a second test suite at repo-specific paths, a generated-file step); both are additive.
+
+**One import, and it is the kit.** No `@ai-hero/sandcastle` in a consumer's imports, `package.json`, or typecheck — anything typed as a sandcastle object (an agent provider, a sandbox provider) is therefore excluded from the config interface by construction. Where a consumer genuinely needs to vary sandbox construction, the kit grows a declarative option whose types it owns, not a hook returning somebody else's. Two unit tests hold this: no `@ai-hero` type in a preset's emitted `.d.mts`, and no peer range in the manifest.
 
 **Pin a tag, never `main`.** AFK runs fire unattended; a kit change must not reach a repo's next run without an explicit bump.
 
@@ -144,7 +149,9 @@ const promptFile = templatePath("implement/task-prompt.md", {
 
 > **Landed** as `src/presets/implement.mts` + `templates/implement/{plan,task,review}-prompt.md`. Suite is 61 tests green (was 46). Three things the port had to settle:
 >
-> - **The config seam.** The donor read `createAgent`, `createSandboxProvider`, and `preflightCommands` from its own `.sandcastle/config.mts` by relative import. Those are now the injected `ImplementConfig`, and `runImplementLoop(config)` is the consumer entrypoint. `runIssue` takes the config as its first argument; `main(options, deps)` keeps the donor's signature so the guard tests moved unchanged.
+> - **The config seam.** The donor read `createAgent`, `createSandboxProvider`, and `preflightCommands` from its own `.sandcastle/config.mts` by relative import, and the first cut of this preset mechanically preserved that split as `ImplementConfig`. That was wrong: the donor's seam existed because `config.mts` was a *sibling file*, not a package boundary. Carrying it across the boundary pushed provider knowledge — `sandcastle.claudeCode` vs `sandcastle.codex`, and a `~/.codex/auth.json` heredoc — into every consumer's config. Corrected: `ImplementConfig` is now `conventions`, `verify`, and an optional `preflight`, with `createAgent`/`createSandboxProvider`/`templateDir` as optional escape hatches. `runImplementLoop(config)` is the consumer entrypoint; `main(options, deps)` keeps the donor's signature so the guard tests moved unchanged.
+>
+>   The tell was already in the tree: `forwardedEnvKeys` forwards `CODEX_AUTH_JSON` from inside the kit, while the shim that consumes it sat in the consumer. `lib/provider-setup.mts` now owns both halves — agent construction, credential materialization, and the CLI smoke check, all keyed off `profile.provider` and nothing else — with a test asserting every `$VAR` the preflight consumes is one `forwardedEnvKeys` sends. `CLAUDE_CREDENTIALS_JSON` joins the forwarded set, which is `Morrow`'s subscription-auth shim arriving early (P5 listed it) and makes the two providers symmetric.
 > - **The templates were not repo-agnostic.** They named `uv run`, `pytest`, `pre-commit`, `web/js/`, and a specific source file. Those collapse to two injected args — `{{CONVENTIONS}}` (the toolchain block) and `{{VERIFY}}` (the canonical test command) — which is the "kit defaults + repo override + injected `CONVENTIONS`" row of the table. Two regression tests hold the line: every `{{ARG}}` in a shipped template must be in the preset's `promptArgs` for that phase (an unsupplied placeholder reaches the agent as literal `{{ARG}}`, which reads as a corrupted prompt rather than an error), and no shipped template may name a package manager or test runner.
 > - **`isEntrypoint`.** The donor's `invokedDirectly` guard is generic, so it moved to `lib/entrypoint.mts`. It is what lets a consumer's `config.mts` be *both* the config module and the CLI entry — which is how acceptance criterion 7's "no `lib/` code" holds without the consumer also writing a `workflows/` shim.
 >

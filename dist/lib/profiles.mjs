@@ -103,12 +103,17 @@ export function resolvePhases(input = {}) {
     }
     return { name: MIXED_PROFILE_NAME, phases: phaseProfiles };
 }
-/** Credential names forwarded for only the providers used by the run. */
+/**
+ * Credential names forwarded for only the providers used by the run. Each
+ * provider has both a bare-token form the CLI reads itself and a
+ * `<cli> login` credentials blob that `providerPreflight` materializes to disk;
+ * both are forwarded, and whichever is set wins.
+ */
 export function forwardedEnvKeys(runProfiles) {
     const providers = new Set(runProfiles.map((profile) => profile.provider));
     const keys = ["GH_TOKEN"];
     if (providers.has("claude"))
-        keys.push("CLAUDE_CODE_OAUTH_TOKEN");
+        keys.push("CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_CREDENTIALS_JSON");
     if (providers.has("codex"))
         keys.push("OPENAI_API_KEY", "CODEX_AUTH_JSON");
     return keys;

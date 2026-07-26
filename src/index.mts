@@ -8,6 +8,9 @@ export { defangPromptArgs, defangShellExpansion } from "./lib/defang.mts";
 
 export { isEntrypoint } from "./lib/entrypoint.mts";
 
+export { renderConventions, toolchains } from "./lib/toolchains.mts";
+export type { Toolchain, ToolchainSpec } from "./lib/toolchains.mts";
+
 export {
   checkOffTask,
   parseTaskDoneTrailers,
@@ -41,6 +44,12 @@ export type {
   ResolvedPhases,
   ResolvedProfile,
 } from "./lib/profiles.mts";
+
+export {
+  createAgent,
+  createSandboxProvider,
+  providerPreflight,
+} from "./lib/provider-setup.mts";
 
 export {
   commentOnIssue,

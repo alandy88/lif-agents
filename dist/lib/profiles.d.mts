@@ -59,6 +59,11 @@ export type ResolvedPhases = {
 };
 /** Resolve dispatch → label → default → mixed, once for all three phases. */
 export declare function resolvePhases(input?: ProfileResolutionInput): ResolvedPhases;
-/** Credential names forwarded for only the providers used by the run. */
+/**
+ * Credential names forwarded for only the providers used by the run. Each
+ * provider has both a bare-token form the CLI reads itself and a
+ * `<cli> login` credentials blob that `providerPreflight` materializes to disk;
+ * both are forwarded, and whichever is set wins.
+ */
 export declare function forwardedEnvKeys(runProfiles: readonly ModelProfile[]): string[];
 //# sourceMappingURL=profiles.d.mts.map
