@@ -24,20 +24,28 @@ jobs:
         with:
           node-version: "24" # same floor as ci.yml (tests run off src/)
       - name: validate version
+        env:
+          VERSION: ${{ inputs.version }}
         run: |
-          [[ "${{ inputs.version }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "version must look like v1.2.3"; exit 1; }
-          if git ls-remote --exit-code --tags origin "refs/tags/${{ inputs.version }}" >/dev/null 2>&1; then
-            echo "tag ${{ inputs.version }} already exists"; exit 1
+          [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "version must look like v1.2.3"; exit 1; }
+          if git ls-remote --exit-code --tags origin "refs/tags/$VERSION" >/dev/null 2>&1; then
+            echo "tag $VERSION already exists"; exit 1
           fi
+          # The manifest version is what npm ls reports to consumers — bump it
+          # on main before cutting the tag so the two never disagree.
+          PKG="v$(node -p "require('./package.json').version")"
+          [[ "$VERSION" == "$PKG" ]] || { echo "tag $VERSION != package.json $PKG — bump package.json first"; exit 1; }
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
       - name: tag with dist
+        env:
+          VERSION: ${{ inputs.version }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -f dist
-          git commit -m "release ${{ inputs.version }}: build dist/"
-          git tag "${{ inputs.version }}"
-          git push origin "refs/tags/${{ inputs.version }}"
+          git commit -m "release $VERSION: build dist/"
+          git tag "$VERSION"
+          git push origin "refs/tags/$VERSION"

@@ -37,7 +37,7 @@ import {
   resolvePhases,
   type ResolvedPhases,
 } from "../lib/profiles.mts";
-import { readFlag } from "../lib/cli.mts";
+import { assertKnownFlags, readFlag } from "../lib/cli.mts";
 import { templatePath } from "../lib/templates.mts";
 import { isEntrypoint } from "../lib/entrypoint.mts";
 import {
@@ -94,6 +94,7 @@ export type CliOptions = {
 export { readFlag };
 
 export function parseCli(argv: string[] = process.argv.slice(2)): CliOptions {
+  assertKnownFlags(argv, ["--issue", "--profile", "--model", "--trigger"]);
   const rawIssue = readFlag(argv, "--issue");
   if (!rawIssue || !/^\d+$/.test(rawIssue) || Number(rawIssue) < 1) {
     throw new Error("--issue must be a positive GitHub issue number");

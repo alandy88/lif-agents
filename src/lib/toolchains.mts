@@ -49,7 +49,9 @@ export const toolchains = {
     conventions: [
       "- Tests: `dotnet test`",
       "- Build: `dotnet build`",
-      "- Formatting: `dotnet format`",
+      // Gate form: bare `dotnet format` mutates the tree and exits 0, which
+      // teaches an agent nothing. Verify is the check; plain format is the fix.
+      "- Formatting gate: `dotnet format --verify-no-changes` (run `dotnet format` to fix)",
     ].join("\n"),
   },
 } as const satisfies Record<Toolchain, ToolchainSpec>;

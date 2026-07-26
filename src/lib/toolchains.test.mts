@@ -20,6 +20,10 @@ test("the toolchain standard is what reaches the prompt", () => {
   assert.doesNotMatch(renderConventions("python"), /(?<!uv run )(?<!-m )\bpytest\b/);
   assert.match(renderConventions("node"), /npm test/);
   assert.match(renderConventions("dotnet"), /dotnet test/);
+  // The formatting line must be the gate form — bare `dotnet format` mutates
+  // the tree and exits 0, so as a "check" it teaches an agent nothing.
+  assert.match(renderConventions("dotnet"), /dotnet format --verify-no-changes/);
+  assert.doesNotMatch(renderConventions("dotnet"), /Formatting: `dotnet format`/);
 });
 
 test("python warms uv, node warms npm, dotnet warms nuget", () => {

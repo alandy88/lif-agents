@@ -1,3 +1,16 @@
+/**
+ * Reject any `--flag` outside the known set. Without this, a stale invocation
+ * (e.g. Morrow's retired `--agent claude`) silently runs on defaults — which
+ * for the unattended presets means merging work built by the wrong models.
+ */
+export function assertKnownFlags(argv: string[], known: readonly string[]): void {
+  for (const token of argv) {
+    if (token.startsWith("--") && !known.includes(token)) {
+      throw new Error(`unknown flag ${token} — known flags: ${known.join(", ")}`);
+    }
+  }
+}
+
 /** Read `--name value` out of an argv slice. Shared by the preset entrypoints. */
 export function readFlag(argv: string[], name: string): string | undefined {
   const index = argv.indexOf(name);

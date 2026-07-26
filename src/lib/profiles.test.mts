@@ -1,6 +1,20 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { forwardedEnvKeys, phaseProfiles, resolvePhases, resolveProfile } from "./profiles.mts";
+import {
+  describeRun,
+  forwardedEnvKeys,
+  phaseProfiles,
+  resolvePhases,
+  resolveProfile,
+} from "./profiles.mts";
+
+test("describeRun names only the phases the lifecycle runs", () => {
+  const mixed = resolvePhases({});
+  assert.match(describeRun(mixed), /plan .+, tasks .+, review /);
+  const taskPreset = describeRun(mixed, ["task", "review"]);
+  assert.doesNotMatch(taskPreset, /plan/);
+  assert.match(taskPreset, /tasks .+, review /);
+});
 
 test("defaults to the claude profile with no input", () => {
   const profile = resolveProfile();

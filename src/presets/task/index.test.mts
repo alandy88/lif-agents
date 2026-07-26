@@ -29,6 +29,9 @@ test("parseCli defaults to one iteration and rejects an out-of-range count", () 
     profile: undefined,
     model: undefined,
   });
+  // Morrow's retired --agent flag must fail loudly, not silently run the
+  // mixed default through unattended squash-merges.
+  assert.throws(() => parseCli(["--agent", "claude", "--iterations", "3"]), /unknown flag --agent/);
   assert.throws(() => parseCli(["--iterations", "0"]), /between 1 and 20/);
   assert.throws(() => parseCli(["--iterations", "21"]), /between 1 and 20/);
   assert.throws(() => parseCli(["--iterations", "many"]), /between 1 and 20/);

@@ -160,10 +160,19 @@ export function resolvePhases(input: ProfileResolutionInput = {}): ResolvedPhase
   return { name: MIXED_PROFILE_NAME, phases: phaseProfiles };
 }
 
-/** One line naming the models a run uses, for logs, comments, and the PR body. */
-export function describeRun(run: ResolvedPhases): string {
+/**
+ * One line naming the models a run uses, for logs, comments, and the PR body.
+ * Pass `phases` when a lifecycle runs a subset — the task preset has no plan
+ * phase, and advertising one misdescribes the run.
+ */
+export function describeRun(
+  run: ResolvedPhases,
+  phases: readonly Phase[] = ["plan", "task", "review"],
+): string {
   if (run.name !== MIXED_PROFILE_NAME) return `${run.name} → ${run.phases.task.model}`;
-  return `mixed → plan ${run.phases.plan.model}, tasks ${run.phases.task.model}, review ${run.phases.review.model}`;
+  const labels: Record<Phase, string> = { plan: "plan", task: "tasks", review: "review" };
+  const parts = phases.map((phase) => `${labels[phase]} ${run.phases[phase].model}`);
+  return `mixed → ${parts.join(", ")}`;
 }
 
 /**

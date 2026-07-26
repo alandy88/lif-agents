@@ -52,6 +52,7 @@ function makeDeps(overrides: {
 test("parseCli requires a positive issue number", () => {
   assert.throws(() => parseCli([]), /--issue must be a positive/);
   assert.throws(() => parseCli(["--issue", "abc"]), /--issue must be a positive/);
+  assert.throws(() => parseCli(["--issue", "42", "--verbose"]), /unknown flag --verbose/);
   assert.deepEqual(parseCli(["--issue", "42", "--profile", "claude", "--trigger", "issues"]), {
     issue: 42,
     profile: "claude",

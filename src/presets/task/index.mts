@@ -10,7 +10,7 @@
 import { readFileSync } from "node:fs";
 import { createSandbox } from "@ai-hero/sandcastle";
 import { hostGit } from "../../lib/host-exec.mts";
-import { readFlag } from "../../lib/cli.mts";
+import { assertKnownFlags, readFlag } from "../../lib/cli.mts";
 import { describeRun, resolvePhases, type ResolvedPhases } from "../../lib/profiles.mts";
 import { templatePath } from "../../lib/templates.mts";
 import { isEntrypoint } from "../../lib/entrypoint.mts";
@@ -53,6 +53,7 @@ export type CliOptions = {
 };
 
 export function parseCli(argv: string[] = process.argv.slice(2)): CliOptions {
+  assertKnownFlags(argv, ["--iterations", "--task", "--profile", "--model"]);
   const rawIterations = readFlag(argv, "--iterations") ?? "1";
   if (!/^\d+$/.test(rawIterations) || Number(rawIterations) < 1 || Number(rawIterations) > 20) {
     throw new Error("--iterations must be a number between 1 and 20");
@@ -168,7 +169,7 @@ export async function runIteration(
     branch,
     title: `Task ${label}`,
     body:
-      `Automated sandcastle-agent run (${describeRun(run)}): ` +
+      `Automated sandcastle-agent run (${describeRun(run, ["task", "review"])}): ` +
       `delivered and verified "${label}" per PLAN.md/${STATE_FILE}.`,
     squashMerge: true,
   });
@@ -204,7 +205,7 @@ export async function main(options: CliOptions, deps: MainDeps): Promise<string[
         : deps.nextTask();
 
     log(
-      `\n=== Iteration ${i}/${options.iterations} [${describeRun(run)}]: ` +
+      `\n=== Iteration ${i}/${options.iterations} [${describeRun(run, ["task", "review"])}]: ` +
         `"${next.label}" on ${next.branch} ===`,
     );
     const { prUrl } = await deps.runIteration(run, next);

@@ -88,27 +88,41 @@ jobs:
           git config user.email "sandcastle-agent[bot]@users.noreply.github.com"
 
       - name: Install host dependencies
+        # Interpolation is intentional here: this input IS a shell command, and
+        # it can only come from the consumer's committed workflow file (a
+        # workflow_call input), never from dispatch free text.
         run: ${{ inputs.install-command }}
 
       - name: Run sandcastle-agent
+        # Inputs reach the shell only through env vars, never by direct
+        # ${{ }} interpolation into the script — `model`/`profile` trace back
+        # to free-text workflow_dispatch fields, and this job runs on a
+        # self-hosted runner holding provider credentials.
         env:
           GH_TOKEN: ${{ secrets.AGENT_PAT || github.token }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           CODEX_AUTH_JSON: ${{ secrets.CODEX_AUTH_JSON }}
           AGENT_DEFAULT_PROFILE: ${{ inputs.default-profile }}
+          RUNTIME: ${{ inputs.runtime }}
+          ENTRYPOINT: ${{ inputs.entrypoint }}
+          ISSUE: ${{ inputs.issue }}
+          PROFILE: ${{ inputs.profile }}
+          MODEL: ${{ inputs.model }}
+          TRIGGER: ${{ inputs.trigger }}
         run: |
-          ${{ inputs.runtime }} ${{ inputs.entrypoint }} \
-            --issue "${{ inputs.issue }}" \
-            --profile "${{ inputs.profile }}" \
-            --model "${{ inputs.model }}" \
-            --trigger "${{ inputs.trigger }}"
+          "$RUNTIME" "$ENTRYPOINT" \
+            --issue "$ISSUE" \
+            --profile "$PROFILE" \
+            --model "$MODEL" \
+            --trigger "$TRIGGER"
 
       - name: Failure backstop — comment on the issue
         if: failure()
         env:
           GH_TOKEN: ${{ secrets.AGENT_PAT || github.token }}
+          ISSUE: ${{ inputs.issue }}
         run: |
-          gh issue comment "${{ inputs.issue }}" \
+          gh issue comment "$ISSUE" \
             --repo "${{ github.repository }}" \
             --body "sandcastle-agent failed — see the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details." || true
