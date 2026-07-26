@@ -137,6 +137,28 @@ test("a README edit is a change, because npm packs it whatever `files` says", as
   assert.equal(await changed(repo), true);
 });
 
+test("adding the first LICENSE is a change, though nothing else moved", async () => {
+  // npm packs LICENSE whatever `files` says, so the commit that adds one ships
+  // it. There is no licence file in this repo yet, which is exactly why the
+  // shipped set carries a glob rather than a filename — a list of names could
+  // only be updated after someone noticed the omission.
+  const repo = await releasedRepo("licence-added");
+  write(repo, "LICENSE", "MIT\n");
+  await must(gitIn(repo), ["add", "-A"]);
+  assert.equal(await changed(repo), true);
+});
+
+test("the always-packed globs ignore case, because npm does and git does not", async () => {
+  // CI is Linux, so pathspecs match case-sensitively while npm matches these
+  // names without regard to case. A plain `README*` misses `readme.md` and
+  // `LICENCE*` misses `licence.txt` — a pathspec matching nothing is silent,
+  // which is the never-ships failure this gate exists to prevent.
+  const repo = await releasedRepo("lowercase-always-packed");
+  write(repo, "licence.txt", "MIT\n");
+  await must(gitIn(repo), ["add", "-A"]);
+  assert.equal(await changed(repo), true);
+});
+
 test("a package.json field other than version is a change", async () => {
   // npm runs a git dependency's scripts on install, so a build script edit
   // reaches consumers even when dist/ and templates/ are byte-identical.

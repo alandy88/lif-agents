@@ -128,12 +128,19 @@ const readWorkingPackageJson: ReadPackageJson = () => readFileSync("package.json
  *
  * Two things the manifest cannot state:
  *
- * - npm packs `README*` whatever `files` says. `npm pack --dry-run` on this repo
- *   lists exactly it and `package.json` outside `files`; `package.json` is absent
- *   from this list only because it is compared field-by-field below, where
- *   `version` can be excluded. Nothing else in npm's always-packed set
- *   (`LICENSE*`) exists here, and `files` would be the wrong place to notice it
- *   if it appeared — so the glob, not a filename.
+ * - npm's always-packed set, which it ships whatever `files` says: `README*` and
+ *   `LICENSE*`/`LICENCE*`. `npm pack --dry-run` on this repo lists exactly
+ *   README.md and package.json outside `files`; `package.json` is absent from
+ *   this list only because it is compared field-by-field below, where `version`
+ *   can be excluded. No licence file exists here yet, and `files` would be the
+ *   wrong place to notice one appearing — hence globs rather than filenames, so
+ *   the commit that adds the first one is the commit that ships it.
+ *
+ *   `:(icase)` is load-bearing, not decoration. npm matches these names without
+ *   regard to case, git pathspecs match WITH it, and CI is Linux: a plain
+ *   `README*` misses a `readme.md`, and `LICENCE*` misses a `licence.txt`
+ *   (verified — the case-sensitive glob returns no match on both). A pathspec
+ *   that silently matches nothing is precisely the never-ships failure below.
  * - `.github/workflows/agent.yml` is `on: workflow_call` and consumers pin it
  *   directly (`uses: alandy88/lif-sandcastle/.github/workflows/agent.yml@vX.Y.Z`),
  *   reaching them over a path npm never touches. Deriving this one too would mean
@@ -160,7 +167,12 @@ export function shippedPaths(manifest: { files?: unknown }): string[] {
       );
     }
   }
-  return [...files, "README*", ".github/workflows/agent.yml"];
+  return [
+    ...files,
+    ":(icase)readme*",
+    ":(icase)licen[cs]e*",
+    ".github/workflows/agent.yml",
+  ];
 }
 
 /** A manifest with `version` removed, as a comparable string. */
