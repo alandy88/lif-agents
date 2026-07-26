@@ -1,17 +1,36 @@
 name: release
 
-# Cuts a version tag whose commit contains the built dist/ (gitignored on
-# main). Consumers pin these tags (`npm i -D github:alandy88/lif-sandcastle#vX.Y.Z`),
+# Cuts a version tag whose commit carries both the built dist/ and the stamped
+# version. Consumers pin these tags (`npm i -D github:alandy88/lif-sandcastle#vX.Y.Z`),
 # so the tag — not main — is the installable artifact. The release commit is a
 # child of main HEAD that exists only behind the tag ref; main itself stays
 # clean and is deliberately NOT installable.
+#
+# The version is a property of the release, not of main. `package.json` on main
+# reads `0.0.0-development` and is never bumped by a PR or by this workflow —
+# only the release commit carries a real version. That is semantic-release's
+# model, and it is what keeps a bot from ever having to push to a protected
+# main. See README, "Why `dist/` ships in release tags".
+#
+# Release test: did `dist/` change? NOT: did a commit subject say `feat`. A
+# subject is a claim about intent and `bb2f75a` proved it can be silent about a
+# change every consumer feels; the built output cannot. Commit types still pick
+# how big the bump is — see scripts/next-version.mts.
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       version:
-        description: "Tag to cut, e.g. v0.2.0"
-        required: true
+        description: "Explicit tag, e.g. v0.3.0. Leave empty to derive from the commits."
+        required: false
+
+# Two merges seconds apart must not race for the same version or tag. Never
+# cancel: a half-run release has already pushed a tag.
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
@@ -20,32 +39,113 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # tags and full log — the version is derived from both
       - uses: actions/setup-node@v4
         with:
           node-version: "24" # same floor as ci.yml (tests run off src/)
-      - name: validate version
-        env:
-          VERSION: ${{ inputs.version }}
-        run: |
-          [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "version must look like v1.2.3"; exit 1; }
-          if git ls-remote --exit-code --tags origin "refs/tags/$VERSION" >/dev/null 2>&1; then
-            echo "tag $VERSION already exists"; exit 1
-          fi
-          # The manifest version is what npm ls reports to consumers — bump it
-          # on main before cutting the tag so the two never disagree.
-          PKG="v$(node -p "require('./package.json').version")"
-          [[ "$VERSION" == "$PKG" ]] || { echo "tag $VERSION != package.json $PKG — bump package.json first"; exit 1; }
+
       - run: npm ci
       - run: npm run typecheck
-      - run: npm test
+      # Before the tests, not after: boundary.test.mts reads dist/*.d.mts. This
+      # is also the artifact the release decision below is made against.
       - run: npm run build
-      - name: tag with dist
+      - run: npm test
+      - run: npm run test:integration
+
+      # Emits `last` (the newest release tag) and `changed` (would a consumer
+      # installing the next tag receive anything different). Both decisions live
+      # in the script, not here: they are about what real git does with real
+      # refs and real pathspecs, and four rounds of review found seven bugs in
+      # this step while it was shell no test could reach. The reasoning behind
+      # each is in scripts/release-gate.mts; the integration tier drives them
+      # against real temp repos.
+      - name: is there anything to release?
+        id: check
+        run: node --experimental-strip-types scripts/release-gate.mts
+
+      # A stale run must not tag superseded code, but an operator who named a
+      # version must not be silently ignored either — a dispatch that "succeeds"
+      # having created nothing is the worst of the three outcomes. So the derived
+      # path skips quietly (the newer run covers this commit) and the explicit
+      # path stops loudly, telling the operator what to do about it.
+      #
+      # The input reaches the shell as an environment variable, never as `${{ }}`
+      # inside `run:`. GitHub substitutes those expressions into the script TEXT
+      # before bash parses it, so a dispatch of `$(...)` would execute inside the
+      # quoted echo — with `contents: write` and the release token, and before the
+      # regex in next-version.mts ever sees the value. Every other step here
+      # already passes dispatch input through `env:`; this one was the exception.
+      - name: reject a stale explicit dispatch
+        if: inputs.version != '' && steps.check.outputs.stale == 'true'
         env:
-          VERSION: ${{ inputs.version }}
+          EXPLICIT: ${{ inputs.version }}
+        run: |
+          echo "::error::main advanced past this run's commit, so $EXPLICIT would tag superseded code. Re-dispatch from the current tip of main."
+          exit 1
+
+      - name: decide the version
+        id: version
+        # An explicit dispatch releases even when the payload is unchanged:
+        # naming a version is a deliberate act (marking a milestone), and the
+        # artifact test exists to catch silence, not to overrule intent. It
+        # cannot be reached while stale — the guard above already failed the run.
+        if: steps.check.outputs.changed == 'true' || inputs.version != ''
+        env:
+          EXPLICIT: ${{ inputs.version }}
+          LAST_TAG: ${{ steps.check.outputs.last }}
+        run: node --experimental-strip-types scripts/next-version.mts
+
+      - name: stamp and tag
+        if: steps.version.outputs.version != ''
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -f dist
-          git commit -m "release $VERSION: build dist/"
-          git tag "$VERSION"
-          git push origin "refs/tags/$VERSION"
+          # --no-git-tag-version: npm writes package.json and package-lock.json
+          # and touches git not at all. The commit below is this workflow's, and
+          # it is never pushed to main — only the tag ref leaves this runner.
+          npm version --no-git-tag-version "$VERSION"
+          git add -f dist package.json package-lock.json
+          git commit -m "release v$VERSION: stamp version, build dist/"
+          git tag "v$VERSION"
+          git push origin "refs/tags/v$VERSION"
+          echo "Tagged [v$VERSION](https://github.com/${GITHUB_REPOSITORY}/releases/tag/v$VERSION)." >> "$GITHUB_STEP_SUMMARY"
+
+      # Deliberately NOT gated on this run having cut a tag. Pushing a tag and
+      # publishing its notes are two calls against different services, and a
+      # transient failure between them is otherwise unrecoverable by rerunning:
+      # the orphaned tag becomes the baseline, so the gate finds the payload
+      # unchanged and skips, while an explicit re-dispatch of that same version
+      # is rejected for not moving forward.
+      #
+      # Every release tag is checked, not just the newest, because the newest is
+      # not necessarily the unpublished one: if vN's publish fails and a later
+      # push cuts and publishes vN+1, vN is never the newest again and would
+      # stay without notes forever. Reconciling the whole set converges from any
+      # state, at one API call per tag.
+      #
+      # It reconciles rather than retries, so it also backfills tags cut before
+      # this workflow existed. That is the intended state, arriving late.
+      - name: publish notes for any unpublished tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # `--tags` so what counts as a release tag stays defined in exactly one
+          # place, and so the tag this run just created is included.
+          TAGS=$(node --experimental-strip-types scripts/release-gate.mts --tags)
+          if [ -z "$TAGS" ]; then
+            echo "No tags yet — nothing to publish."
+            exit 0
+          fi
+          for TAG in $TAGS; do
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              continue
+            fi
+            # --verify-tag: fail rather than invent a tag if a push did not land.
+            # --generate-notes gives consumers a diff summary at the tag, which
+            # is the only place a pinning consumer looks.
+            gh release create "$TAG" --verify-tag --generate-notes
+            echo "Published notes for [$TAG](https://github.com/${GITHUB_REPOSITORY}/releases/tag/$TAG)." >> "$GITHUB_STEP_SUMMARY"
+          done

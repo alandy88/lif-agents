@@ -173,6 +173,22 @@ output must be in the git tree consumers install — but it does not belong in
 from a commit that force-adds `dist/`. That commit lives only behind the tag
 ref, so both installers see identical built output while `main` stays clean.
 
+The version rides in that same commit. **`package.json` on `main` reads
+`0.0.0-development` and is never bumped** — not by a PR, not by the release
+workflow. Only the release commit carries a real version, stamped next to the
+`dist/` it describes, so the two cannot disagree and no bot ever pushes to
+`main`. To read what is current, read the tags.
+
+Releases cut themselves: every push to `main` builds, and if the installable
+payload differs from the last tag's, a new tag follows (that test is
+`scripts/release-gate.mts`). The release test is the built output,
+not the commit subject — `bb2f75a` ("chore: bump routing model ids") changed
+the model every consumer resolves and would have shipped nothing under a
+subject filter. Commit types only choose the size of the bump: `feat` or a `!`
+marker takes the minor, anything else takes the patch (below 1.0.0 a breaking
+change is a minor — see `scripts/next-version.mts`). A `workflow_dispatch` with
+an explicit `version` overrides both.
+
 A consequence worth stating: **`#main` is not installable** — it has no
 `dist/`. That is aligned with the standing rule that consumers pin a tag and
 never `#main`; the packaging now enforces what was previously only policy.
