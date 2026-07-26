@@ -4,6 +4,17 @@ export type { TemplatePathOptions } from "./lib/templates.mts";
 export { capture, ghCapture, ghJson, hostGit, json } from "./lib/host-exec.mts";
 export type { CaptureResult } from "./lib/host-exec.mts";
 
+export {
+  commitOnBranch,
+  dropArtifacts,
+  logSince,
+  push,
+  pushCheckpoint,
+  resumeFromOrigin,
+  syncMain,
+} from "./lib/branch.mts";
+export type { ExecSandbox, GitRunner } from "./lib/branch.mts";
+
 export { defangPromptArgs, defangShellExpansion } from "./lib/defang.mts";
 
 export { isEntrypoint } from "./lib/entrypoint.mts";
