@@ -8,9 +8,16 @@ import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { capture } from "../../src/lib/host-exec.mts";
-import { commitOnBranch, logSince, resumeFromOrigin, type ExecSandbox } from "../../src/lib/branch.mts";
+import {
+  commitOnBranch,
+  dropArtifacts,
+  logSince,
+  resumeFromOrigin,
+  type ExecSandbox,
+} from "../../src/lib/branch.mts";
 import { parseTaskDoneTrailers, taskDoneTrailer } from "../../src/lib/task-list.mts";
 import { taskBranch } from "../../src/presets/task/state.mts";
 import { gitIn, makeTempRoot, must, removeTempRoot } from "./helpers.mts";
@@ -96,6 +103,28 @@ test("an apostrophe in a message survives the sandbox's shell, message and trail
   assert.equal(subject.stdout.trim(), message);
   const body = await must(git, ["log", "-1", "--format=%(trailers)"]);
   assert.match(body.stdout, /Task-Done: 1'; echo pwned/);
+  await must(git, ["checkout", "main"]);
+});
+
+test("a wildcard in an artifact name matches nothing rather than every sibling", async () => {
+  // Shell quoting is not enough here: git matches wildcards in a pathspec
+  // itself, so `notes/*.md` reaches `git rm` as a pattern even fully quoted,
+  // and the removal of every match would be committed. `:(literal)` is what
+  // makes the name a name. Asserted against real git because the difference is
+  // invisible in the command string.
+  await must(git, ["checkout", "-b", "agent/pathspec"]);
+  await mkdir(join(repo, "notes"), { recursive: true });
+  await writeFile(join(repo, "notes", "a.md"), "a");
+  await writeFile(join(repo, "notes", "b.md"), "b");
+  await must(git, ["add", "-A"]);
+  await must(git, ["commit", "-m", "notes"]);
+
+  const committed = await dropArtifacts(sandboxIn(repo), ["notes/*.md"]);
+
+  assert.equal(committed, false, "a wildcard name matches no literal file");
+  const tracked = await must(git, ["ls-files", "--", "notes/"]);
+  assert.match(tracked.stdout, /notes\/a\.md/);
+  assert.match(tracked.stdout, /notes\/b\.md/);
   await must(git, ["checkout", "main"]);
 });
 

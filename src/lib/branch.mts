@@ -147,10 +147,12 @@ export async function dropArtifacts(
   sandbox: ExecSandbox,
   files: readonly string[],
 ): Promise<boolean> {
-  // Quoted individually, not joined raw: a path containing a space would
-  // otherwise split into two pathspecs, and one containing a shell
-  // metacharacter would reach `sh` as syntax.
-  const list = files.map((file) => shellQuote(file)).join(" ");
+  // Two separate hazards, two separate defences. `shellQuote` stops `sh` seeing
+  // a space as an argument break or a metacharacter as syntax. `:(literal)`
+  // stops GIT globbing what survives: a pathspec matches wildcards on its own,
+  // shell quoting notwithstanding, so a bare `notes/*.md` would have `git rm`
+  // delete every tracked file matching it — and commit that.
+  const list = files.map((file) => shellQuote(`:(literal)${file}`)).join(" ");
   const tracked = await sandbox.exec(`git ls-files -- ${list}`);
   if (tracked.stdout.trim().length === 0) return false;
   await sandbox.exec(
