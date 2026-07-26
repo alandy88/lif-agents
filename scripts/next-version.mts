@@ -105,17 +105,28 @@ export function resolveExplicit(explicit: string, lastTag: string): string {
   return stripPrefix(explicit);
 }
 
-function git(args: string[]): string {
-  return execFileSync("git", args, { encoding: "utf8" });
-}
+/** Host `git`, stdout as text. Injectable so the integration tier can point it
+ *  at a temp repo with a real release topology. */
+export type GitRunner = (args: string[]) => string;
 
-/** The newest release tag, or `v0.0.0` when none exists yet (a first release). */
-function lastReleaseTag(): string {
-  try {
-    return git(["describe", "--tags", "--match", "v[0-9]*", "--abbrev=0"]).trim();
-  } catch {
-    return "v0.0.0";
-  }
+const git: GitRunner = (args) => execFileSync("git", args, { encoding: "utf8" });
+
+/**
+ * The newest release tag, or `v0.0.0` when none exists yet (a first release).
+ *
+ * Enumerated and version-sorted, NOT `git describe`. `describe` only finds tags
+ * reachable from HEAD, and a release tag here is never reachable from `main`:
+ * the release commit is an unmerged CHILD of the `main` commit it was cut from,
+ * and only its tag ref is pushed. So from a later `main` the tag is a sibling,
+ * `describe` reports no tag at all, and the derivation would restart at v0.0.0
+ * and try to re-cut a version that already exists.
+ */
+export function lastReleaseTag(run: GitRunner = git): string {
+  const tags = run(["tag", "--list", "v[0-9]*", "--sort=-v:refname"])
+    .split("\n")
+    .map((tag) => tag.trim())
+    .filter((tag) => tag.length > 0);
+  return tags[0] ?? "v0.0.0";
 }
 
 function main(): void {
