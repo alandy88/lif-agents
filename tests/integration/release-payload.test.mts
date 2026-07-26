@@ -58,6 +58,8 @@ async function releasedRepo(name: string): Promise<string> {
   write(repo, ".gitignore", "dist/\n");
   write(repo, "package.json", manifest(PLACEHOLDER));
   write(repo, "templates/agent.md", "# agent\n");
+  // Outside `files`, but consumers pin it directly by tag — see SHIPPED_PATHS.
+  write(repo, ".github/workflows/agent.yml", "on:\n  workflow_call:\n");
   await must(git, ["add", "-A"]);
   await must(git, ["commit", "-m", "main: the state a release is cut from"]);
 
@@ -108,6 +110,17 @@ test("deleting templates/ outright reads as changed, and does not abort the gate
   // instead of releasing. It is tracked, so the index already has the deletion.
   const repo = await releasedRepo("templates-deleted");
   await must(gitIn(repo), ["rm", "-r", "templates"]);
+  assert.equal(await changed(repo), true);
+});
+
+test("a reusable-workflow change is a change, though npm never ships it", async () => {
+  // `.github/workflows/agent.yml` is `on: workflow_call` and consumers pin it
+  // as `uses: .../agent.yml@vX.Y.Z`, so it reaches them over a path npm never
+  // touches and is absent from `files`. Judged by the npm payload alone, a fix
+  // to it would sit on main until some unrelated change happened to cut a tag.
+  const repo = await releasedRepo("workflow-changed");
+  write(repo, ".github/workflows/agent.yml", "on:\n  workflow_call:\n    inputs:\n      issue:\n");
+  await must(gitIn(repo), ["add", "-A"]);
   assert.equal(await changed(repo), true);
 });
 

@@ -116,6 +116,24 @@ export type ReadPackageJson = () => string;
 
 const readWorkingPackageJson: ReadPackageJson = () => readFileSync("package.json", "utf8");
 
+/**
+ * Every path a tag delivers to somebody else, which is deliberately WIDER than
+ * `package.json`'s `files`.
+ *
+ * `files` covers what an npm install of the tag unpacks — `dist` and
+ * `templates`. But `.github/workflows/agent.yml` is `on: workflow_call` and
+ * consumers pin it directly (`uses: alandy88/lif-sandcastle/.github/workflows/
+ * agent.yml@vX.Y.Z`), so it reaches them over a path npm never touches. Left
+ * out, a fix to the reusable workflow would sit on main until some unrelated
+ * package change happened to cut a tag — the same never-ships failure this gate
+ * exists to prevent, just through a second door.
+ *
+ * `ci.yml` and `release.yml` are absent on purpose: they run here, not there.
+ * The rule for adding to this list is `on: workflow_call`, or membership in
+ * `files` — anything a consumer can pin or install.
+ */
+const SHIPPED_PATHS = ["dist", "templates", ".github/workflows/agent.yml"];
+
 /** `package.json` with `version` removed, as a comparable string. */
 function shipped(raw: string): string {
   const json = JSON.parse(raw);
@@ -130,21 +148,17 @@ function shipped(raw: string): string {
  * The question is about the installable payload, not about what the commits
  * claimed — `bb2f75a` ("chore: bump routing model ids") changed the model every
  * consumer resolves and a commit-type filter would have shipped nothing for it.
- * So the comparison covers everything that reaches an installing consumer:
- *
- *   • `dist` and `templates`, which is exactly `package.json`'s `files`.
- *     templates/ matters on its own: `templatePath()` resolves prompts out of
- *     the installed package, so a template edit is as consumer-visible as a
- *     code change and ships with no dist/ diff at all.
- *   • `package.json` itself, because npm runs its scripts when installing a git
- *     dependency, so nearly every field can reach a consumer.
+ * So the comparison covers everything that reaches a consumer — `SHIPPED_PATHS`
+ * (see there for why it is wider than `files`), plus `package.json` itself,
+ * because npm runs its scripts when installing a git dependency and so nearly
+ * every field can reach a consumer.
  *
  * Only `dist` is staged, and only because it is gitignored on main — that also
- * leaves it staged for the release commit the workflow makes next. `templates`
- * is tracked, so the index already carries whatever the merge did to it,
- * INCLUDING deleting the directory outright; naming it in the `add` would
- * instead abort the gate with "pathspec 'templates' did not match any files" on
- * exactly that change.
+ * leaves it staged for the release commit the workflow makes next. Everything
+ * else in `SHIPPED_PATHS` is tracked, so the index already carries whatever the
+ * merge did to it, INCLUDING deleting a path outright; naming those in the
+ * `add` would instead abort the gate with "pathspec ... did not match any
+ * files" on exactly that change.
  *
  * `version` is the one key excluded from the package.json comparison, because
  * it is guaranteed to differ: the tag carries a stamped version and main
@@ -170,7 +184,7 @@ export async function payloadChanged(
     );
   }
 
-  const diff = await git(["diff", "--cached", "--quiet", lastTag, "--", "dist", "templates"]);
+  const diff = await git(["diff", "--cached", "--quiet", lastTag, "--", ...SHIPPED_PATHS]);
   if (diff.exitCode !== 0) return true;
 
   const tagged = await git(["show", `${lastTag}:package.json`]);
