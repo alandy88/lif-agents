@@ -27,6 +27,18 @@ export interface ExecSandbox {
   exec(command: string): Promise<{ readonly stdout: string; readonly exitCode: number }>;
 }
 
+/**
+ * POSIX single-quoting for a value interpolated into a sandbox command: close
+ * the quote, emit an escaped apostrophe, reopen. Applied here rather than at
+ * the call sites for the same reason `defangPromptArgs` lives inside the phase
+ * layer — these functions are exported, so a consumer composing its own
+ * lifecycle can pass an issue-derived message or a path with a space, and no
+ * caller should have to remember the rule for the hole to stay closed.
+ */
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
 /** Git identity for the sandbox-issued commits; the sandbox has no global one.
  *  Kit-wide rather than preset-private: every commit the host authors on an
  *  agent branch goes out under this name, whichever lifecycle made it. */
@@ -118,8 +130,8 @@ export async function commitOnBranch(
   message: string,
   opts: { trailer?: string } = {},
 ): Promise<void> {
-  const trailer = opts.trailer ? ` --trailer '${opts.trailer}'` : "";
-  await sandbox.exec(`git ${BOT_IDENTITY} commit --allow-empty -m '${message}'${trailer}`);
+  const trailer = opts.trailer ? ` --trailer ${shellQuote(opts.trailer)}` : "";
+  await sandbox.exec(`git ${BOT_IDENTITY} commit --allow-empty -m ${shellQuote(message)}${trailer}`);
 }
 
 /**
@@ -135,7 +147,10 @@ export async function dropArtifacts(
   sandbox: ExecSandbox,
   files: readonly string[],
 ): Promise<boolean> {
-  const list = files.join(" ");
+  // Quoted individually, not joined raw: a path containing a space would
+  // otherwise split into two pathspecs, and one containing a shell
+  // metacharacter would reach `sh` as syntax.
+  const list = files.map((file) => shellQuote(file)).join(" ");
   const tracked = await sandbox.exec(`git ls-files -- ${list}`);
   if (tracked.stdout.trim().length === 0) return false;
   await sandbox.exec(

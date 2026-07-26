@@ -82,6 +82,23 @@ test("Task-Done trailers survive a real commitOnBranch → logSince round-trip",
   await must(git, ["checkout", "main"]);
 });
 
+test("an apostrophe in a message survives the sandbox's shell, message and trailer alike", async () => {
+  // These helpers are exported, so a Layer-4 consumer can pass an issue-derived
+  // message. Unescaped, `user's` closes the single quote early and git never
+  // sees a valid command — a real `sh` is the only thing that proves otherwise,
+  // which is why this is here rather than an assertion on the command string.
+  await must(git, ["checkout", "-b", "agent/quoting"]);
+  const message = "fix user's config; echo pwned";
+
+  await commitOnBranch(sandboxIn(repo), message, { trailer: "Task-Done: 1'; echo pwned" });
+
+  const subject = await must(git, ["log", "-1", "--format=%s"]);
+  assert.equal(subject.stdout.trim(), message);
+  const body = await must(git, ["log", "-1", "--format=%(trailers)"]);
+  assert.match(body.stdout, /Task-Done: 1'; echo pwned/);
+  await must(git, ["checkout", "main"]);
+});
+
 test("resumeFromOrigin resets a stale local branch to origin's tip", async () => {
   const origin = join(root, "resume-origin.git");
   await must(gitIn(root), ["init", "--bare", "-b", "main", origin]);
