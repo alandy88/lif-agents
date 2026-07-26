@@ -15,14 +15,12 @@
 // in.
 
 import { writeFileSync } from "node:fs";
-import { createSandbox } from "@ai-hero/sandcastle";
 import {
   commitOnBranch,
   dropArtifacts,
   logSince,
   push,
   pushCheckpoint,
-  resumeFromOrigin,
 } from "../lib/branch.mts";
 import {
   githubIssueSource,
@@ -46,51 +44,21 @@ import {
   type RejectionKind,
 } from "../lib/issue-intake.mts";
 import { assertKnownFlags, readFlag } from "../lib/cli.mts";
-import { templatePath } from "../lib/templates.mts";
 import { isEntrypoint } from "../lib/entrypoint.mts";
-import {
-  createAgent,
-  createSandboxProvider,
-  providerPreflight,
-} from "../lib/provider-setup.mts";
-import { renderConventions, toolchains, type Toolchain } from "../lib/toolchains.mts";
-import type { PhaseContext } from "../phases/context.mts";
+import { openRun, type RepoConfig, type RunDeps } from "../lib/run.mts";
+import { renderConventions } from "../lib/toolchains.mts";
 import { runPlanPhase } from "../phases/plan.mts";
 import { runTaskPhase } from "../phases/task.mts";
 import { runReviewPhase } from "../phases/review.mts";
 import { deliverPullRequest } from "../lib/github-pr.mts";
 
 /**
- * The per-repo half of the pipeline — and only that half. Everything keyed off
- * `profile.provider` (agent construction, credential materialization, the CLI
- * smoke check) is the kit's, because a consumer writing it would be copying the
- * same block into every repo. What is left here cannot be written without
- * naming this repo's package manager or test command, which is exactly the
- * PRD's module-boundary test.
+ * The per-repo half of the pipeline. An alias rather than its own interface:
+ * `openRun` consumes every field, and the ledger preset needs the identical
+ * shape, so one definition in `lib/run.mts` is the only way the two presets
+ * cannot drift. The name stays exported because consumers annotate with it.
  */
-export interface ImplementConfig {
-  /**
-   * This repo's toolchain. Picking one selects the kit's standard for it —
-   * `python` means uv, `node` means npm — which drives the sandbox warm-up and
-   * the checks the prompts tell a session to run. The kit owns the commands so
-   * three repos cannot drift into three dialects of the same toolchain.
-   */
-  toolchain: Toolchain;
-  /**
-   * Checks the toolchain name cannot imply: a second test suite, a generated
-   * file to refresh. Appended under the standard block. Not for restating the
-   * toolchain's own commands.
-   */
-  extraConventions?: string;
-  /**
-   * Sandbox warm-up beyond the toolchain's own, e.g. a docs-generation step.
-   * The toolchain's commands and provider authentication are both the kit's
-   * job — this is only what neither can know.
-   */
-  preflight?: () => string[];
-  /** Workspace-relative template override directory, e.g. `.sandcastle/templates`. */
-  templateDir?: string;
-}
+export type ImplementConfig = RepoConfig;
 
 export type CliOptions = {
   issue: number;
@@ -178,6 +146,9 @@ export function renderPrBody(issueNumber: number, run: ResolvedPhases, summary: 
  * The branch is the durable checkpoint: it is pushed after every green task and
  * the Task-Done trailers are the resume set, so a re-fired run skips completed
  * tasks instead of starting over.
+ *
+ * `runDeps` is `openRun`'s seam, passed through so a test can drive this whole
+ * lifecycle against a fake sandbox. Defaulted, so `runImplementLoop` is unchanged.
  */
 export async function runIssue(
   config: ImplementConfig,
@@ -185,48 +156,25 @@ export async function runIssue(
   issueNumber: number,
   issue: Issue,
   issueSource: IssueBodySource,
+  runDeps?: RunDeps,
 ): Promise<{ prUrl: string }> {
   const branch = `agent/issue-${issueNumber}`;
-  const prompt = (name: string) => templatePath(name, { overrideDir: config.templateDir });
 
-  // Resume: when a prior run pushed this branch, recreate it locally from
-  // origin so the sandbox continues it (and its trailers) instead of starting
-  // a fresh branch that could never fast-forward-push.
-  await resumeFromOrigin(branch);
+  // `openRun` owns the resume (and its ordering against sandbox creation).
+  await using opened = await openRun({ config, run, branch }, runDeps);
+
+  // The resume set. Read AFTER the run opens, because `openRun` is what
+  // recreates the local branch from origin — on a fresh CI checkout the branch
+  // does not exist locally until then, and reading first would return an empty
+  // set and rebuild every task the prior run already landed. It stays here
+  // rather than moving into `openRun` because it is not part of the scaffold:
+  // the ledger loop has no checklist and no trailers.
   const done = parseTaskDoneTrailers(await logSince(branch));
-
-  // Toolchain warm-up, then repo extras, then provider auth — the donor's
-  // order, and the one that fails on a missing toolchain before it fails on a
-  // missing credential.
-  const preflight = [
-    ...toolchains[config.toolchain].preflight,
-    ...(config.preflight?.() ?? []),
-    ...providerPreflight(Object.values(run.phases)),
-  ];
-
-  await using sandbox = await createSandbox({
-    branch,
-    sandbox: createSandboxProvider(),
-    hooks: {
-      sandbox: {
-        onSandboxReady: preflight.map((command) => ({ command })),
-      },
-    },
-  });
-
-  // One context per phase: the sandbox, branch and template resolver are shared;
-  // only the agent differs, which is where per-phase model routing lands.
-  const shared = { sandbox, branch, prompt };
-  const ctx: Record<"plan" | "task" | "review", PhaseContext> = {
-    plan: { ...shared, agent: createAgent(run.phases.plan) },
-    task: { ...shared, agent: createAgent(run.phases.task) },
-    review: { ...shared, agent: createAgent(run.phases.review) },
-  };
 
   /** Read a run artifact off the branch; absent and unreadable both read empty
    *  (`|| true` keeps a missing file from surfacing as a failed exec). */
   const readArtifact = async (file: string): Promise<string> => {
-    const read = await sandbox.exec(`cat ${file} 2>/dev/null || true`);
+    const read = await opened.sandbox.exec(`cat ${file} 2>/dev/null || true`);
     return read.exitCode === 0 ? read.stdout : "";
   };
   // `BRANCH` is injected by the phase from `ctx.branch`.
@@ -242,7 +190,7 @@ export async function runIssue(
   let issueBody = issue.body;
   const { tasks, planned } = await ensureTaskList(issueBody, {
     plan: async () => {
-      await runPlanPhase(ctx.plan, {
+      await runPlanPhase(opened.ctx.plan, {
         args: { ...baseArgs, ISSUE_BODY: issueBody },
         name: `plan-${issueNumber}`,
       });
@@ -264,7 +212,7 @@ export async function runIssue(
       // Injected, not merely mentioned: a session told to "read the notes file
       // if it exists" frequently won't, which is the exact cross-session
       // amnesia the file exists to fix.
-      return runTaskPhase(ctx.task, {
+      return runTaskPhase(opened.ctx.task, {
         args: {
           ...baseArgs,
           ISSUE_BODY: stripTaskSection(issueBody),
@@ -280,7 +228,7 @@ export async function runIssue(
     recordDone: async (index) => {
       // An empty commit carrying only the trailer (the task's work is already
       // committed by the session).
-      await commitOnBranch(sandbox, `chore(tasks): complete task ${index}`, {
+      await commitOnBranch(opened.sandbox, `chore(tasks): complete task ${index}`, {
         trailer: taskDoneTrailer(index),
       });
     },
@@ -314,7 +262,7 @@ export async function runIssue(
     throw new Error(detail);
   }
 
-  const review = await runReviewPhase(ctx.review, {
+  const review = await runReviewPhase(opened.ctx.review, {
     // Full body here (not stripTaskSection): the reviewer's spec axis walks the
     // `## Tasks` checklist against the diff, so it needs the section verbatim.
     args: {
@@ -333,7 +281,7 @@ export async function runIssue(
   // Strip both artifacts — the deletion is the host's job, not an instruction
   // the review session has to remember, so a forgetful reviewer cannot leak
   // scratch files onto main.
-  await dropArtifacts(sandbox, [NOTES_FILE, SUMMARY_FILE]);
+  await dropArtifacts(opened.sandbox, [NOTES_FILE, SUMMARY_FILE]);
 
   await push(branch);
 
