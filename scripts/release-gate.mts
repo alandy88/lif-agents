@@ -117,28 +117,56 @@ export type ReadPackageJson = () => string;
 const readWorkingPackageJson: ReadPackageJson = () => readFileSync("package.json", "utf8");
 
 /**
- * Every path a tag delivers to somebody else, which is deliberately WIDER than
- * `package.json`'s `files`.
+ * Every path a tag delivers to somebody else — derived from the manifest rather
+ * than listed here.
  *
- * `files` covers what an npm install of the tag unpacks — `dist` and
- * `templates`. But `.github/workflows/agent.yml` is `on: workflow_call` and
- * consumers pin it directly (`uses: alandy88/lif-sandcastle/.github/workflows/
- * agent.yml@vX.Y.Z`), so it reaches them over a path npm never touches. Left
- * out, a fix to the reusable workflow would sit on main until some unrelated
- * package change happened to cut a tag — the same never-ships failure this gate
- * exists to prevent, just through a second door.
+ * Four review rounds each found one more path that ships and was not on the
+ * list (`templates`, `package.json`, `.github/workflows/agent.yml`, `README.md`).
+ * The list was the bug: it stated a rule and was then maintained from memory.
+ * Reading `files` ends that class — a path that starts shipping starts being
+ * watched in the same commit that ships it.
  *
- * `ci.yml` and `release.yml` are absent on purpose: they run here, not there.
- * The rule for adding to this list is `on: workflow_call`, or membership in
- * `files` — anything a consumer can pin or install.
+ * Two things the manifest cannot state:
+ *
+ * - npm packs `README*` whatever `files` says. `npm pack --dry-run` on this repo
+ *   lists exactly it and `package.json` outside `files`; `package.json` is absent
+ *   from this list only because it is compared field-by-field below, where
+ *   `version` can be excluded. Nothing else in npm's always-packed set
+ *   (`LICENSE*`) exists here, and `files` would be the wrong place to notice it
+ *   if it appeared — so the glob, not a filename.
+ * - `.github/workflows/agent.yml` is `on: workflow_call` and consumers pin it
+ *   directly (`uses: alandy88/lif-sandcastle/.github/workflows/agent.yml@vX.Y.Z`),
+ *   reaching them over a path npm never touches. Deriving this one too would mean
+ *   regex-sniffing `workflow_call` out of YAML — a worse trade than one named
+ *   entry. `ci.yml` and `release.yml` stay out on purpose: they run here, not
+ *   there.
+ *
+ * `files` entries are npm patterns and these are git pathspecs; the two agree on
+ * plain paths and diverge on npm's negation and directory semantics. An entry
+ * that is not a plain path throws rather than being passed through, because
+ * `git diff` exits 0 on a pathspec that matches nothing: a mistranslated pattern
+ * would silently watch NOTHING, which is the never-ships failure this whole gate
+ * exists to prevent. Loud is the only safe direction for a rule about coverage.
  */
-const SHIPPED_PATHS = ["dist", "templates", ".github/workflows/agent.yml"];
+export function shippedPaths(manifest: { files?: unknown }): string[] {
+  const files = manifest.files;
+  if (!Array.isArray(files) || files.length === 0) {
+    throw new Error("package.json has no `files` array to derive the shipped paths from");
+  }
+  for (const entry of files) {
+    if (typeof entry !== "string" || !/^[\w.-]+(\/[\w.-]+)*$/.test(entry) || entry.includes("..")) {
+      throw new Error(
+        `\`files\` entry ${JSON.stringify(entry)} is not a plain path, so it cannot be trusted as a git pathspec`,
+      );
+    }
+  }
+  return [...files, "README*", ".github/workflows/agent.yml"];
+}
 
-/** `package.json` with `version` removed, as a comparable string. */
-function shipped(raw: string): string {
-  const json = JSON.parse(raw);
-  delete json.version;
-  return JSON.stringify(json);
+/** A manifest with `version` removed, as a comparable string. */
+function comparable(json: Record<string, unknown>): string {
+  const { version: _version, ...rest } = json;
+  return JSON.stringify(rest);
 }
 
 /**
@@ -148,14 +176,14 @@ function shipped(raw: string): string {
  * The question is about the installable payload, not about what the commits
  * claimed — `bb2f75a` ("chore: bump routing model ids") changed the model every
  * consumer resolves and a commit-type filter would have shipped nothing for it.
- * So the comparison covers everything that reaches a consumer — `SHIPPED_PATHS`
- * (see there for why it is wider than `files`), plus `package.json` itself,
- * because npm runs its scripts when installing a git dependency and so nearly
- * every field can reach a consumer.
+ * So the comparison covers everything that reaches a consumer — `shippedPaths()`
+ * (see there for how that set is derived), plus `package.json` itself, because
+ * npm runs its scripts when installing a git dependency and so nearly every
+ * field can reach a consumer.
  *
  * Only `dist` is staged, and only because it is gitignored on main — that also
  * leaves it staged for the release commit the workflow makes next. Everything
- * else in `SHIPPED_PATHS` is tracked, so the index already carries whatever the
+ * else shipped is tracked, so the index already carries whatever the
  * merge did to it, INCLUDING deleting a path outright; naming those in the
  * `add` would instead abort the gate with "pathspec ... did not match any
  * files" on exactly that change.
@@ -175,6 +203,16 @@ export async function payloadChanged(
   git: GitRunner = hostGit,
   readPackageJson: ReadPackageJson = readWorkingPackageJson,
 ): Promise<boolean> {
+  let manifest: Record<string, unknown>;
+  try {
+    manifest = JSON.parse(readPackageJson());
+  } catch {
+    // Same bias as the comparison below: a manifest the gate cannot read has not
+    // told it the payload is unchanged.
+    return true;
+  }
+  const paths = shippedPaths(manifest);
+
   const staged = await git(["add", "-f", "dist"]);
   // Throws rather than resolving false: a gate that cannot read the payload has
   // not found it unchanged. The shell got this from `bash -e`.
@@ -184,13 +222,13 @@ export async function payloadChanged(
     );
   }
 
-  const diff = await git(["diff", "--cached", "--quiet", lastTag, "--", ...SHIPPED_PATHS]);
+  const diff = await git(["diff", "--cached", "--quiet", lastTag, "--", ...paths]);
   if (diff.exitCode !== 0) return true;
 
   const tagged = await git(["show", `${lastTag}:package.json`]);
   if (tagged.exitCode !== 0) return true;
   try {
-    return shipped(tagged.stdout) !== shipped(readPackageJson());
+    return comparable(JSON.parse(tagged.stdout)) !== comparable(manifest);
   } catch {
     return true;
   }

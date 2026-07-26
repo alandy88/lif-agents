@@ -8,7 +8,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { headIsStale, lastReleaseTag, payloadChanged } from "./release-gate.mts";
+import { headIsStale, lastReleaseTag, payloadChanged, shippedPaths } from "./release-gate.mts";
 
 const replies =
   (results: Record<string, { stdout?: string; exitCode?: number }>) => async (args: string[]) => {
@@ -39,6 +39,29 @@ test("a freshness fetch that fails throws instead of comparing stale data", asyn
     () => headIsStale(replies({ fetch: { exitCode: 128 }, "rev-parse": { stdout: "abc" } })),
     /fetching origin\/main to check freshness exited 128/,
   );
+});
+
+test("the watched set follows `files`, so a newly shipped path needs no edit here", () => {
+  // The point of deriving it: four review rounds each found one more path that
+  // shipped and was not on a hand-kept list.
+  assert.deepEqual(shippedPaths({ files: ["dist", "templates", "assets"] }), [
+    "dist",
+    "templates",
+    "assets",
+    "README*",
+    ".github/workflows/agent.yml",
+  ]);
+});
+
+test("a `files` entry that is not a plain path throws rather than being guessed at", () => {
+  // npm patterns and git pathspecs agree on plain paths and diverge on negation.
+  // `git diff` exits 0 on a pathspec matching nothing, so a mistranslated entry
+  // would silently watch NOTHING — the never-ships failure the gate exists for.
+  assert.throws(() => shippedPaths({ files: ["dist", "!dist/*.map"] }), /not a plain path/);
+});
+
+test("a manifest with no `files` throws — an empty watched set is not an answer", () => {
+  assert.throws(() => shippedPaths({}), /no `files` array/);
 });
 
 test("a working package.json that will not parse releases rather than throwing", async () => {

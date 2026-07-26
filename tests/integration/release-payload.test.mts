@@ -58,7 +58,9 @@ async function releasedRepo(name: string): Promise<string> {
   write(repo, ".gitignore", "dist/\n");
   write(repo, "package.json", manifest(PLACEHOLDER));
   write(repo, "templates/agent.md", "# agent\n");
-  // Outside `files`, but consumers pin it directly by tag — see SHIPPED_PATHS.
+  // Outside `files`, but npm packs it anyway — see shippedPaths().
+  write(repo, "README.md", "# kit\n");
+  // Outside `files`, but consumers pin it directly by tag — see shippedPaths().
   write(repo, ".github/workflows/agent.yml", "on:\n  workflow_call:\n");
   await must(git, ["add", "-A"]);
   await must(git, ["commit", "-m", "main: the state a release is cut from"]);
@@ -120,6 +122,17 @@ test("a reusable-workflow change is a change, though npm never ships it", async 
   // to it would sit on main until some unrelated change happened to cut a tag.
   const repo = await releasedRepo("workflow-changed");
   write(repo, ".github/workflows/agent.yml", "on:\n  workflow_call:\n    inputs:\n      issue:\n");
+  await must(gitIn(repo), ["add", "-A"]);
+  assert.equal(await changed(repo), true);
+});
+
+test("a README edit is a change, because npm packs it whatever `files` says", async () => {
+  // Verified with `npm pack --dry-run`: the tarball carries exactly README.md
+  // and package.json outside `files`. It ships, so it is watched — the cost is
+  // that a doc-only commit cuts a patch, which is the cheap side of this gate's
+  // bias.
+  const repo = await releasedRepo("readme-changed");
+  write(repo, "README.md", "# kit, documented\n");
   await must(gitIn(repo), ["add", "-A"]);
   assert.equal(await changed(repo), true);
 });
