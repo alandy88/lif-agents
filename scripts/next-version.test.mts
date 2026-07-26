@@ -43,6 +43,11 @@ test("nextVersion reads the tag's v prefix and returns a bare version", () => {
   assert.equal(nextVersion("v0.2.3", ["feat: something"]), "0.3.0");
 });
 
+test("a first release derives from 0.0.0 without needing a tag to exist", () => {
+  assert.equal(nextVersion("v0.0.0", ["feat: the first thing"]), "0.1.0");
+  assert.equal(nextVersion("v0.0.0", ["initial import"]), "0.0.1");
+});
+
 test("bump rejects a version it cannot parse rather than emitting NaN", () => {
   assert.throws(() => bump("0.0.0-development", "fix"), /not a semver/);
 });

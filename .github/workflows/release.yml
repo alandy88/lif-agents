@@ -67,14 +67,38 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # Force-added because dist/ is gitignored on main; this also leaves it
-          # staged for the release commit below. Comparing the index against the
-          # tag asks the only question that matters: would a consumer installing
-          # the next tag receive different bytes?
-          git add -f dist
-          if git diff --cached --quiet "$LAST" -- dist; then
+          # The question is "would a consumer installing the next tag receive
+          # anything different", so the comparison covers the whole installable
+          # payload — package.json's `files` is ["dist", "templates"], and
+          # templatePath() resolves prompts out of the installed package, so a
+          # template edit is as consumer-visible as a code change and ships with
+          # no dist/ diff at all.
+          #
+          # dist/ is force-added because it is gitignored on main; that also
+          # leaves it staged for the release commit below.
+          git add -f dist templates
+          if ! git diff --cached --quiet "$LAST" -- dist templates; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # package.json ships too, and npm runs its scripts when installing a
+          # git dependency, so nearly every field can reach a consumer. Compared
+          # apart from the others because `version` is guaranteed to differ (the
+          # tag carries a stamped one, main carries the placeholder) and would
+          # otherwise report every push as a change.
+          if git show "$LAST:package.json" | node -e '
+            const fs = require("node:fs");
+            const shipped = (raw) => {
+              const json = JSON.parse(raw);
+              delete json.version;
+              return JSON.stringify(json);
+            };
+            const tagged = shipped(fs.readFileSync(0, "utf8"));
+            const current = shipped(fs.readFileSync("package.json", "utf8"));
+            process.exit(tagged === current ? 0 : 1);
+          '; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "dist/ is unchanged since $LAST — no release." >> "$GITHUB_STEP_SUMMARY"
+            echo "Installable payload is unchanged since $LAST — no release." >> "$GITHUB_STEP_SUMMARY"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi

@@ -64,6 +64,9 @@ test("the sort is numeric, not lexical", async () => {
   assert.equal(lastReleaseTag(() => listed.stdout), "v0.10.0");
 });
 
-test("no tags at all reads as v0.0.0, so a first release starts from zero", () => {
-  assert.equal(lastReleaseTag(() => ""), "v0.0.0");
+test("no tags at all reads as absent, not as a v0.0.0 that could be logged", () => {
+  // null rather than "v0.0.0": the caller uses this as a git revision as well
+  // as a version, and `git log v0.0.0..HEAD` against a tag that does not exist
+  // is a fatal ambiguous-revision error that would fail every first release.
+  assert.equal(lastReleaseTag(() => ""), null);
 });

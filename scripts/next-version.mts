@@ -112,7 +112,7 @@ export type GitRunner = (args: string[]) => string;
 const git: GitRunner = (args) => execFileSync("git", args, { encoding: "utf8" });
 
 /**
- * The newest release tag, or `v0.0.0` when none exists yet (a first release).
+ * The newest release tag, or `null` when none exists yet.
  *
  * Enumerated and version-sorted, NOT `git describe`. `describe` only finds tags
  * reachable from HEAD, and a release tag here is never reachable from `main`:
@@ -120,13 +120,18 @@ const git: GitRunner = (args) => execFileSync("git", args, { encoding: "utf8" })
  * and only its tag ref is pushed. So from a later `main` the tag is a sibling,
  * `describe` reports no tag at all, and the derivation would restart at v0.0.0
  * and try to re-cut a version that already exists.
+ *
+ * `null` rather than a `v0.0.0` sentinel: the caller uses this value as BOTH a
+ * version to bump from and a git revision to log since, and only the first has
+ * a sensible zero. `git log v0.0.0..HEAD` against a tag that does not exist is
+ * a fatal ambiguous-revision error, which would fail every first release.
  */
-export function lastReleaseTag(run: GitRunner = git): string {
+export function lastReleaseTag(run: GitRunner = git): string | null {
   const tags = run(["tag", "--list", "v[0-9]*", "--sort=-v:refname"])
     .split("\n")
     .map((tag) => tag.trim())
     .filter((tag) => tag.length > 0);
-  return tags[0] ?? "v0.0.0";
+  return tags[0] ?? null;
 }
 
 function main(): void {
@@ -136,18 +141,24 @@ function main(): void {
   const lastTag = process.env.LAST_TAG?.trim() || lastReleaseTag();
 
   const explicit = process.env.EXPLICIT?.trim();
+  // Every commit on a first release, everything since the tag on any other.
+  // `${lastTag}..HEAD` is only a valid revision when the tag exists.
+  const range = lastTag ? `${lastTag}..HEAD` : "HEAD";
   // NUL-separated so a commit body containing a blank line stays one message.
-  const messages = git(["log", "--format=%B", "-z", `${lastTag}..HEAD`])
+  const messages = git(["log", "--format=%B", "-z", range])
     .split("\0")
     .map((message) => message.trim())
     .filter((message) => message.length > 0);
 
-  const version = explicit ? resolveExplicit(explicit, lastTag) : nextVersion(lastTag, messages);
+  // Absent a tag the bump starts from 0.0.0 — as a version to add to, never as
+  // a revision to ask git about.
+  const baseline = lastTag ?? "v0.0.0";
+  const version = explicit ? resolveExplicit(explicit, baseline) : nextVersion(baseline, messages);
   const how = explicit ? "explicit" : classify(messages);
 
-  console.log(`${lastTag} -> v${version} (${how}, ${messages.length} commits)`);
+  console.log(`${lastTag ?? "(no tags)"} -> v${version} (${how}, ${messages.length} commits)`);
   const out = process.env.GITHUB_OUTPUT;
-  if (out) appendFileSync(out, `version=${version}\nlast=${lastTag}\n`);
+  if (out) appendFileSync(out, `version=${version}\nlast=${lastTag ?? ""}\n`);
 }
 
 if (isEntrypoint(import.meta.url)) {
