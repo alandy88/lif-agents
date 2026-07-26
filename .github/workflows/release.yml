@@ -114,11 +114,10 @@ jobs:
           LAST_TAG: ${{ steps.check.outputs.last }}
         run: node --experimental-strip-types scripts/next-version.mts
 
-      - name: stamp, tag and release
+      - name: stamp and tag
         if: steps.version.outputs.version != ''
         env:
           VERSION: ${{ steps.version.outputs.version }}
-          GH_TOKEN: ${{ github.token }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -130,8 +129,34 @@ jobs:
           git commit -m "release v$VERSION: stamp version, build dist/"
           git tag "v$VERSION"
           git push origin "refs/tags/v$VERSION"
-          # --verify-tag: fail rather than invent a tag if the push above did not
-          # land. --generate-notes gives consumers a diff summary at the tag,
-          # which is the only place a pinning consumer looks.
-          gh release create "v$VERSION" --verify-tag --generate-notes
-          echo "Released [v$VERSION](https://github.com/${GITHUB_REPOSITORY}/releases/tag/v$VERSION)." >> "$GITHUB_STEP_SUMMARY"
+          echo "Tagged [v$VERSION](https://github.com/${GITHUB_REPOSITORY}/releases/tag/v$VERSION)." >> "$GITHUB_STEP_SUMMARY"
+
+      # Deliberately NOT gated on this run having cut a tag. Pushing the tag and
+      # publishing its notes are two calls against different services, and a
+      # transient failure between them used to be unrecoverable by rerunning:
+      # the orphaned tag becomes LAST, so the gate finds the payload unchanged
+      # and skips, while an explicit re-dispatch of that same version is
+      # rejected for not moving forward. Reconciling the newest tag on every
+      # successful run heals it with no operator step.
+      #
+      # It reconciles rather than retries, so it will also backfill notes for a
+      # tag cut before this workflow existed. That is the intended state, just
+      # arriving late.
+      - name: publish notes for the newest tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG=$(git tag --list 'v[0-9]*' --sort=-v:refname | head -n 1)
+          if [ -z "$TAG" ]; then
+            echo "No tags yet — nothing to publish."
+            exit 0
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG is already published."
+            exit 0
+          fi
+          # --verify-tag: fail rather than invent a tag if the push did not land.
+          # --generate-notes gives consumers a diff summary at the tag, which is
+          # the only place a pinning consumer looks.
+          gh release create "$TAG" --verify-tag --generate-notes
+          echo "Published notes for [$TAG](https://github.com/${GITHUB_REPOSITORY}/releases/tag/$TAG)." >> "$GITHUB_STEP_SUMMARY"
