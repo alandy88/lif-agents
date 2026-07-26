@@ -8,7 +8,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { lastReleaseTag, payloadChanged } from "./release-gate.mts";
+import { headIsStale, lastReleaseTag, payloadChanged } from "./release-gate.mts";
 
 const replies =
   (results: Record<string, { stdout?: string; exitCode?: number }>) => async (args: string[]) => {
@@ -28,6 +28,17 @@ test("a git that cannot enumerate tags throws rather than claiming a first relea
 
 test("a repo with no tags is still absent, not an error", async () => {
   assert.equal(await lastReleaseTag(replies({ tag: { stdout: "" } })), null);
+});
+
+test("a freshness fetch that fails throws instead of comparing stale data", async () => {
+  // `hostGit` never rejects — it resolves a non-zero exitCode — so a dropped
+  // fetch result would leave the comparison running against the origin/main
+  // cached at checkout, letting a superseded HEAD read as current. That is the
+  // exact failure headIsStale exists to prevent, so it must not guess.
+  await assert.rejects(
+    () => headIsStale(replies({ fetch: { exitCode: 128 }, "rev-parse": { stdout: "abc" } })),
+    /fetching origin\/main to check freshness exited 128/,
+  );
 });
 
 test("a working package.json that will not parse releases rather than throwing", async () => {

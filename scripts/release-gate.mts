@@ -86,10 +86,22 @@ export async function lastReleaseTag(git: GitRunner = hostGit): Promise<string |
  * Skipping is safe and loses nothing: `main`'s tip descends from this commit, so
  * whatever this run would have shipped is already in what the newer run ships.
  *
- * Compares only; the caller fetches first, so the freshness of `origin/main` is
- * a decision the caller makes rather than a side effect hidden in here.
+ * Fetches first, and the fetch is INSIDE this function rather than left to the
+ * caller. It was the caller's a moment ago, and the caller dropped the result:
+ * `hostGit` never rejects, it resolves a non-zero `exitCode`, so a transient
+ * fetch failure silently left the comparison running against the cached
+ * `origin/main` from checkout — a superseded HEAD reading as current, which is
+ * the exact failure this function exists to prevent. A freshness check that can
+ * quietly compare against stale data is worse than none, so both the fetch and
+ * the resolution throw rather than guess.
  */
 export async function headIsStale(git: GitRunner = hostGit): Promise<boolean> {
+  const fetched = await git(["fetch", "--quiet", "origin", "main"]);
+  if (fetched.exitCode !== 0) {
+    throw new Error(
+      `fetching origin/main to check freshness exited ${fetched.exitCode}: ${fetched.stderr}`,
+    );
+  }
   const head = await git(["rev-parse", "HEAD"]);
   const tip = await git(["rev-parse", "origin/main"]);
   if (head.exitCode !== 0 || tip.exitCode !== 0) {
@@ -180,10 +192,6 @@ async function main(): Promise<void> {
     return;
   }
 
-  // Fetched here rather than inside `headIsStale`, which only compares: a run
-  // checks out its event SHA, and origin/main as of checkout can already be
-  // behind by the time the concurrency lock releases this run.
-  await hostGit(["fetch", "--quiet", "origin", "main"]);
   const stale = await headIsStale();
 
   const lastTag = await lastReleaseTag();

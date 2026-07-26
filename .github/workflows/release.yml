@@ -64,15 +64,24 @@ jobs:
         id: check
         run: node --experimental-strip-types scripts/release-gate.mts
 
+      # A stale run must not tag superseded code, but an operator who named a
+      # version must not be silently ignored either — a dispatch that "succeeds"
+      # having created nothing is the worst of the three outcomes. So the derived
+      # path skips quietly (the newer run covers this commit) and the explicit
+      # path stops loudly, telling the operator what to do about it.
+      - name: reject a stale explicit dispatch
+        if: inputs.version != '' && steps.check.outputs.stale == 'true'
+        run: |
+          echo "::error::main advanced past this run's commit, so ${{ inputs.version }} would tag superseded code. Re-dispatch from the current tip of main."
+          exit 1
+
       - name: decide the version
         id: version
-        # An explicit dispatch releases even when dist/ is unchanged: naming a
-        # version is a deliberate act (marking a milestone, re-cutting a tag),
-        # and the artifact test exists to catch silence, not to overrule intent.
-        # `stale` blocks the derived path but not the explicit one: an operator
-        # naming a version has chosen the ref they dispatched, while a stale
-        # push-event rerun has chosen nothing and would tag superseded code.
-        if: steps.check.outputs.changed == 'true' || (inputs.version != '' && steps.check.outputs.stale != 'true')
+        # An explicit dispatch releases even when the payload is unchanged:
+        # naming a version is a deliberate act (marking a milestone), and the
+        # artifact test exists to catch silence, not to overrule intent. It
+        # cannot be reached while stale — the guard above already failed the run.
+        if: steps.check.outputs.changed == 'true' || inputs.version != ''
         env:
           EXPLICIT: ${{ inputs.version }}
           LAST_TAG: ${{ steps.check.outputs.last }}
