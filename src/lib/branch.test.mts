@@ -9,12 +9,14 @@
 //   • `push` converts a non-zero exit into a throw (the run stops),
 //   • `pushCheckpoint` deliberately does NOT (the run continues) — the exact
 //     point the two presets had drifted on, and invisible in the argv,
-//   • `dropArtifacts` skips the commit entirely when nothing is tracked.
+//   • `dropArtifacts` skips the commit entirely when nothing is tracked,
+//   • `commitOnBranch` turns a rejected commit into a throw rather than
+//     resolving void over it.
 
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { dropArtifacts, push, pushCheckpoint, type ExecSandbox } from "./branch.mts";
+import { commitOnBranch, dropArtifacts, push, pushCheckpoint, type ExecSandbox } from "./branch.mts";
 
 const exits = (exitCode: number) => async () => ({ stdout: "", stderr: "", exitCode });
 
@@ -54,6 +56,21 @@ test("pushCheckpoint: a non-zero exit is reported and resolves false, never thro
   }
   assert.equal(reported.length, 1);
   assert.match(reported[0]!, /exited 128; continuing\./);
+});
+
+test("commitOnBranch: a rejected commit throws rather than resolving void", async () => {
+  // The signature returns void, so a swallowed failure is invisible to every
+  // caller. For the trailer commit that would drop the durable Task-Done record
+  // while the loop carried on marking the task done.
+  const rejecting: ExecSandbox = { async exec() { return { stdout: "", exitCode: 1 }; } };
+  await assert.rejects(
+    () => commitOnBranch(rejecting, "chore(tasks): complete task 3", { trailer: "Task-Done: 3" }),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.match(error.message, /exited 1/);
+      return true;
+    },
+  );
 });
 
 test("dropArtifacts: nothing tracked → the ls-files probe is the only exec", async () => {

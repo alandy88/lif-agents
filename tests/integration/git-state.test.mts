@@ -128,11 +128,12 @@ test("a wildcard in an artifact name matches nothing rather than every sibling",
   await must(git, ["checkout", "main"]);
 });
 
-test("dropArtifacts reports the failure instead of claiming a commit", async () => {
+test("dropArtifacts throws on a refused removal rather than reporting no-op", async () => {
   // `git rm` refuses a directory without -r: exit 128, nothing staged, nothing
-  // committed. The return value has to be the exec's verdict rather than "we
-  // got as far as running it", or the caller pushes a branch it believes was
-  // cleaned. Reachable through the exported helper, hence the real-git check.
+  // committed. This must NOT collapse into the same `false` that means "nothing
+  // was tracked" — that is the ordinary clean-run outcome, so a caller reading
+  // false as failure would abort healthy runs. Failure throws; false stays
+  // unambiguous. Real git because the exit code is git's, not ours.
   await must(git, ["checkout", "-b", "agent/rm-failure"]);
   await mkdir(join(repo, "scratch"), { recursive: true });
   await writeFile(join(repo, "scratch", "kept.md"), "keep me");
@@ -140,9 +141,8 @@ test("dropArtifacts reports the failure instead of claiming a commit", async () 
   await must(git, ["commit", "-m", "scratch"]);
   const before = (await must(git, ["rev-parse", "HEAD"])).stdout.trim();
 
-  const committed = await dropArtifacts(sandboxIn(repo), ["scratch"]);
+  await assert.rejects(() => dropArtifacts(sandboxIn(repo), ["scratch"]), /exited 128/);
 
-  assert.equal(committed, false, "a refused `git rm` is not a successful cleanup");
   assert.equal((await must(git, ["rev-parse", "HEAD"])).stdout.trim(), before, "no commit landed");
   assert.match((await must(git, ["ls-files"])).stdout, /scratch\/kept\.md/);
   await must(git, ["checkout", "main"]);

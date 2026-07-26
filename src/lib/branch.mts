@@ -130,6 +130,11 @@ export async function pushCheckpoint(branch: string, git: GitRunner = hostGit): 
  * commit rather than forcing one, so there is nothing for a caller to decide —
  * and the trailer-only commits this exists for are empty by construction, the
  * task's own work having already been committed by the session.
+ *
+ * Throws on a non-zero exit. Because `--allow-empty` already excludes the one
+ * benign reason `git commit` fails, anything left (a hook rejecting it, a
+ * broken index) means the commit did not happen — and for a trailer commit that
+ * silently loses the durable record the resume set is read from.
  */
 export async function commitOnBranch(
   sandbox: ExecSandbox,
@@ -137,22 +142,32 @@ export async function commitOnBranch(
   opts: { trailer?: string } = {},
 ): Promise<void> {
   const trailer = opts.trailer ? ` --trailer ${shellQuote(opts.trailer)}` : "";
-  await sandbox.exec(`git ${BOT_IDENTITY} commit --allow-empty -m ${shellQuote(message)}${trailer}`);
+  const result = await sandbox.exec(
+    `git ${BOT_IDENTITY} commit --allow-empty -m ${shellQuote(message)}${trailer}`,
+  );
+  if (result.exitCode !== 0) {
+    throw new Error(`git commit ${shellQuote(message)} in the sandbox exited ${result.exitCode}`);
+  }
 }
 
 /**
- * Remove the run artifacts from the branch and commit the removal, returning
- * whether it committed. Nothing tracked means nothing to do — committing anyway
- * would put an empty "drop run artifacts" commit on every run.
+ * Remove the run artifacts from the branch and commit the removal. Returns
+ * false when there was nothing tracked to remove — and false ONLY for that.
+ * Nothing tracked is the ordinary outcome of a clean run: a task session writes
+ * `AGENT_NOTES.md` only when something forced a departure from the plan, and a
+ * review session may leave no summary, so "no artifacts" is not a problem to
+ * report.
+ *
+ * A failure to remove them IS, so it throws rather than folding into the same
+ * false. Conflating the two would make the return value untestable by a caller:
+ * `git rm` refuses a directory without `-r` (exit 128, nothing changed) and a
+ * hook can reject the commit, and a caller that read false as "failed" would
+ * abort every clean run, while one that read it as "fine" would push a branch
+ * still carrying the artifacts.
  *
  * The `rm` and the commit stay ONE chained exec rather than reusing
  * `commitOnBranch`: split in two, a failed `rm` would still be followed by a
  * commit, leaving an orphan commit claiming a removal that never happened.
- *
- * The exec's exit code IS the return value, not an assumption: `git rm` refuses
- * a directory without `-r` (exit 128, nothing changed), and a commit hook can
- * reject the commit. Returning true regardless would tell a caller the branch
- * is clean while the artifacts are still on it, ready to be pushed.
  */
 export async function dropArtifacts(
   sandbox: ExecSandbox,
@@ -172,5 +187,8 @@ export async function dropArtifacts(
     `git rm -q -f --ignore-unmatch ${list} && ` +
       `git ${BOT_IDENTITY} commit -m 'chore(agent): drop run artifacts'`,
   );
-  return removed.exitCode === 0;
+  if (removed.exitCode !== 0) {
+    throw new Error(`dropping run artifacts (${files.join(", ")}) exited ${removed.exitCode}`);
+  }
+  return true;
 }
