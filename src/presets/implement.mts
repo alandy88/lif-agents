@@ -38,7 +38,7 @@ import {
 } from "../lib/profiles.mts";
 import { assertKnownFlags, readFlag } from "../lib/cli.mts";
 import { isEntrypoint } from "../lib/entrypoint.mts";
-import { openRun, type RepoConfig } from "../lib/run.mts";
+import { openRun, type RepoConfig, type RunDeps } from "../lib/run.mts";
 import { renderConventions } from "../lib/toolchains.mts";
 import { runPlanPhase } from "../phases/plan.mts";
 import { runTaskPhase } from "../phases/task.mts";
@@ -144,6 +144,9 @@ export function renderPrBody(issueNumber: number, run: ResolvedPhases, summary: 
  * The branch is the durable checkpoint: it is pushed after every green task and
  * the Task-Done trailers are the resume set, so a re-fired run skips completed
  * tasks instead of starting over.
+ *
+ * `runDeps` is `openRun`'s seam, passed through so a test can drive this whole
+ * lifecycle against a fake sandbox. Defaulted, so `runImplementLoop` is unchanged.
  */
 export async function runIssue(
   config: ImplementConfig,
@@ -151,10 +154,11 @@ export async function runIssue(
   issueNumber: number,
   issue: Issue,
   issueSource: IssueBodySource,
+  runDeps?: RunDeps,
 ): Promise<{ prUrl: string }> {
   const branch = `agent/issue-${issueNumber}`;
 
-  await using opened = await openRun({ config, run, branch, phases: ["plan", "task", "review"] });
+  await using opened = await openRun({ config, run, branch }, runDeps);
 
   // The resume set. Read AFTER the run opens, because `openRun` is what
   // recreates the local branch from origin — on a fresh CI checkout the branch

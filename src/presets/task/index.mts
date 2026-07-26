@@ -12,7 +12,7 @@ import { hostGit } from "../../lib/host-exec.mts";
 import { assertKnownFlags, readFlag } from "../../lib/cli.mts";
 import { describeRun, resolvePhases, type ResolvedPhases } from "../../lib/profiles.mts";
 import { isEntrypoint } from "../../lib/entrypoint.mts";
-import { openRun, type RepoConfig } from "../../lib/run.mts";
+import { openRun, type RepoConfig, type RunDeps } from "../../lib/run.mts";
 import { renderConventions, toolchains } from "../../lib/toolchains.mts";
 import { runTaskPhase } from "../../phases/task.mts";
 import { runVerifyPhase } from "../../phases/verify.mts";
@@ -71,15 +71,19 @@ export function nextTaskFromLedger(stateMd: string): NextTask {
  * One iteration: deliver and verify one task in a warm sandbox on its own
  * branch, then PR it and squash-merge. The branch is pushed either way — a
  * failed verification leaves it up for inspection with no PR.
+ *
+ * `runDeps` is `openRun`'s seam, passed through so a test can drive this whole
+ * lifecycle against a fake sandbox. Defaulted, so `runTaskLoop` is unchanged.
  */
 export async function runIteration(
   config: TaskConfig,
   run: ResolvedPhases,
   next: NextTask,
+  runDeps?: RunDeps,
 ): Promise<{ prUrl: string }> {
   const { label, branch } = next;
 
-  await using opened = await openRun({ config, run, branch, phases: ["task", "review"] });
+  await using opened = await openRun({ config, run, branch }, runDeps);
 
   // The verifier is a reviewer, so it gets the review phase's model — which is
   // how a mixed run ends up building with Codex and checking with Opus.
