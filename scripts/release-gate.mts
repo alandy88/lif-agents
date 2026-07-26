@@ -147,15 +147,22 @@ const readWorkingPackageJson: ReadPackageJson = () => readFileSync("package.json
  * Reading `files` ends that class — a path that starts shipping starts being
  * watched in the same commit that ships it.
  *
- * Two things the manifest cannot state:
+ * npm's always-packed set is documented as `package.json`, `README`,
+ * `LICENSE`/`LICENCE`, the `main` file and the `bin` file(s) — shipped whatever
+ * `files` says. `main` and `bin` are read from the manifest with everything
+ * else; the rest cannot be, and are the first of two things stated here:
  *
- * - npm's always-packed set, which it ships whatever `files` says: `README*` and
- *   `LICENSE*`/`LICENCE*`. `npm pack --dry-run` on this repo lists exactly
- *   README.md and package.json outside `files`; `package.json` is absent from
- *   this list only because it is compared field-by-field below, where `version`
- *   can be excluded. No licence file exists here yet, and `files` would be the
- *   wrong place to notice one appearing — hence globs rather than filenames, so
- *   the commit that adds the first one is the commit that ships it.
+ * - `README*` and `LICENSE*`/`LICENCE*`. `npm pack --dry-run` on this repo lists
+ *   exactly README.md and package.json outside `files`; `package.json` is absent
+ *   from this list only because it is compared field-by-field below, where
+ *   `version` can be excluded. No licence file exists here yet, and `files`
+ *   would be the wrong place to notice one appearing — hence globs rather than
+ *   filenames, so the commit that adds the first one is the commit that ships it.
+ *
+ *   `exports` is NOT in that set and is deliberately not derived. npm documents
+ *   it as an encapsulation mechanism, not a packing one; its targets ship only
+ *   because they sit under `files`. Deriving it would be inventing behaviour npm
+ *   does not have.
  *
  *   `:(icase)` is load-bearing, not decoration. npm matches these names without
  *   regard to case, git pathspecs match WITH it, and CI is Linux: a plain
@@ -176,20 +183,41 @@ const readWorkingPackageJson: ReadPackageJson = () => readFileSync("package.json
  * would silently watch NOTHING, which is the never-ships failure this whole gate
  * exists to prevent. Loud is the only safe direction for a rule about coverage.
  */
-export function shippedPaths(manifest: { files?: unknown }): string[] {
+export function shippedPaths(manifest: {
+  files?: unknown;
+  main?: unknown;
+  bin?: unknown;
+}): string[] {
+  const plain = (value: unknown, field: string): string => {
+    if (typeof value !== "string" || !/^[\w.-]+(\/[\w.-]+)*$/.test(value) || value.includes("..")) {
+      throw new Error(
+        `\`${field}\` entry ${JSON.stringify(value)} is not a plain path, so it cannot be trusted as a git pathspec`,
+      );
+    }
+    return value;
+  };
+
   const files = manifest.files;
   if (!Array.isArray(files) || files.length === 0) {
     throw new Error("package.json has no `files` array to derive the shipped paths from");
   }
-  for (const entry of files) {
-    if (typeof entry !== "string" || !/^[\w.-]+(\/[\w.-]+)*$/.test(entry) || entry.includes("..")) {
-      throw new Error(
-        `\`files\` entry ${JSON.stringify(entry)} is not a plain path, so it cannot be trusted as a git pathspec`,
-      );
-    }
-  }
+
+  // `bin` is either one path or a map of command name to path; npm packs the
+  // targets either way. Absent fields contribute nothing — this repo has neither
+  // today, which is exactly why reading them beats waiting to remember them: the
+  // manifest edit that adds one ships it, and every later edit to that file
+  // would otherwise be invisible here.
+  const bins =
+    typeof manifest.bin === "string"
+      ? [manifest.bin]
+      : manifest.bin && typeof manifest.bin === "object"
+        ? Object.values(manifest.bin)
+        : [];
+
   return [
-    ...files,
+    ...files.map((file) => plain(file, "files")),
+    ...(manifest.main === undefined ? [] : [plain(manifest.main, "main")]),
+    ...bins.map((target) => plain(target, "bin")),
     ":(icase)readme*",
     ":(icase)licen[cs]e*",
     ".github/workflows/agent.yml",

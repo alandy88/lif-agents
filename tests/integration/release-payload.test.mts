@@ -22,13 +22,15 @@ after(() => removeTempRoot(root));
 const PLACEHOLDER = "0.0.0-development";
 const TAG = "v0.1.0";
 
-const manifest = (version: string) =>
+/** `extra` is for the fields only one test needs — a `bin`, a `main`. */
+const manifest = (version: string, extra: Record<string, unknown> = {}) =>
   `${JSON.stringify(
     {
       name: "@lif/sandcastle-kit",
       version,
       files: ["dist", "templates"],
       scripts: { build: "tsc -p tsconfig.json" },
+      ...extra,
     },
     null,
     2,
@@ -50,13 +52,20 @@ function build(repo: string): void {
  * main sitting one commit back with the placeholder, and a rebuilt dist/ in the
  * worktree. The tag is an unmerged child of main, exactly as release.yml cuts it.
  */
-async function releasedRepo(name: string): Promise<string> {
+async function releasedRepo(
+  name: string,
+  extra: Record<string, unknown> = {},
+  seed: Record<string, string> = {},
+): Promise<string> {
   const repo = join(root, name);
   await must(gitIn(root), ["init", "-b", "main", repo]);
   const git = gitIn(repo);
 
   write(repo, ".gitignore", "dist/\n");
-  write(repo, "package.json", manifest(PLACEHOLDER));
+  write(repo, "package.json", manifest(PLACEHOLDER, extra));
+  // Files a single test needs to exist BEFORE the tag, so that test can edit
+  // one and be asking about an edit rather than about an addition.
+  for (const [path, body] of Object.entries(seed)) write(repo, path, body);
   write(repo, "templates/agent.md", "# agent\n");
   // Outside `files`, but npm packs it anyway — see shippedPaths().
   write(repo, "README.md", "# kit\n");
@@ -67,7 +76,7 @@ async function releasedRepo(name: string): Promise<string> {
 
   const mainTip = (await must(git, ["rev-parse", "HEAD"])).stdout.trim();
   build(repo);
-  write(repo, "package.json", manifest("0.1.0"));
+  write(repo, "package.json", manifest("0.1.0", extra));
   await must(git, ["add", "-f", "dist", "package.json"]);
   await must(git, ["commit", "-m", "release v0.1.0: stamp version, build dist/"]);
   await must(git, ["tag", TAG]);
@@ -155,6 +164,22 @@ test("the always-packed globs ignore case, because npm does and git does not", a
   // which is the never-ships failure this gate exists to prevent.
   const repo = await releasedRepo("lowercase-always-packed");
   write(repo, "licence.txt", "MIT\n");
+  await must(gitIn(repo), ["add", "-A"]);
+  assert.equal(await changed(repo), true);
+});
+
+test("an edit to a bin target outside `files` is a change", async () => {
+  // The manifest edit that ADDS a bin is caught by the package.json comparison
+  // for one release. Every later edit to the file it points at is not — the
+  // target sits outside `files`, so nothing else would ever notice it move. npm
+  // packs main and bin regardless of `files`, so both are read from the manifest
+  // with everything else.
+  const repo = await releasedRepo(
+    "bin-changed",
+    { bin: { kit: "bin/kit.mjs" } },
+    { "bin/kit.mjs": "#!/usr/bin/env node\nrun();\n" },
+  );
+  write(repo, "bin/kit.mjs", "#!/usr/bin/env node\nrun({ fixed: true });\n");
   await must(gitIn(repo), ["add", "-A"]);
   assert.equal(await changed(repo), true);
 });

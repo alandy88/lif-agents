@@ -63,6 +63,22 @@ test("a manifest with no `files` throws — an empty watched set is not an answe
   assert.throws(() => shippedPaths({}), /no `files` array/);
 });
 
+test("`main` and `bin` targets are watched, in either shape `bin` takes", () => {
+  // npm documents both as always packed regardless of `files`, and `bin` is
+  // either one path or a map of command name to path. Neither exists in this
+  // repo yet, which is the point: the manifest edit that adds one ships it, and
+  // every LATER edit to that file would otherwise be invisible to the gate.
+  const watched = (bin: unknown) => shippedPaths({ files: ["dist"], main: "lib/entry.mjs", bin });
+  assert.ok(watched(undefined).includes("lib/entry.mjs"));
+  assert.ok(watched("cli.mjs").includes("cli.mjs"));
+  assert.ok(watched({ kit: "bin/kit.mjs", kitx: "bin/kitx.mjs" }).includes("bin/kitx.mjs"));
+});
+
+test("a `main` outside a plain path throws, same rule as `files`", () => {
+  assert.throws(() => shippedPaths({ files: ["dist"], main: "../outside.mjs" }), /`main` entry/);
+  assert.throws(() => shippedPaths({ files: ["dist"], bin: { kit: 7 } }), /`bin` entry/);
+});
+
 test("a working package.json that will not parse releases rather than throwing", async () => {
   // Same bias as everywhere else in this gate: for a git-installed package the
   // recoverable failure is a tag nobody needed, not a change that never ships.
