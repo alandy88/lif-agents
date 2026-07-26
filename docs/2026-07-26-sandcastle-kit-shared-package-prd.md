@@ -60,8 +60,8 @@ The kit's core is derived from **`comfyui-lif-nodes`**, not `lif-studio`: the ch
 ```
 lif-sandcastle/
   package.json          "@lif/sandcastle-kit", "type": "module"
-  src/lib/*.mts         host-exec, task-list, task-loop, profiles, github-issue, …
-  src/phases/*.mts      modular stages: plan, task, review, verify, deliver (see Architecture)
+  src/lib/*.mts         host-exec, task-list, task-loop, profiles, github-issue, github-pr, …
+  src/phases/*.mts      modular stages: plan, task, review, verify (see Architecture)
   src/presets/*.mts     implement (GitHub issues), task (local state) — compositions of phases
   templates/*.md        default prompts
   dist/                 tsc output — .mjs + .d.mts (in release tags only; see below)

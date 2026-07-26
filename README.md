@@ -12,7 +12,8 @@ and `templatePath` are here with their tests. The lifecycle stages live in
 shipped lifecycles are compositions of them plus the `github-pr` adapter:
 `presets/implement` (the issue-driven loop from `comfyui-lif-nodes`) and
 `presets/task` (the `STATE.md` ledger loop from `Morrow`). No consumer has cut
-over yet.
+over yet. `phases/deliver` moved to `lib/github-pr`; the old subpath no
+longer resolves.
 
 ## Consuming
 
