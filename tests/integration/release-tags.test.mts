@@ -12,7 +12,7 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";
-import { lastReleaseTag } from "../../scripts/release-gate.mts";
+import { headIsStale, lastReleaseTag } from "../../scripts/release-gate.mts";
 import { gitIn, makeTempRoot, must, removeTempRoot } from "./helpers.mts";
 
 let root: string;
@@ -77,4 +77,29 @@ test("no tags at all reads as absent, not as a v0.0.0 that could be logged", asy
   const fresh = join(root, "first-release");
   await must(gitIn(root), ["init", "-b", "main", fresh]);
   assert.equal(await lastReleaseTag(gitIn(fresh)), null);
+});
+
+test("a run standing on an older commit than origin/main reads as stale", async () => {
+  // The reachable case is a rerun: a run whose publish failed is exactly what an
+  // operator retries, and it checks out its original event SHA. If anything
+  // released in between, comparing that older payload against the newer tag
+  // reads the rollback as a change and cuts a HIGHER version carrying
+  // superseded code. The concurrency lock does not help — GitHub handles queued
+  // runs in arbitrary order, so it serializes without ordering.
+  const bare = join(root, "stale-origin.git");
+  const clone = join(root, "stale-work");
+  await must(gitIn(root), ["init", "--bare", "-b", "main", bare]);
+  await must(gitIn(root), ["clone", bare, clone]);
+  const git = gitIn(clone);
+
+  await must(git, ["commit", "--allow-empty", "-m", "W"]);
+  await must(git, ["push", "origin", "main"]);
+  const older = (await must(git, ["rev-parse", "HEAD"])).stdout.trim();
+  await must(git, ["commit", "--allow-empty", "-m", "X"]);
+  await must(git, ["push", "origin", "main"]);
+
+  assert.equal(await headIsStale(git), false, "at the tip, nothing to skip");
+  await must(git, ["checkout", "--detach", older]);
+  await must(git, ["fetch", "origin", "main"]);
+  assert.equal(await headIsStale(git), true);
 });

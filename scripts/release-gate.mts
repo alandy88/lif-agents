@@ -56,16 +56,46 @@ export const TAG_FORM = /^v[0-9]+\.[0-9]+\.[0-9]+$/;
  * The shell's `|| true` covered grep's empty-match exit; carrying it onto git's
  * own exit code widened it into that hole.
  */
-export async function lastReleaseTag(git: GitRunner = hostGit): Promise<string | null> {
+export async function releaseTags(git: GitRunner = hostGit): Promise<string[]> {
   const listed = await git(["tag", "--list", "v[0-9]*", "--sort=-v:refname"]);
   if (listed.exitCode !== 0) {
     throw new Error(`enumerating release tags exited ${listed.exitCode}: ${listed.stderr}`);
   }
-  const tags = listed.stdout
+  return listed.stdout
     .split("\n")
     .map((tag) => tag.trim())
     .filter((tag) => TAG_FORM.test(tag));
-  return tags[0] ?? null;
+}
+
+/** The newest release tag, or `null` when none exists yet. See `releaseTags`. */
+export async function lastReleaseTag(git: GitRunner = hostGit): Promise<string | null> {
+  return (await releaseTags(git))[0] ?? null;
+}
+
+/**
+ * Is this run standing on something other than the current tip of `main`?
+ *
+ * A run checks out the SHA of the event that triggered it, and the concurrency
+ * lock does not change that — GitHub documents queued runs as being handled in
+ * arbitrary order, so `cancel-in-progress: false` serializes without ordering.
+ * The reachable case is a rerun: a run whose publish failed is exactly the thing
+ * an operator retries, and if anything released in between, the retry would
+ * compare its OLDER payload against the NEWER tag, read the rollback as a
+ * change, and cut a higher version carrying superseded code.
+ *
+ * Skipping is safe and loses nothing: `main`'s tip descends from this commit, so
+ * whatever this run would have shipped is already in what the newer run ships.
+ *
+ * Compares only; the caller fetches first, so the freshness of `origin/main` is
+ * a decision the caller makes rather than a side effect hidden in here.
+ */
+export async function headIsStale(git: GitRunner = hostGit): Promise<boolean> {
+  const head = await git(["rev-parse", "HEAD"]);
+  const tip = await git(["rev-parse", "origin/main"]);
+  if (head.exitCode !== 0 || tip.exitCode !== 0) {
+    throw new Error(`resolving HEAD against origin/main exited ${head.exitCode}/${tip.exitCode}`);
+  }
+  return head.stdout.trim() !== tip.stdout.trim();
 }
 
 /** The working `package.json`, as text. A seam only because the comparison
@@ -140,26 +170,43 @@ export async function payloadChanged(
   }
 }
 
-/** Both answers the workflow's `check` step publishes. */
+/**
+ * `--tags` prints every release tag, newest first, for the publication step to
+ * reconcile. Otherwise: the answers the workflow's `check` step publishes.
+ */
 async function main(): Promise<void> {
+  if (process.argv.includes("--tags")) {
+    console.log((await releaseTags()).join("\n"));
+    return;
+  }
+
+  // Fetched here rather than inside `headIsStale`, which only compares: a run
+  // checks out its event SHA, and origin/main as of checkout can already be
+  // behind by the time the concurrency lock releases this run.
+  await hostGit(["fetch", "--quiet", "origin", "main"]);
+  const stale = await headIsStale();
+
   const lastTag = await lastReleaseTag();
-  const changed = lastTag === null || (await payloadChanged(lastTag));
+  // Skipped entirely when stale — staging dist/ and diffing it would only
+  // produce an answer about superseded code.
+  const changed = !stale && (lastTag === null || (await payloadChanged(lastTag)));
 
   const out = process.env.GITHUB_OUTPUT;
-  if (out) appendFileSync(out, `last=${lastTag ?? ""}\nchanged=${changed}\n`);
+  if (out) appendFileSync(out, `last=${lastTag ?? ""}\nchanged=${changed}\nstale=${stale}\n`);
 
-  const note =
-    lastTag === null
+  const note = stale
+    ? "HEAD is not the tip of origin/main — a newer run covers this commit, skipping."
+    : lastTag === null
       ? "No release tag yet — releasing."
       : changed
         ? `Installable payload changed since ${lastTag} — releasing.`
         : `Installable payload is unchanged since ${lastTag} — no release.`;
   console.log(note);
-  // Only the two outcomes that end the release go in the job summary; when a
-  // release does happen the "stamp and tag" step writes the line worth reading
-  // there, with the tag link in it.
+  // Only the outcomes that end the release go in the job summary; when a release
+  // does happen the "stamp and tag" step writes the line worth reading there,
+  // with the tag link in it.
   const summary = process.env.GITHUB_STEP_SUMMARY;
-  if (summary && !(changed && lastTag !== null)) appendFileSync(summary, `${note}\n`);
+  if (summary && !changed) appendFileSync(summary, `${note}\n`);
 }
 
 if (isEntrypoint(import.meta.url)) {

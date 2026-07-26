@@ -69,7 +69,10 @@ jobs:
         # An explicit dispatch releases even when dist/ is unchanged: naming a
         # version is a deliberate act (marking a milestone, re-cutting a tag),
         # and the artifact test exists to catch silence, not to overrule intent.
-        if: steps.check.outputs.changed == 'true' || inputs.version != ''
+        # `stale` blocks the derived path but not the explicit one: an operator
+        # naming a version has chosen the ref they dispatched, while a stale
+        # push-event rerun has chosen nothing and would tag superseded code.
+        if: steps.check.outputs.changed == 'true' || (inputs.version != '' && steps.check.outputs.stale != 'true')
         env:
           EXPLICIT: ${{ inputs.version }}
           LAST_TAG: ${{ steps.check.outputs.last }}
@@ -92,38 +95,39 @@ jobs:
           git push origin "refs/tags/v$VERSION"
           echo "Tagged [v$VERSION](https://github.com/${GITHUB_REPOSITORY}/releases/tag/v$VERSION)." >> "$GITHUB_STEP_SUMMARY"
 
-      # Deliberately NOT gated on this run having cut a tag. Pushing the tag and
+      # Deliberately NOT gated on this run having cut a tag. Pushing a tag and
       # publishing its notes are two calls against different services, and a
-      # transient failure between them used to be unrecoverable by rerunning:
-      # the orphaned tag becomes LAST, so the gate finds the payload unchanged
-      # and skips, while an explicit re-dispatch of that same version is
-      # rejected for not moving forward. Reconciling the newest tag on every
-      # successful run heals it with no operator step.
+      # transient failure between them is otherwise unrecoverable by rerunning:
+      # the orphaned tag becomes the baseline, so the gate finds the payload
+      # unchanged and skips, while an explicit re-dispatch of that same version
+      # is rejected for not moving forward.
       #
-      # It reconciles rather than retries, so it will also backfill notes for a
-      # tag cut before this workflow existed. That is the intended state, just
-      # arriving late.
-      - name: publish notes for the newest tag
+      # Every release tag is checked, not just the newest, because the newest is
+      # not necessarily the unpublished one: if vN's publish fails and a later
+      # push cuts and publishes vN+1, vN is never the newest again and would
+      # stay without notes forever. Reconciling the whole set converges from any
+      # state, at one API call per tag.
+      #
+      # It reconciles rather than retries, so it also backfills tags cut before
+      # this workflow existed. That is the intended state, arriving late.
+      - name: publish notes for any unpublished tag
         env:
           GH_TOKEN: ${{ github.token }}
-          CUT: ${{ steps.version.outputs.version }}
-          LAST: ${{ steps.check.outputs.last }}
         run: |
-          # The tag this run cut, or the newest one it found. Taken from the
-          # earlier steps rather than re-queried, so the strict tag rule lives
-          # in one place per language instead of three.
-          TAG="${CUT:+v$CUT}"
-          TAG="${TAG:-$LAST}"
-          if [ -z "$TAG" ]; then
+          # `--tags` so what counts as a release tag stays defined in exactly one
+          # place, and so the tag this run just created is included.
+          TAGS=$(node --experimental-strip-types scripts/release-gate.mts --tags)
+          if [ -z "$TAGS" ]; then
             echo "No tags yet — nothing to publish."
             exit 0
           fi
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG is already published."
-            exit 0
-          fi
-          # --verify-tag: fail rather than invent a tag if the push did not land.
-          # --generate-notes gives consumers a diff summary at the tag, which is
-          # the only place a pinning consumer looks.
-          gh release create "$TAG" --verify-tag --generate-notes
-          echo "Published notes for [$TAG](https://github.com/${GITHUB_REPOSITORY}/releases/tag/$TAG)." >> "$GITHUB_STEP_SUMMARY"
+          for TAG in $TAGS; do
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              continue
+            fi
+            # --verify-tag: fail rather than invent a tag if a push did not land.
+            # --generate-notes gives consumers a diff summary at the tag, which
+            # is the only place a pinning consumer looks.
+            gh release create "$TAG" --verify-tag --generate-notes
+            echo "Published notes for [$TAG](https://github.com/${GITHUB_REPOSITORY}/releases/tag/$TAG)." >> "$GITHUB_STEP_SUMMARY"
+          done
