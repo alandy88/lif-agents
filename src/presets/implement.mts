@@ -32,7 +32,12 @@ import {
 } from "../lib/task-list.mts";
 import { ensureTaskList, runTaskLoop } from "../lib/task-loop.mts";
 import { describeRun, forwardedEnvKeys, type ResolvedPhases } from "../lib/profiles.mts";
-import { admit, type Admission, type IntakeRequest } from "../lib/issue-intake.mts";
+import {
+  admit,
+  type Admission,
+  type IntakeRequest,
+  type RejectionKind,
+} from "../lib/issue-intake.mts";
 import { assertKnownFlags, readFlag } from "../lib/cli.mts";
 import { templatePath } from "../lib/templates.mts";
 import { isEntrypoint } from "../lib/entrypoint.mts";
@@ -372,6 +377,16 @@ export type MainDeps = {
 };
 
 /**
+ * One report-then-throw site, but still one diagnostic per guard: an
+ * unattended Actions log should say which rejection could not be posted.
+ */
+const COMMENT_FAILURE: Record<RejectionKind, string> = {
+  closed: "Could not report closed-issue error",
+  epic: "Could not report epic error",
+  configuration: "Could not report configuration error",
+};
+
+/**
  * Admit, then act on the verdict: a rejection is reported on the issue and
  * rethrown (the only report-then-throw site left, now that the four guards
  * live in `admit`), a skip returns cleanly, and an admission runs the
@@ -397,7 +412,9 @@ export async function main(options: CliOptions, deps: MainDeps): Promise<"ran" |
   if (admission.kind === "rejected") {
     console.error(admission.detail);
     await issueSource.comment(options.issue, admission.detail).catch((commentError) => {
-      console.error(`Could not report the rejection on the issue: ${errorMessage(commentError)}`);
+      console.error(
+        `${COMMENT_FAILURE[admission.because]} on the issue: ${errorMessage(commentError)}`,
+      );
     });
     throw admission.cause ?? new Error(admission.detail);
   }

@@ -93,7 +93,12 @@ test("the intake request is built from the CLI options and the environment", asy
 
 test("a rejected verdict is reported on the issue and its cause rethrown", async () => {
   const deps = makeDeps({
-    admission: { kind: "rejected", detail: "nope", cause: new Error("raw reason") },
+    admission: {
+      kind: "rejected",
+      because: "configuration",
+      detail: "nope",
+      cause: new Error("raw reason"),
+    },
   });
   await assert.rejects(main({ issue: 7 }, deps), /raw reason/);
   assert.equal(deps.comments.length, 1);

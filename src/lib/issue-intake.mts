@@ -31,11 +31,16 @@ export type IntakeRequest = {
  * `throw admission.cause ?? new Error(admission.detail)` gets the original).
  * Closed and epic rejections set no `cause`, so `main` throws a fresh
  * `Error(detail)` for those instead.
+ *
+ * `because` names which guard rejected, so `main` can log a diagnostic
+ * specific to the failed guard without re-deriving it from `detail`.
  */
 export type Admission =
   | { kind: "admitted"; issue: Issue; run: ResolvedPhases }
   | { kind: "skipped"; reason: string }
-  | { kind: "rejected"; detail: string; cause?: unknown };
+  | { kind: "rejected"; because: RejectionKind; detail: string; cause?: unknown };
+
+export type RejectionKind = "closed" | "epic" | "configuration";
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -52,6 +57,7 @@ export async function admit(request: IntakeRequest, reads: IntakeReads): Promise
   if (issue.state === "CLOSED") {
     return {
       kind: "rejected",
+      because: "closed",
       detail: `Issue #${request.issueNumber} is closed; the sandcastle-agent run requires an open issue.`,
     };
   }
@@ -66,6 +72,7 @@ export async function admit(request: IntakeRequest, reads: IntakeReads): Promise
   if (await reads.issueIsEpic(request.issueNumber)) {
     return {
       kind: "rejected",
+      because: "epic",
       detail:
         `Issue #${request.issueNumber} has native GitHub sub-issues (it's an epic); the sandcastle-agent run ` +
         `only handles atomic issues. Run the sub-issues individually instead.`,
@@ -83,6 +90,7 @@ export async function admit(request: IntakeRequest, reads: IntakeReads): Promise
   } catch (error) {
     return {
       kind: "rejected",
+      because: "configuration",
       detail: `sandcastle-agent configuration rejected: ${errorMessage(error)}`,
       cause: error,
     };
