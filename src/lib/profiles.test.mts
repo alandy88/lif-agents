@@ -102,17 +102,17 @@ test("forwarded env keys are scoped to the providers in use", () => {
 test("resolvePhases defaults to the mixed phase map", () => {
   const run = resolvePhases({ labels: ["ready-for-agent"] });
   assert.equal(run.name, "mixed");
-  assert.equal(run.phases.plan.model, "claude-opus-4-8");
+  assert.equal(run.phases.plan.model, "claude-opus-5");
   assert.equal(run.phases.task.model, "gpt-5.6-sol");
-  assert.equal(run.phases.review.model, "claude-opus-4-8");
+  assert.equal(run.phases.review.model, "claude-opus-5");
 });
 
 test("resolvePhases: a routing label forces every phase onto that profile", () => {
   const run = resolvePhases({ labels: ["ready-for-agent", "agent:claude"] });
   assert.equal(run.name, "claude");
-  assert.equal(run.phases.plan.model, "claude-sonnet-4-6");
-  assert.equal(run.phases.task.model, "claude-sonnet-4-6");
-  assert.equal(run.phases.review.model, "claude-sonnet-4-6");
+  assert.equal(run.phases.plan.model, "claude-opus-5");
+  assert.equal(run.phases.task.model, "claude-opus-5");
+  assert.equal(run.phases.review.model, "claude-opus-5");
 });
 
 test("resolvePhases: dispatch 'mixed' overrides labels", () => {
@@ -123,7 +123,7 @@ test("resolvePhases: dispatch 'mixed' overrides labels", () => {
 test("resolvePhases: a named default profile still forces a single-profile run", () => {
   const run = resolvePhases({ defaultProfile: "gpt" });
   assert.equal(run.name, "gpt");
-  assert.equal(run.phases.plan.model, "gpt-5.4");
+  assert.equal(run.phases.plan.model, "gpt-5.6-sol");
 });
 
 test("resolvePhases: label routing errors fail closed", () => {
