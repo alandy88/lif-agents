@@ -180,6 +180,13 @@ export async function dropArtifacts(
   // delete every tracked file matching it — and commit that.
   const list = files.map((file) => shellQuote(`:(literal)${file}`)).join(" ");
   const tracked = await sandbox.exec(`git ls-files -- ${list}`);
+  // The probe's own failure is not an answer. An unreadable index exits
+  // non-zero with empty stdout, which is indistinguishable from "nothing
+  // tracked" unless the code looks — and `false` promises the caller a clean
+  // no-op, not an unanswered question.
+  if (tracked.exitCode !== 0) {
+    throw new Error(`probing for run artifacts (${files.join(", ")}) exited ${tracked.exitCode}`);
+  }
   if (tracked.stdout.trim().length === 0) return false;
   const removed = await sandbox.exec(
     // -f: the session that produced an artifact may have left it dirty in the
