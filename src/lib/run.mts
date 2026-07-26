@@ -14,7 +14,8 @@
 // mean inventing a lifecycle engine — which the phase layer exists to avoid.
 
 import { createSandbox } from "@ai-hero/sandcastle";
-import { hostGit, type CaptureResult } from "./host-exec.mts";
+import { resumeFromOrigin, type GitRunner } from "./branch.mts";
+import { hostGit } from "./host-exec.mts";
 import type { ModelProfile, Phase, ResolvedPhases } from "./profiles.mts";
 import { createAgent, createSandboxProvider, providerPreflight } from "./provider-setup.mts";
 import { templatePath } from "./templates.mts";
@@ -96,7 +97,8 @@ export interface RunSandboxOptions {
 export interface RunDeps {
   createSandbox(options: RunSandboxOptions): Promise<RunSandbox>;
   createAgent: (profile: ModelProfile) => PhaseAgent;
-  git: (args: string[]) => Promise<CaptureResult>;
+  /** Host git, handed to `resumeFromOrigin` — `branch.mts`'s own seam, reused. */
+  git: GitRunner;
 }
 
 const hostDeps: RunDeps = { createSandbox, createAgent, git: hostGit };
@@ -131,13 +133,11 @@ export async function openRun(input: RunInput, deps: RunDeps = hostDeps): Promis
 
   // Resume: when a prior run pushed this branch, recreate it locally from
   // origin so the sandbox continues it (and its trailers) instead of starting
-  // a fresh branch that could never fast-forward-push. This MUST precede
-  // `createSandbox` — the sandbox checks the branch out into its worktree, so a
-  // force after that point moves a ref the run is already standing on.
-  const originBranch = await deps.git(["rev-parse", "--verify", "--quiet", `origin/${branch}`]);
-  if (originBranch.exitCode === 0) {
-    await deps.git(["branch", "--force", branch, `origin/${branch}`]);
-  }
+  // a fresh branch that could never fast-forward-push. `branch.mts` owns HOW;
+  // what is this module's is WHEN — it MUST precede `createSandbox`, because
+  // the sandbox checks the branch out into its worktree and a force after that
+  // point moves a ref the run is already standing on.
+  await resumeFromOrigin(branch, deps.git);
 
   // Toolchain warm-up, then repo extras, then provider auth — the donor's
   // order, and the one that fails on a missing toolchain before it fails on a

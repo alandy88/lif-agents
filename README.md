@@ -6,12 +6,14 @@ pipelines in `lif-studio`, `comfyui-lif-nodes`, and `Morrow`.
 Design and phasing: [docs/2026-07-26-sandcastle-kit-shared-package-prd.md](docs/2026-07-26-sandcastle-kit-shared-package-prd.md).
 
 **Status: P1 landed, plus both presets and the phase layer.** `host-exec`,
-`task-list`, `task-loop`, `profiles`, `github-issue`, `defang`, and
-`templatePath` are here with their tests. The lifecycle stages live in
-`src/phases/` (`plan`, `task`, `review`, `verify`, `deliver`), and the two
-shipped lifecycles are compositions of them: `presets/implement` (the
-issue-driven loop from `comfyui-lif-nodes`) and `presets/task` (the `STATE.md`
-ledger loop from `Morrow`). No consumer has cut over yet.
+`task-list`, `task-loop`, `profiles`, `github-issue`, `github-pr`, `defang`,
+and `templatePath` are here with their tests. The lifecycle stages live in
+`src/phases/` (`plan`, `task`, `review`, `verify`), and the two
+shipped lifecycles are compositions of them plus the `github-pr` adapter:
+`presets/implement` (the issue-driven loop from `comfyui-lif-nodes`) and
+`presets/task` (the `STATE.md` ledger loop from `Morrow`). No consumer has cut
+over yet. `phases/deliver` moved to `lib/github-pr`; the old subpath no
+longer resolves.
 
 ## Consuming
 
@@ -65,7 +67,6 @@ and paired with a default prompt template:
 | `task` | ONE fresh agent context delivering ONE unit of work; commit count is the landing signal |
 | `review` | artifact-producing — reads the whole change and leaves prose behind |
 | `verify` | binary gate — `COMPLETE` or the run stops |
-| `deliver` | host-side `git`/`gh`: open the PR, optionally squash-merge it |
 
 Composition is plain TypeScript. **No pipeline engine, no DAG config format, no
 plugin registry** — a preset is a thin file calling phase functions in order, and

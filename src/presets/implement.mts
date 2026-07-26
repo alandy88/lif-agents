@@ -15,7 +15,13 @@
 // in.
 
 import { writeFileSync } from "node:fs";
-import { hostGit } from "../lib/host-exec.mts";
+import {
+  commitOnBranch,
+  dropArtifacts,
+  logSince,
+  push,
+  pushCheckpoint,
+} from "../lib/branch.mts";
 import {
   githubIssueSource,
   issueIsEpic,
@@ -30,12 +36,13 @@ import {
   taskDoneTrailer,
 } from "../lib/task-list.mts";
 import { ensureTaskList, runTaskLoop } from "../lib/task-loop.mts";
+import { describeRun, forwardedEnvKeys, type ResolvedPhases } from "../lib/profiles.mts";
 import {
-  describeRun,
-  forwardedEnvKeys,
-  resolvePhases,
-  type ResolvedPhases,
-} from "../lib/profiles.mts";
+  admit,
+  type Admission,
+  type IntakeRequest,
+  type RejectionKind,
+} from "../lib/issue-intake.mts";
 import { assertKnownFlags, readFlag } from "../lib/cli.mts";
 import { isEntrypoint } from "../lib/entrypoint.mts";
 import { openRun, type RepoConfig, type RunDeps } from "../lib/run.mts";
@@ -43,7 +50,7 @@ import { renderConventions } from "../lib/toolchains.mts";
 import { runPlanPhase } from "../phases/plan.mts";
 import { runTaskPhase } from "../phases/task.mts";
 import { runReviewPhase } from "../phases/review.mts";
-import { runDeliverPhase } from "../phases/deliver.mts";
+import { deliverPullRequest } from "../lib/github-pr.mts";
 
 /**
  * The per-repo half of the pipeline. An alias rather than its own interface:
@@ -92,11 +99,6 @@ const MAX_TASKS = 12;
  *  the host before the PR so they never reach main. */
 const NOTES_FILE = "AGENT_NOTES.md";
 const SUMMARY_FILE = "AGENT_SUMMARY.md";
-
-/** Git identity for the host-issued commits; the sandbox has no global one. */
-const BOT_IDENTITY =
-  `-c user.name='sandcastle-agent[bot]' ` +
-  `-c user.email='sandcastle-agent[bot]@users.noreply.github.com'`;
 
 /**
  * What a session sees in place of an absent or empty notes file. Stated rather
@@ -158,6 +160,7 @@ export async function runIssue(
 ): Promise<{ prUrl: string }> {
   const branch = `agent/issue-${issueNumber}`;
 
+  // `openRun` owns the resume (and its ordering against sandbox creation).
   await using opened = await openRun({ config, run, branch }, runDeps);
 
   // The resume set. Read AFTER the run opens, because `openRun` is what
@@ -166,9 +169,7 @@ export async function runIssue(
   // set and rebuild every task the prior run already landed. It stays here
   // rather than moving into `openRun` because it is not part of the scaffold:
   // the ledger loop has no checklist and no trailers.
-  const trailerLog = await hostGit(["log", `origin/main..${branch}`]);
-  const done =
-    trailerLog.exitCode === 0 ? parseTaskDoneTrailers(trailerLog.stdout) : new Set<number>();
+  const done = parseTaskDoneTrailers(await logSince(branch));
 
   /** Read a run artifact off the branch; absent and unreadable both read empty
    *  (`|| true` keeps a missing file from surfacing as a failed exec). */
@@ -226,12 +227,10 @@ export async function runIssue(
     },
     recordDone: async (index) => {
       // An empty commit carrying only the trailer (the task's work is already
-      // committed by the session). Identity is pinned inline; the sandbox has no
-      // global git identity of its own.
-      await opened.sandbox.exec(
-        `git ${BOT_IDENTITY} ` +
-          `commit --allow-empty -m 'chore(tasks): complete task ${index}' --trailer '${taskDoneTrailer(index)}'`,
-      );
+      // committed by the session).
+      await commitOnBranch(opened.sandbox, `chore(tasks): complete task ${index}`, {
+        trailer: taskDoneTrailer(index),
+      });
     },
     checkOff: async (index) => {
       // Display only — the trailer above is the durable state, so a gh hiccup
@@ -243,13 +242,10 @@ export async function runIssue(
         console.error(`Could not check off task ${index} on the issue: ${errorMessage(error)}`);
       }
     },
+    // Mid-loop push is the crash-resilience push; the terminal push below still
+    // throws, so a transient failure here only narrows the checkpoint.
     pushBranch: async () => {
-      const push = await hostGit(["push", "-u", "origin", branch]);
-      if (push.exitCode !== 0) {
-        // Mid-loop push is the crash-resilience push; the terminal push below
-        // still throws, so a transient failure here only narrows the checkpoint.
-        console.error(`Mid-loop git push origin ${branch} exited ${push.exitCode}; continuing.`);
-      }
+      await pushCheckpoint(branch);
     },
     log: (message) => console.log(message),
   });
@@ -285,22 +281,11 @@ export async function runIssue(
   // Strip both artifacts — the deletion is the host's job, not an instruction
   // the review session has to remember, so a forgetful reviewer cannot leak
   // scratch files onto main.
-  const tracked = await opened.sandbox.exec(`git ls-files -- ${NOTES_FILE} ${SUMMARY_FILE}`);
-  if (tracked.stdout.trim().length > 0) {
-    await opened.sandbox.exec(
-      // -f: the review session may have left an artifact dirty in the worktree,
-      // and a plain `git rm` refuses on modified files.
-      `git rm -q -f --ignore-unmatch ${NOTES_FILE} ${SUMMARY_FILE} && ` +
-        `git ${BOT_IDENTITY} commit -m 'chore(agent): drop run artifacts'`,
-    );
-  }
+  await dropArtifacts(opened.sandbox, [NOTES_FILE, SUMMARY_FILE]);
 
-  const push = await hostGit(["push", "-u", "origin", branch]);
-  if (push.exitCode !== 0) {
-    throw new Error(`git push origin ${branch} exited ${push.exitCode}`);
-  }
+  await push(branch);
 
-  const { prUrl } = await runDeliverPhase({
+  const { prUrl } = await deliverPullRequest({
     branch,
     title: `Fix #${issueNumber}: ${issue.title}`,
     body: renderPrBody(issueNumber, run, review.summary),
@@ -310,7 +295,7 @@ export async function runIssue(
 
 export type MainDeps = {
   issueSource: IssueBodySource;
-  issueIsEpic: (issueNumber: number) => Promise<boolean>;
+  admit: (request: IntakeRequest) => Promise<Admission>;
   runIssue: (
     run: ResolvedPhases,
     issueNumber: number,
@@ -321,63 +306,49 @@ export type MainDeps = {
 };
 
 /**
- * The guarded single-issue flow: reject closed issues and epics (with an issue
- * comment), skip cleanly when the triggering label was removed while queued,
- * resolve the model profile, then run the checklist task loop and report the PR
- * back on the issue. Returns "skipped" for the clean no-op path, "ran" otherwise.
+ * One report-then-throw site, but still one diagnostic per guard: an
+ * unattended Actions log should say which rejection could not be posted.
+ */
+const COMMENT_FAILURE: Record<RejectionKind, string> = {
+  closed: "Could not report closed-issue error",
+  epic: "Could not report epic error",
+  configuration: "Could not report configuration error",
+};
+
+/**
+ * Admit, then act on the verdict: a rejection is reported on the issue and
+ * rethrown (the only report-then-throw site left, now that the four guards
+ * live in `admit`), a skip returns cleanly, and an admission runs the
+ * checklist task loop, writes the sandbox's forwarded-env file under CI, and
+ * reports the resulting PR back on the issue. Returns "skipped" for the clean
+ * no-op path, "ran" otherwise.
  */
 export async function main(options: CliOptions, deps: MainDeps): Promise<"ran" | "skipped"> {
   const { issueSource } = deps;
-  const labelTriggered = options.trigger === "issues";
-  const issue = await issueSource.getIssue(options.issue);
+  const admission = await deps.admit({
+    issueNumber: options.issue,
+    trigger: options.trigger,
+    dispatchProfile: options.profile,
+    modelOverride: options.model,
+    defaultProfile: deps.env.AGENT_DEFAULT_PROFILE,
+  });
 
-  if (issue.state === "CLOSED") {
-    const detail = `Issue #${options.issue} is closed; the sandcastle-agent run requires an open issue.`;
-    console.error(detail);
-    await issueSource.comment(options.issue, detail).catch((commentError) => {
-      console.error(
-        `Could not report closed-issue error on the issue: ${errorMessage(commentError)}`,
-      );
-    });
-    throw new Error(detail);
-  }
-
-  if (labelTriggered && !issue.labels.includes("ready-for-agent")) {
-    console.log(
-      `Issue #${options.issue} no longer has the ready-for-agent label (removed while queued) — skipping.`,
-    );
+  if (admission.kind === "skipped") {
+    console.log(admission.reason);
     return "skipped";
   }
 
-  if (await deps.issueIsEpic(options.issue)) {
-    const detail =
-      `Issue #${options.issue} has native GitHub sub-issues (it's an epic); the sandcastle-agent run ` +
-      `only handles atomic issues. Run the sub-issues individually instead.`;
-    console.error(detail);
-    await issueSource.comment(options.issue, detail).catch((commentError) => {
-      console.error(`Could not report epic error on the issue: ${errorMessage(commentError)}`);
-    });
-    throw new Error(detail);
-  }
-
-  let run;
-  try {
-    run = resolvePhases({
-      labels: issue.labels,
-      dispatchProfile: options.profile,
-      defaultProfile: deps.env.AGENT_DEFAULT_PROFILE,
-      modelOverride: options.model,
-    });
-  } catch (error) {
-    const detail = `sandcastle-agent configuration rejected: ${errorMessage(error)}`;
-    console.error(detail);
-    await issueSource.comment(options.issue, detail).catch((commentError) => {
+  if (admission.kind === "rejected") {
+    console.error(admission.detail);
+    await issueSource.comment(options.issue, admission.detail).catch((commentError) => {
       console.error(
-        `Could not report configuration error on the issue: ${errorMessage(commentError)}`,
+        `${COMMENT_FAILURE[admission.because]} on the issue: ${errorMessage(commentError)}`,
       );
     });
-    throw error;
+    throw admission.cause ?? new Error(admission.detail);
   }
+
+  const { issue, run } = admission;
 
   // CI never checks in a .sandcastle/.env; declare the forwarded keys here,
   // AFTER profile resolution, so the sibling sandbox only receives the resolved
@@ -418,7 +389,7 @@ export function runImplementLoop(
 ): Promise<"ran" | "skipped"> {
   return main(parseCli(argv), {
     issueSource: githubIssueSource,
-    issueIsEpic,
+    admit: (request) => admit(request, { getIssue: githubIssueSource.getIssue, issueIsEpic }),
     runIssue: (run, issueNumber, issue, issueSource) =>
       runIssue(config, run, issueNumber, issue, issueSource),
     env: process.env,

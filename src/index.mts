@@ -4,6 +4,17 @@ export type { TemplatePathOptions } from "./lib/templates.mts";
 export { capture, ghCapture, ghJson, hostGit, json } from "./lib/host-exec.mts";
 export type { CaptureResult } from "./lib/host-exec.mts";
 
+export {
+  commitOnBranch,
+  dropArtifacts,
+  logSince,
+  push,
+  pushCheckpoint,
+  resumeFromOrigin,
+  syncMain,
+} from "./lib/branch.mts";
+export type { ExecSandbox, GitRunner } from "./lib/branch.mts";
+
 export { defangPromptArgs, defangShellExpansion } from "./lib/defang.mts";
 
 export { isEntrypoint } from "./lib/entrypoint.mts";
@@ -69,6 +80,9 @@ export {
 export type { Issue, IssueBodySource } from "./lib/github-issue.mts";
 
 export { readFlag } from "./lib/cli.mts";
+
+export { deliverPullRequest } from "./lib/github-pr.mts";
+export type { DeliverInput, DeliverResult, DeliverDeps } from "./lib/github-pr.mts";
 
 // Phases (./phases/*) and presets (./presets/*) are imported by subpath, not
 // re-exported: a consumer picks the lifecycle it runs, or composes the stages

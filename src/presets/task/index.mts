@@ -8,7 +8,7 @@
 // composes — the task phase having two consumers is what earns the phase layer.
 
 import { readFileSync } from "node:fs";
-import { hostGit } from "../../lib/host-exec.mts";
+import { push, syncMain } from "../../lib/branch.mts";
 import { assertKnownFlags, readFlag } from "../../lib/cli.mts";
 import { describeRun, resolvePhases, type ResolvedPhases } from "../../lib/profiles.mts";
 import { isEntrypoint } from "../../lib/entrypoint.mts";
@@ -16,7 +16,7 @@ import { openRun, type RepoConfig, type RunDeps } from "../../lib/run.mts";
 import { renderConventions, toolchains } from "../../lib/toolchains.mts";
 import { runTaskPhase } from "../../phases/task.mts";
 import { runVerifyPhase } from "../../phases/verify.mts";
-import { runDeliverPhase } from "../../phases/deliver.mts";
+import { deliverPullRequest } from "../../lib/github-pr.mts";
 import { parseNextTask, taskBranch, type NextTask } from "./state.mts";
 
 /** The ledger preset's prompts; `templateDir` overrides them by the same path. */
@@ -83,6 +83,7 @@ export async function runIteration(
 ): Promise<{ prUrl: string }> {
   const { label, branch } = next;
 
+  // `openRun` owns the resume (and its ordering against sandbox creation).
   await using opened = await openRun({ config, run, branch }, runDeps);
 
   // The verifier is a reviewer, so it gets the review phase's model — which is
@@ -121,10 +122,7 @@ export async function runIteration(
   });
 
   // Push either way: a failed verification leaves the branch up for inspection.
-  const push = await hostGit(["push", "-u", "origin", branch]);
-  if (push.exitCode !== 0) {
-    throw new Error(`git push origin ${branch} exited ${push.exitCode}`);
-  }
+  await push(branch);
 
   if (!verify.passed) {
     throw new Error(
@@ -147,7 +145,7 @@ export async function runIteration(
     );
   }
 
-  return runDeliverPhase({
+  return deliverPullRequest({
     branch,
     title: `Task ${label}`,
     body:
@@ -204,8 +202,7 @@ export async function main(options: CliOptions, deps: MainDeps): Promise<string[
  */
 export function runTaskLoop(config: TaskConfig, argv?: string[]): Promise<string[]> {
   return main(parseCli(argv), {
-    syncMain: async () =>
-      (await hostGit(["pull", "--ff-only", "origin", "main"])).exitCode === 0,
+    syncMain: () => syncMain(),
     nextTask: () => nextTaskFromLedger(readFileSync(STATE_FILE, "utf8")),
     runIteration: (run, next) => runIteration(config, run, next),
   });
