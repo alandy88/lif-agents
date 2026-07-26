@@ -179,8 +179,9 @@ workflow. Only the release commit carries a real version, stamped next to the
 `dist/` it describes, so the two cannot disagree and no bot ever pushes to
 `main`. To read what is current, read the tags.
 
-Releases cut themselves: every push to `main` builds, and if `dist/` differs
-from the last tag's, a new tag follows. The release test is the built output,
+Releases cut themselves: every push to `main` builds, and if the installable
+payload differs from the last tag's, a new tag follows (that test is
+`scripts/release-gate.mts`). The release test is the built output,
 not the commit subject — `bb2f75a` ("chore: bump routing model ids") changed
 the model every consumer resolves and would have shipped nothing under a
 subject filter. Commit types only choose the size of the bump: `feat` or a `!`

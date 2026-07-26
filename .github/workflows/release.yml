@@ -53,67 +53,16 @@ jobs:
       - run: npm test
       - run: npm run test:integration
 
+      # Emits `last` (the newest release tag) and `changed` (would a consumer
+      # installing the next tag receive anything different). Both decisions live
+      # in the script, not here: they are about what real git does with real
+      # refs and real pathspecs, and four rounds of review found seven bugs in
+      # this step while it was shell no test could reach. The reasoning behind
+      # each is in scripts/release-gate.mts; the integration tier drives them
+      # against real temp repos.
       - name: is there anything to release?
         id: check
-        run: |
-          # Enumerated and version-sorted, NOT `git describe`: a release tag is
-          # never reachable from main (the release commit below is an unmerged
-          # child of it, and only the tag ref is pushed), so ancestry-based
-          # lookup finds nothing and would restart the derivation at v0.0.0.
-          # The grep is not redundant with the glob: `v[0-9]*` also matches a
-          # moving `v1` major alias, a `v0.3.0-rc.1` and a `v0.2-backup`, and
-          # version sort puts `v1` first. Deriving from one of those blocks
-          # every later release, so hold tags to the same strict form an
-          # explicit version is held to.
-          # `|| true` because grep exits non-zero when nothing matches, which is
-          # the ordinary first-release case, not an error.
-          LAST=$(git tag --list 'v[0-9]*' --sort=-v:refname \
-                 | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1 || true)
-          echo "last=$LAST" >> "$GITHUB_OUTPUT"
-          if [ -z "$LAST" ]; then
-            echo "No release tag yet — releasing." >> "$GITHUB_STEP_SUMMARY"
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          # The question is "would a consumer installing the next tag receive
-          # anything different", so the comparison covers the whole installable
-          # payload — package.json's `files` is ["dist", "templates"], and
-          # templatePath() resolves prompts out of the installed package, so a
-          # template edit is as consumer-visible as a code change and ships with
-          # no dist/ diff at all.
-          #
-          # Only dist/ is staged, and only because it is gitignored on main —
-          # that also leaves it staged for the release commit below. templates/
-          # is tracked, so the index already carries whatever the merge did to
-          # it, including deleting the directory outright; naming it here would
-          # instead abort the gate with "pathspec 'templates' did not match any
-          # files" on exactly that change.
-          git add -f dist
-          if ! git diff --cached --quiet "$LAST" -- dist templates; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          # package.json ships too, and npm runs its scripts when installing a
-          # git dependency, so nearly every field can reach a consumer. Compared
-          # apart from the others because `version` is guaranteed to differ (the
-          # tag carries a stamped one, main carries the placeholder) and would
-          # otherwise report every push as a change.
-          if git show "$LAST:package.json" | node -e '
-            const fs = require("node:fs");
-            const shipped = (raw) => {
-              const json = JSON.parse(raw);
-              delete json.version;
-              return JSON.stringify(json);
-            };
-            const tagged = shipped(fs.readFileSync(0, "utf8"));
-            const current = shipped(fs.readFileSync("package.json", "utf8"));
-            process.exit(tagged === current ? 0 : 1);
-          '; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "Installable payload is unchanged since $LAST — no release." >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          fi
+        run: node --experimental-strip-types scripts/release-gate.mts
 
       - name: decide the version
         id: version

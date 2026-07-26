@@ -8,18 +8,12 @@
 // walks ancestry, so it cannot see it — the first test asserts that directly,
 // so the reason `lastReleaseTag` enumerates instead stays visible if someone
 // later "simplifies" it back to describe.
-//
-// `lastReleaseTag`'s runner is synchronous and the helpers here are not, so
-// each test resolves the git call and hands the real stdout to the function
-// under test. The command being run is still real git against a real repo.
 
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";
-import { lastReleaseTag } from "../../scripts/next-version.mts";
+import { lastReleaseTag } from "../../scripts/release-gate.mts";
 import { gitIn, makeTempRoot, must, removeTempRoot } from "./helpers.mts";
-
-const LIST_TAGS = ["tag", "--list", "v[0-9]*", "--sort=-v:refname"];
 
 let root: string;
 let repo: string;
@@ -52,16 +46,14 @@ test("git describe cannot see a release tag from main — the reason for the sor
 });
 
 test("lastReleaseTag finds the newest release tag despite it being unreachable", async () => {
-  const listed = await must(gitIn(repo), LIST_TAGS);
-  assert.equal(lastReleaseTag(() => listed.stdout), "v0.2.0");
+  assert.equal(await lastReleaseTag(gitIn(repo)), "v0.2.0");
 });
 
 test("the sort is numeric, not lexical", async () => {
   await must(gitIn(repo), ["tag", "v0.10.0"]);
-  const listed = await must(gitIn(repo), LIST_TAGS);
   // Lexically v0.2.0 sorts above v0.10.0, which would derive v0.3.0 next and
   // silently go backwards from the real latest release.
-  assert.equal(lastReleaseTag(() => listed.stdout), "v0.10.0");
+  assert.equal(await lastReleaseTag(gitIn(repo)), "v0.10.0");
 });
 
 test("non-release tags are skipped, even when they sort above every release", async () => {
@@ -73,14 +65,16 @@ test("non-release tags are skipped, even when they sort above every release", as
   for (const stray of ["v1", "v0.99.0-rc.1", "v0.99-backup"]) {
     await must(git, ["tag", stray]);
   }
-  const listed = await must(git, LIST_TAGS);
-  assert.ok(listed.stdout.includes("v1\n"), "setup: the stray tag should be listed");
-  assert.equal(lastReleaseTag(() => listed.stdout), "v0.10.0");
+  const listed = await must(git, ["tag", "--list", "v[0-9]*", "--sort=-v:refname"]);
+  assert.ok(listed.stdout.startsWith("v1\n"), "setup: the stray tag should sort first");
+  assert.equal(await lastReleaseTag(git), "v0.10.0");
 });
 
-test("no tags at all reads as absent, not as a v0.0.0 that could be logged", () => {
+test("no tags at all reads as absent, not as a v0.0.0 that could be logged", async () => {
   // null rather than "v0.0.0": the caller uses this as a git revision as well
   // as a version, and `git log v0.0.0..HEAD` against a tag that does not exist
   // is a fatal ambiguous-revision error that would fail every first release.
-  assert.equal(lastReleaseTag(() => ""), null);
+  const fresh = join(root, "first-release");
+  await must(gitIn(root), ["init", "-b", "main", fresh]);
+  assert.equal(await lastReleaseTag(gitIn(fresh)), null);
 });

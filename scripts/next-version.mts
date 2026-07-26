@@ -1,11 +1,11 @@
 // The next version for a release, derived from the commits since the last tag.
 //
-// Split deliberately: this module decides WHAT version, and the release
-// workflow decides WHETHER to release at all. The two are different questions
-// and the repo has already been bitten by conflating them — `bb2f75a` ("chore:
-// bump routing model ids") changed the model every consumer run resolves, and a
-// commit-type filter would have shipped nothing for it. So the workflow's
-// release test is "did `dist/` change", and this module's floor is `patch`:
+// Split deliberately: this module decides WHAT version, and `release-gate.mts`
+// decides WHETHER to release at all. The two are different questions and the
+// repo has already been bitten by conflating them — `bb2f75a` ("chore: bump
+// routing model ids") changed the model every consumer run resolves, and a
+// commit-type filter would have shipped nothing for it. So the gate's release
+// test is "did the installable payload change", and this module's floor is `patch`:
 // anything that alters the built output is worth a tag, and the commit types
 // only decide how big a tag.
 //
@@ -17,6 +17,10 @@
 import { execFileSync } from "node:child_process";
 import { appendFileSync } from "node:fs";
 import { isEntrypoint } from "../src/lib/entrypoint.mts";
+// Tag discovery and the form a tag must take belong with the release gate: they
+// are discovery, and the gate needs the same baseline to diff the payload
+// against. Imported rather than restated so there is one rule, not two.
+import { lastReleaseTag, TAG_FORM } from "./release-gate.mts";
 
 /** How much of the public surface a change moves. `fix` is the floor, not a claim. */
 export type Impact = "breaking" | "feature" | "fix";
@@ -87,8 +91,6 @@ export function compare(a: string, b: string): number {
   return 0;
 }
 
-const TAG_FORM = /^v[0-9]+\.[0-9]+\.[0-9]+$/;
-
 /**
  * Validate an operator-supplied tag against the last one. Explicit beats
  * derived — a human naming `v0.3.0` to mark a milestone is a decision the
@@ -105,46 +107,14 @@ export function resolveExplicit(explicit: string, lastTag: string): string {
   return stripPrefix(explicit);
 }
 
-/** Host `git`, stdout as text. Injectable so the integration tier can point it
- *  at a temp repo with a real release topology. */
-export type GitRunner = (args: string[]) => string;
+/** Host `git`, stdout as text — only the commit log is read here. */
+const git = (args: string[]) => execFileSync("git", args, { encoding: "utf8" });
 
-const git: GitRunner = (args) => execFileSync("git", args, { encoding: "utf8" });
-
-/**
- * The newest release tag, or `null` when none exists yet.
- *
- * Enumerated and version-sorted, NOT `git describe`. `describe` only finds tags
- * reachable from HEAD, and a release tag here is never reachable from `main`:
- * the release commit is an unmerged CHILD of the `main` commit it was cut from,
- * and only its tag ref is pushed. So from a later `main` the tag is a sibling,
- * `describe` reports no tag at all, and the derivation would restart at v0.0.0
- * and try to re-cut a version that already exists.
- *
- * `null` rather than a `v0.0.0` sentinel: the caller uses this value as BOTH a
- * version to bump from and a git revision to log since, and only the first has
- * a sensible zero. `git log v0.0.0..HEAD` against a tag that does not exist is
- * a fatal ambiguous-revision error, which would fail every first release.
- */
-export function lastReleaseTag(run: GitRunner = git): string | null {
-  const tags = run(["tag", "--list", "v[0-9]*", "--sort=-v:refname"])
-    .split("\n")
-    .map((tag) => tag.trim())
-    // `TAG_FORM`, the same rule an explicit version is held to — the glob is
-    // only a cheap prefilter and admits plenty that is not a release: a moving
-    // `v1` major alias (which this repo invites, since consumers reference
-    // .github/workflows/agent.yml by tag), a `v0.3.0-rc.1`, a `v0.2-backup`.
-    // Version sort puts `v1` FIRST, and `bump("1")` throws on it, so one stray
-    // tag would block every automatic release from then on.
-    .filter((tag) => TAG_FORM.test(tag));
-  return tags[0] ?? null;
-}
-
-function main(): void {
+async function main(): Promise<void> {
   // The workflow resolves the baseline first (it needs the same one to diff
   // dist/ against) and passes it down, so the two cannot disagree mid-run if a
   // tag lands between the steps. Falls back for a standalone invocation.
-  const lastTag = process.env.LAST_TAG?.trim() || lastReleaseTag();
+  const lastTag = process.env.LAST_TAG?.trim() || (await lastReleaseTag());
 
   const explicit = process.env.EXPLICIT?.trim();
   // Every commit on a first release, everything since the tag on any other.
@@ -169,7 +139,7 @@ function main(): void {
 
 if (isEntrypoint(import.meta.url)) {
   try {
-    main();
+    await main();
   } catch (error) {
     // `::error::` so a rejected version surfaces as an annotation on the run
     // rather than as a stack trace a reader has to scroll a log to find.
