@@ -31,12 +31,8 @@ import {
   taskDoneTrailer,
 } from "../lib/task-list.mts";
 import { ensureTaskList, runTaskLoop } from "../lib/task-loop.mts";
-import {
-  describeRun,
-  forwardedEnvKeys,
-  resolvePhases,
-  type ResolvedPhases,
-} from "../lib/profiles.mts";
+import { describeRun, forwardedEnvKeys, type ResolvedPhases } from "../lib/profiles.mts";
+import { admit, type Admission, type IntakeRequest } from "../lib/issue-intake.mts";
 import { assertKnownFlags, readFlag } from "../lib/cli.mts";
 import { templatePath } from "../lib/templates.mts";
 import { isEntrypoint } from "../lib/entrypoint.mts";
@@ -365,7 +361,7 @@ export async function runIssue(
 
 export type MainDeps = {
   issueSource: IssueBodySource;
-  issueIsEpic: (issueNumber: number) => Promise<boolean>;
+  admit: (request: IntakeRequest) => Promise<Admission>;
   runIssue: (
     run: ResolvedPhases,
     issueNumber: number,
@@ -376,63 +372,37 @@ export type MainDeps = {
 };
 
 /**
- * The guarded single-issue flow: reject closed issues and epics (with an issue
- * comment), skip cleanly when the triggering label was removed while queued,
- * resolve the model profile, then run the checklist task loop and report the PR
- * back on the issue. Returns "skipped" for the clean no-op path, "ran" otherwise.
+ * Admit, then act on the verdict: a rejection is reported on the issue and
+ * rethrown (the only report-then-throw site left, now that the four guards
+ * live in `admit`), a skip returns cleanly, and an admission runs the
+ * checklist task loop, writes the sandbox's forwarded-env file under CI, and
+ * reports the resulting PR back on the issue. Returns "skipped" for the clean
+ * no-op path, "ran" otherwise.
  */
 export async function main(options: CliOptions, deps: MainDeps): Promise<"ran" | "skipped"> {
   const { issueSource } = deps;
-  const labelTriggered = options.trigger === "issues";
-  const issue = await issueSource.getIssue(options.issue);
+  const admission = await deps.admit({
+    issueNumber: options.issue,
+    trigger: options.trigger,
+    dispatchProfile: options.profile,
+    modelOverride: options.model,
+    defaultProfile: deps.env.AGENT_DEFAULT_PROFILE,
+  });
 
-  if (issue.state === "CLOSED") {
-    const detail = `Issue #${options.issue} is closed; the sandcastle-agent run requires an open issue.`;
-    console.error(detail);
-    await issueSource.comment(options.issue, detail).catch((commentError) => {
-      console.error(
-        `Could not report closed-issue error on the issue: ${errorMessage(commentError)}`,
-      );
-    });
-    throw new Error(detail);
-  }
-
-  if (labelTriggered && !issue.labels.includes("ready-for-agent")) {
-    console.log(
-      `Issue #${options.issue} no longer has the ready-for-agent label (removed while queued) — skipping.`,
-    );
+  if (admission.kind === "skipped") {
+    console.log(admission.reason);
     return "skipped";
   }
 
-  if (await deps.issueIsEpic(options.issue)) {
-    const detail =
-      `Issue #${options.issue} has native GitHub sub-issues (it's an epic); the sandcastle-agent run ` +
-      `only handles atomic issues. Run the sub-issues individually instead.`;
-    console.error(detail);
-    await issueSource.comment(options.issue, detail).catch((commentError) => {
-      console.error(`Could not report epic error on the issue: ${errorMessage(commentError)}`);
+  if (admission.kind === "rejected") {
+    console.error(admission.detail);
+    await issueSource.comment(options.issue, admission.detail).catch((commentError) => {
+      console.error(`Could not report the rejection on the issue: ${errorMessage(commentError)}`);
     });
-    throw new Error(detail);
+    throw admission.cause ?? new Error(admission.detail);
   }
 
-  let run;
-  try {
-    run = resolvePhases({
-      labels: issue.labels,
-      dispatchProfile: options.profile,
-      defaultProfile: deps.env.AGENT_DEFAULT_PROFILE,
-      modelOverride: options.model,
-    });
-  } catch (error) {
-    const detail = `sandcastle-agent configuration rejected: ${errorMessage(error)}`;
-    console.error(detail);
-    await issueSource.comment(options.issue, detail).catch((commentError) => {
-      console.error(
-        `Could not report configuration error on the issue: ${errorMessage(commentError)}`,
-      );
-    });
-    throw error;
-  }
+  const { issue, run } = admission;
 
   // CI never checks in a .sandcastle/.env; declare the forwarded keys here,
   // AFTER profile resolution, so the sibling sandbox only receives the resolved
@@ -473,7 +443,7 @@ export function runImplementLoop(
 ): Promise<"ran" | "skipped"> {
   return main(parseCli(argv), {
     issueSource: githubIssueSource,
-    issueIsEpic,
+    admit: (request) => admit(request, { getIssue: githubIssueSource.getIssue, issueIsEpic }),
     runIssue: (run, issueNumber, issue, issueSource) =>
       runIssue(config, run, issueNumber, issue, issueSource),
     env: process.env,
