@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { type Issue } from "../lib/github-issue.mts";
-import { type Admission } from "../lib/issue-intake.mts";
+import { type Admission, type IntakeRequest } from "../lib/issue-intake.mts";
 import {
   main,
   NO_NOTES_PLACEHOLDER,
@@ -16,7 +16,7 @@ import { MIXED_PROFILE_NAME, resolvePhases } from "../lib/profiles.mts";
 
 function makeDeps(overrides: {
   admission?: Admission;
-}): MainDeps & { comments: string[]; ran: boolean } {
+}): MainDeps & { comments: string[]; ran: boolean; requests: IntakeRequest[] } {
   const issue: Issue = {
     title: "Fix the widget",
     body: "It is broken.",
@@ -30,10 +30,12 @@ function makeDeps(overrides: {
   };
   const state = {
     comments: [] as string[],
+    requests: [] as IntakeRequest[],
     ran: false,
   };
   return {
     comments: state.comments,
+    requests: state.requests,
     get ran() {
       return state.ran;
     },
@@ -44,7 +46,10 @@ function makeDeps(overrides: {
       },
       setBody: async () => {},
     },
-    admit: async () => admission,
+    admit: async (request) => {
+      state.requests.push(request);
+      return admission;
+    },
     runIssue: async () => {
       state.ran = true;
       return { prUrl: "https://example.test/pr/1" };
@@ -63,6 +68,27 @@ test("parseCli requires a positive issue number", () => {
     model: undefined,
     trigger: "issues",
   });
+});
+
+// `admit` is faked in every test here, so nothing else observes the request it
+// is handed. Distinct values per field, so a crossed wire fails rather than
+// coincidentally matching.
+test("the intake request is built from the CLI options and the environment", async () => {
+  const deps = makeDeps({});
+  deps.env.AGENT_DEFAULT_PROFILE = "from-env";
+  await main(
+    { issue: 7, trigger: "from-trigger", profile: "from-profile", model: "from-model" },
+    deps,
+  );
+  assert.deepEqual(deps.requests, [
+    {
+      issueNumber: 7,
+      trigger: "from-trigger",
+      dispatchProfile: "from-profile",
+      modelOverride: "from-model",
+      defaultProfile: "from-env",
+    },
+  ]);
 });
 
 test("a rejected verdict is reported on the issue and its cause rethrown", async () => {
