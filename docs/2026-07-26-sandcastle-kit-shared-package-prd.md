@@ -61,7 +61,8 @@ The kit's core is derived from **`comfyui-lif-nodes`**, not `lif-studio`: the ch
 lif-sandcastle/
   package.json          "@lif/sandcastle-kit", "type": "module"
   src/lib/*.mts         host-exec, task-list, task-loop, profiles, github-issue, …
-  src/presets/*.mts     implement (GitHub issues), task (local state)
+  src/phases/*.mts      modular stages: plan, task, review, verify, deliver (see Architecture)
+  src/presets/*.mts     implement (GitHub issues), task (local state) — compositions of phases
   templates/*.md        default prompts
   dist/                 tsc output — .mjs + .d.mts (committed; see below)
   .github/workflows/agent.yml   on: workflow_call
@@ -128,6 +129,75 @@ const promptFile = templatePath("implement/task-prompt.md", {
 });
 ```
 
+## Architecture
+
+**Added 2026-07-26.** Settled in review with the owner after the P1/`presets/implement` landings, before P2/P3. This section is the target the phasing builds toward; nothing in it reorders the phasing.
+
+### Two contracts, different rigidity
+
+The kit's job splits into two contracts, and they deliberately differ in how negotiable they are:
+
+- **The practice layer is non-negotiable.** Toolchain choice from the kit-owned standard (`python` *is* uv), `defang` on every prompt argument, tag-pinned installs, the sandcastle boundary (consumers never name `@ai-hero/sandcastle`), provider credential handling, and the conventions block. A consumer that composes a custom lifecycle still gets all of it, because it is baked into the primitives every phase runs through. There is no mix-and-match here.
+- **The lifecycle layer is composable.** Stages of a lifecycle — plan, task, review, verify, deliver — are the unit of reuse, not whole lifecycles. Consumers either run a shipped preset as-is, override its templates, or compose phases directly.
+
+### Layers
+
+```
+Layer 0  @ai-hero/sandcastle       kit-internal dependency; never consumer-visible
+Layer 1  src/lib/                  primitives = the practice layer
+                                   (host-exec, defang, toolchains, profiles,
+                                    provider-setup, templates, task-list, task-loop)
+Layer 2  src/phases/               modular stages: plan · task · review · verify · deliver
+                                   each = runner fn + default template + typed inputs/outputs
+Layer 3  src/presets/              standard compositions
+                                   implement = github-issue → plan? → loop(task) → review → PR
+                                   task      = ledger      →          loop(task) → verify → squash-merge
+Layer 4  consumer config.mts       pick a preset, override its templates,
+                                   or compose phases directly (lif-studio's swarm lanes)
+```
+
+A phase is deliberately boring: an async function taking a shared `PhaseContext` (agent, sandbox, branch, template resolver, per-phase profile) plus phase-specific inputs, returning a typed result. Composition is plain TypeScript — a preset is a thin file calling phase functions in order. **No pipeline engine, no DAG config format, no plugin registry.** A consumer that wants mix-and-match writes exactly what a preset writes internally.
+
+Two adapter seams sit beside the phases, because they are where the consumers genuinely diverge:
+
+- **Task source:** GitHub issue checklist (`comfyui-lif-nodes`, `lif-studio`) vs. `STATE.md` ledger (`Morrow`).
+- **Delivery:** PR-per-issue vs. squash-merge-and-continue.
+
+The second-consumer rule is what justifies the phase layer *now* rather than speculatively: the moment `presets/task` exists, the task phase (run session → expect commits → retry once → record trailer) has two consumers — `task-loop.mts` already proved the overlap. `review` (artifact-producing) and `verify` (binary gate) stay separate phases; they are different contracts, not one parameterized thing. Writing `presets/task` in P2 is therefore the forcing function to decompose `presets/implement` into `phases/` and re-express both presets as compositions — behaviour-preserving (same templates, same flow, preset tests keep passing), with `presets/implement` shrinking to composition glue.
+
+This also settles how `lif-studio` relates to the kit long-term: its swarm does not adopt a preset wholesale, nor stay walled off — it becomes a **Layer-4 composer**, keeping lane/epic/parallelism machinery repo-local while each lane's inner loop calls kit phases. Prompt and practice improvements land once; swarm orchestration stays repo-local per the junk-drawer rule.
+
+### Target end-to-end flow (north star)
+
+The full lifecycle the layers exist to serve. Capabilities marked ⊕ do not exist yet and land *after* the migration phases, one kit release at a time.
+
+1. **Ideation → issue.** Brainstorming happens in any client, outside the kit; the pre-implementation passes (blind-spot, brainstorm/prototype, interviews, references) are interactive and stay client-side. The kit defines only the **issue body contract** the planner consumes (problem statement, references, resolved questions, acceptance criteria). ⊕ Optionally, a cheap async `triage` phase runs a blind-spot pass on a freshly labeled issue and posts open questions as comments before the expensive lifecycle starts.
+2. **`ready-for-agent` → plan.** The plan phase slices the work into deliverable chunks and ⊕ declares a dependency DAG over them (which slices must be sequenced, which can run in parallel). Today's flat checklist is the degenerate all-sequential case.
+3. **Per slice: implement + review loop.** ⊕ The review step gains fresh-context inner rounds with a severity taxonomy (critical / must-fix / should / nit) baked into the template and a round cap (2–3); each round fixes criticals and must-fixes, then re-reviews. Both steps append to the cross-session notes artifact (decisions, assumptions — harvested into the PR body). ⊕ Open questions are posted **to the GitHub issue with a severity**, not to a file on the branch — answerable from any client. Non-critical questions accumulate for the end; a critical blocker halts the run: commit + push, post the questions as an issue comment, swap `ready-for-agent` → `needs-human`.
+4. **Resume.** Trailer-based resume from `origin/agent/issue-N` exists; ⊕ blocked-state resume additionally records which slice blocked and injects the human's Q&A answers into the resumed session's context.
+5. **Deliver (merger).** ⊕ Collect the branch, open the single PR with the harvested notes as body, wait for CI checks green, request a cross-agent review (e.g. Codex), address criticals once, then hand to the human. The outcome of the whole flow is a PR ready for human approval that already followed the practice layer end to end.
+
+### Decided: branch topology follows the plan's DAG
+
+The rejected alternative was per-slice sub-PRs into a feature branch as the universal shape. What per-slice PRs buy decomposes into three things with cheaper substitutes: per-slice *verification* already happens in-sandbox via the toolchain's test command; per-slice *CI* needs only a workflow triggered on push to `agent/**` branches (the agent pushes after each slice; the next session or the merger reads check status via `gh` and repairs while context is fresh); only per-slice *PR-ergonomic review* genuinely wants a PR, and the in-sandbox review phase already covers that role per-iteration, with the cross-agent PR review running once on the final PR.
+
+So: **all-sequential slices → single branch, CI-on-push, one PR at the end** (sub-PRs there are ceremony plus rebase churn plus PR state to reconcile on every resume). **Any parallel slices → integration branch + per-slice lanes**, because parallel work needs branch isolation and an integration point anyway, at which point per-slice PRs into the integration branch are nearly free checkpoints. Topology is a consequence of the plan's DAG, not a global configuration choice.
+
+### Decided: planner-driven slicing; parent issues for large work
+
+Two slicing levels stay distinct:
+
+- **Child issue** = one deliverable PR — the unit of human review and merge.
+- **Slice** (checklist item inside one issue) = one implement+review iteration — the unit of agent context. Intra-PR only.
+
+Genuinely large work becomes a parent issue with children (native GitHub sub-issues). ⊕ The epic flow is a recursion, not a new lifecycle: an **epic orchestrator** reads the parent's sub-issues and dependency annotations, runs the standard single-issue lifecycle on each child (independent children in parallel lanes, dependent ones sequenced), and the parent is pure bookkeeping — sub-issue progress plus a closing comment linking the child PRs. Each child produces its own PR; there is no mega-PR. The existing `issueIsEpic` guard in `presets/implement` (which today rejects epics) becomes the dispatch point.
+
+On *who* slices: both work, and the planner is the default. If the plan phase concludes a single issue exceeds a threshold, it creates the child issues itself and converts the issue to a parent (optionally posting the proposed split as a comment first for a human checkpoint). Hand-pre-sliced parents behave identically — the orchestrator does not care who created the children. This avoids forcing correct work-sizing at ideation time.
+
+### Build order
+
+Migration first, on current behaviour: the phase decomposition rides P2 (writing `presets/task` forces it), P3 cuts `comfyui-lif-nodes` over, P4 has `lif-studio` adopt `lib/` while its swarm stays a repo-local composer. Only then do the ⊕ capabilities land, each as its own small kit release against a single source of truth: severity-gated review loop → blocker halt/resume → merger with CI-wait and cross-agent review → epic orchestrator → triage phase. Building the north-star flow before the consolidation would mean building it three times.
+
 ## Phasing
 
 **P-pre — Backport `defangShellExpansion` immediately, outside the extraction. ✅ Done 2026-07-26.** Cherry-pick the defence into `lif-studio`'s issue-driven pipeline (and `Morrow`'s if its prompt inputs are ever attacker-writable) *now*, as plain copies. A third copy for a few weeks is acceptable; an unattended pipeline substituting undefanged issue bodies for the duration of a multi-phase extraction is not. The kit's regression test (acceptance criterion 6) is the durable fix; this is the stopgap. Nothing else in the plan depends on it and nothing blocks it.
@@ -157,7 +227,7 @@ const promptFile = templatePath("implement/task-prompt.md", {
 >
 > Not addressed: the base branch is still hardcoded `main` (`origin/main..`, `--base main`, and `main..HEAD` inside the review template). All three consumers use `main`, so this is deliberate rather than overlooked — but it is repo knowledge sitting in the kit, and a fourth consumer on `master` or `trunk` is the trigger to lift it into `ImplementConfig`.
 
-**P2 — Cut `Morrow` over.** ~450 lines, no GitHub issue source, lowest blast radius. Blocked on `presets/task`, which does not exist; P3 now runs first.
+**P2 — Cut `Morrow` over.** ~450 lines, no GitHub issue source, lowest blast radius. Blocked on `presets/task`, which does not exist; P3 now runs first. Writing `presets/task` is also the forcing function for the phase decomposition (see Architecture): `presets/implement` breaks into `src/phases/` and both presets become compositions, behaviour-preserving.
 
 **P3 — Cut `comfyui-lif-nodes` over.** Its `config.mts` is already 36 lines of purely repo-specific configuration, so this is close to a straight deletion of `lib/`.
 
