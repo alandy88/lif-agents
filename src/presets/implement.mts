@@ -50,7 +50,7 @@ import type { PhaseContext } from "../phases/context.mts";
 import { runPlanPhase } from "../phases/plan.mts";
 import { runTaskPhase } from "../phases/task.mts";
 import { runReviewPhase } from "../phases/review.mts";
-import { runDeliverPhase } from "../phases/deliver.mts";
+import { deliverPullRequest } from "../lib/github-pr.mts";
 
 /**
  * The per-repo half of the pipeline — and only that half. Everything keyed off
@@ -355,7 +355,7 @@ export async function runIssue(
     throw new Error(`git push origin ${branch} exited ${push.exitCode}`);
   }
 
-  const { prUrl } = await runDeliverPhase({
+  const { prUrl } = await deliverPullRequest({
     branch,
     title: `Fix #${issueNumber}: ${issue.title}`,
     body: renderPrBody(issueNumber, run, review.summary),
