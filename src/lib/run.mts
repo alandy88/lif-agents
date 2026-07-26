@@ -105,8 +105,6 @@ export interface RunInput {
   config: RepoConfig;
   run: ResolvedPhases;
   branch: string;
-  /** The phases this lifecycle actually runs — preflight narrowing only. */
-  phases: readonly Phase[];
 }
 
 /**
@@ -144,17 +142,10 @@ export async function openRun(input: RunInput, deps: RunDeps = hostDeps): Promis
   // Toolchain warm-up, then repo extras, then provider auth — the donor's
   // order, and the one that fails on a missing toolchain before it fails on a
   // missing credential.
-  //
-  // Only the phases this lifecycle runs are authenticated: `presets/task` never
-  // runs a plan phase, so a plan-only provider is not its problem. Under every
-  // configuration reachable today this changes nothing — the mixed map's
-  // [task, review] already spans both providers, and a named profile makes all
-  // three identical — so it is defensive, and this narrowing is held in place
-  // only by its test.
   const preflight = [
     ...toolchains[config.toolchain].preflight,
     ...(config.preflight?.() ?? []),
-    ...providerPreflight(input.phases.map((phase) => run.phases[phase])),
+    ...providerPreflight(Object.values(run.phases)),
   ];
 
   const sandbox = await deps.createSandbox({
@@ -170,10 +161,9 @@ export async function openRun(input: RunInput, deps: RunDeps = hostDeps): Promis
   // One context per phase: the sandbox, branch and template resolver are shared;
   // only the agent differs, which is where per-phase model routing lands.
   //
-  // All three are built regardless of `input.phases` — that field narrows
-  // preflight and nothing else. An unused context costs nothing: `claudeCode`
-  // and `codex` are pure object-literal factories, so no session, process or
-  // credential is touched until a phase actually runs one.
+  // All three are built even for a lifecycle that runs two. An unused context
+  // costs nothing: `claudeCode` and `codex` are pure object-literal factories, so
+  // no session, process or credential is touched until a phase actually runs one.
   const prompt = (name: string) => templatePath(name, { overrideDir: config.templateDir });
   const shared = { sandbox, branch, prompt };
   const ctx: Record<Phase, PhaseContext> = {
