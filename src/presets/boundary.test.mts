@@ -15,8 +15,11 @@ import { fileURLToPath } from "node:url";
 //
 // Phases are covered too: a Layer-4 consumer composes them directly (that is the
 // whole point of the layer), so a sandcastle type in `PhaseContext` would leak
-// exactly as far as one in a preset config.
+// exactly as far as one in a preset config. `lib/run.mts` is covered for the same
+// reason one level down: both presets name `RepoConfig` and `RunDeps` from it, so
+// a sandcastle type there reaches a consumer through their declarations.
 const DECLARATIONS = [
+  "lib/run.d.mts",
   "presets/implement.d.mts",
   "presets/task/index.d.mts",
   "presets/task/state.d.mts",

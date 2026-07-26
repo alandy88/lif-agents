@@ -53,14 +53,11 @@ export {
 } from "./lib/provider-setup.mts";
 
 export { openRun } from "./lib/run.mts";
-export type {
-  RepoConfig,
-  RunDeps,
-  RunHandle,
-  RunInput,
-  RunSandbox,
-  RunSandboxOptions,
-} from "./lib/run.mts";
+// `RepoConfig` is what both presets alias; `RunDeps` (and the two types it names)
+// is the parameter `runIssue`/`runIteration` take. `RunInput` and `RunHandle` are
+// `openRun`'s own argument and return, reachable through it and not worth
+// freezing into the package's public surface.
+export type { RepoConfig, RunDeps, RunSandbox, RunSandboxOptions } from "./lib/run.mts";
 
 export {
   commentOnIssue,
