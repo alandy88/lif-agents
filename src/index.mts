@@ -52,6 +52,16 @@ export {
   providerPreflight,
 } from "./lib/provider-setup.mts";
 
+export { openRun } from "./lib/run.mts";
+export type {
+  RepoConfig,
+  RunDeps,
+  RunHandle,
+  RunInput,
+  RunSandbox,
+  RunSandboxOptions,
+} from "./lib/run.mts";
+
 export {
   commentOnIssue,
   getIssue,

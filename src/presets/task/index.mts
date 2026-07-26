@@ -8,15 +8,12 @@
 // composes — the task phase having two consumers is what earns the phase layer.
 
 import { readFileSync } from "node:fs";
-import { createSandbox } from "@ai-hero/sandcastle";
 import { hostGit } from "../../lib/host-exec.mts";
 import { assertKnownFlags, readFlag } from "../../lib/cli.mts";
 import { describeRun, resolvePhases, type ResolvedPhases } from "../../lib/profiles.mts";
-import { templatePath } from "../../lib/templates.mts";
 import { isEntrypoint } from "../../lib/entrypoint.mts";
-import { createAgent, createSandboxProvider, providerPreflight } from "../../lib/provider-setup.mts";
-import { renderConventions, toolchains, type Toolchain } from "../../lib/toolchains.mts";
-import type { PhaseContext } from "../../phases/context.mts";
+import { openRun, type RepoConfig } from "../../lib/run.mts";
+import { renderConventions, toolchains } from "../../lib/toolchains.mts";
 import { runTaskPhase } from "../../phases/task.mts";
 import { runVerifyPhase } from "../../phases/verify.mts";
 import { runDeliverPhase } from "../../phases/deliver.mts";
@@ -30,20 +27,13 @@ const VERIFY_TEMPLATE = "task/verify-prompt.md";
 export const STATE_FILE = "STATE.md";
 
 /**
- * The per-repo half, identical in shape to `ImplementConfig` — the escape
- * hatches are the same because the reason for them is: everything keyed off the
- * provider is the kit's, everything that names a package manager is the repo's.
+ * The per-repo half — the same `RepoConfig` the issue preset takes, and the
+ * same alias for the same reason: the escape hatches are identical because the
+ * reason for them is (everything keyed off the provider is the kit's,
+ * everything that names a package manager is the repo's), so they are defined
+ * once in `lib/run.mts` and cannot drift apart here.
  */
-export interface TaskConfig {
-  /** This repo's toolchain; picking one selects the kit's standard for it. */
-  toolchain: Toolchain;
-  /** Checks the toolchain name cannot imply. Appended under the standard block. */
-  extraConventions?: string;
-  /** Sandbox warm-up beyond the toolchain's own, e.g. a generated-file step. */
-  preflight?: () => string[];
-  /** Workspace-relative template override directory, e.g. `.sandcastle/templates`. */
-  templateDir?: string;
-}
+export type TaskConfig = RepoConfig;
 
 export type CliOptions = {
   iterations: number;
@@ -88,36 +78,13 @@ export async function runIteration(
   next: NextTask,
 ): Promise<{ prUrl: string }> {
   const { label, branch } = next;
-  const prompt = (name: string) => templatePath(name, { overrideDir: config.templateDir });
 
-  // Resume: when a prior (failed) run pushed this branch, recreate it locally
-  // from origin so the sandbox continues it instead of starting over.
-  const originBranch = await hostGit(["rev-parse", "--verify", "--quiet", `origin/${branch}`]);
-  if (originBranch.exitCode === 0) {
-    await hostGit(["branch", "--force", branch, `origin/${branch}`]);
-  }
-
-  const preflight = [
-    ...toolchains[config.toolchain].preflight,
-    ...(config.preflight?.() ?? []),
-    ...providerPreflight(Object.values(run.phases)),
-  ];
-
-  await using sandbox = await createSandbox({
-    branch,
-    sandbox: createSandboxProvider(),
-    hooks: {
-      sandbox: {
-        onSandboxReady: preflight.map((command) => ({ command })),
-      },
-    },
-  });
+  await using opened = await openRun({ config, run, branch, phases: ["task", "review"] });
 
   // The verifier is a reviewer, so it gets the review phase's model — which is
   // how a mixed run ends up building with Codex and checking with Opus.
-  const shared = { sandbox, branch, prompt };
-  const taskCtx: PhaseContext = { ...shared, agent: createAgent(run.phases.task) };
-  const verifyCtx: PhaseContext = { ...shared, agent: createAgent(run.phases.review) };
+  const taskCtx = opened.ctx.task;
+  const verifyCtx = opened.ctx.review;
 
   // `BRANCH` is injected by the phase from `ctx.branch`.
   const args = {
@@ -168,7 +135,7 @@ export async function runIteration(
   // Release the managed worktree BEFORE delivering: it has `branch` checked
   // out, and git refuses to delete a branch a worktree holds. `close()` is
   // idempotent, so the `await using` disposal below is still a no-op safety net.
-  const { preservedWorktreePath } = await sandbox.close();
+  const { preservedWorktreePath } = await opened.sandbox.close();
   if (preservedWorktreePath) {
     console.error(
       `Worktree preserved at ${preservedWorktreePath} (uncommitted changes); ` +
