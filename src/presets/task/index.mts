@@ -165,6 +165,17 @@ export async function runIteration(
     `Task "${label}": ${task.commits} commit(s), verify: ${verify.commits} fix commit(s).`,
   );
 
+  // Release the managed worktree BEFORE delivering: it has `branch` checked
+  // out, and git refuses to delete a branch a worktree holds. `close()` is
+  // idempotent, so the `await using` disposal below is still a no-op safety net.
+  const { preservedWorktreePath } = await sandbox.close();
+  if (preservedWorktreePath) {
+    console.error(
+      `Worktree preserved at ${preservedWorktreePath} (uncommitted changes); ` +
+        `${branch} cannot be deleted until it is removed.`,
+    );
+  }
+
   return runDeliverPhase({
     branch,
     title: `Task ${label}`,
