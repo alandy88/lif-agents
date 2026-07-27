@@ -69,39 +69,46 @@ export interface RunSandbox extends PhaseSandbox {
 }
 
 /**
- * The options `openRun` passes to `createSandbox` — a deliberate subset of
- * sandcastle's `CreateSandboxOptions`, declaring only the three fields this
- * module actually sets. `sandbox` is `unknown` because the provider is passed
- * straight through and never inspected here.
+ * What `openRun` asks of a sandbox, in the kit's own vocabulary: a branch to
+ * check out and the commands to run once the sandbox is warm. How sandcastle
+ * spells that (its provider argument, its `hooks` nesting) is the host
+ * adapter's business below — keeping it out of this interface is what keeps a
+ * sandcastle API change contained to one function, and lets a test fake take
+ * a shape it would actually read.
  */
 export interface RunSandboxOptions {
   readonly branch: string;
-  readonly sandbox: unknown;
-  readonly hooks?: {
-    readonly sandbox?: {
-      readonly onSandboxReady?: ReadonlyArray<{ readonly command: string }>;
-    };
-  };
+  readonly preflight: readonly string[];
 }
 
 /**
  * The injectable half, following `DeliverDeps`: real implementations by
  * default, overridable so the tests can drive the ordering rules without a
  * container.
- *
- * `createSandbox` is declared as a METHOD, not an arrow property. Method
- * parameters are compared bivariantly, which is what lets the real
- * `createSandbox` (whose `sandbox` is a concrete `SandboxProvider`) and a test
- * fake (which never looks at it) both satisfy the same loose declaration.
  */
 export interface RunDeps {
-  createSandbox(options: RunSandboxOptions): Promise<RunSandbox>;
+  createSandbox: (options: RunSandboxOptions) => Promise<RunSandbox>;
   createAgent: (profile: ModelProfile) => PhaseAgent;
   /** Host git, handed to `resumeFromOrigin` — `branch.mts`'s own seam, reused. */
   git: GitRunner;
 }
 
-const hostDeps: RunDeps = { createSandbox, createAgent, git: hostGit };
+const hostDeps: RunDeps = {
+  // The one place the kit speaks sandcastle's dialect of "warm a sandbox":
+  // the provider and the hooks spelling live here, not in the seam.
+  createSandbox: ({ branch, preflight }) =>
+    createSandbox({
+      branch,
+      sandbox: createSandboxProvider(),
+      hooks: {
+        sandbox: {
+          onSandboxReady: preflight.map((command) => ({ command })),
+        },
+      },
+    }),
+  createAgent,
+  git: hostGit,
+};
 
 export interface RunInput {
   config: RepoConfig;
@@ -148,15 +155,7 @@ export async function openRun(input: RunInput, deps: RunDeps = hostDeps): Promis
     ...providerPreflight(Object.values(run.phases)),
   ];
 
-  const sandbox = await deps.createSandbox({
-    branch,
-    sandbox: createSandboxProvider(),
-    hooks: {
-      sandbox: {
-        onSandboxReady: preflight.map((command) => ({ command })),
-      },
-    },
-  });
+  const sandbox = await deps.createSandbox({ branch, preflight });
 
   // One context per phase: the sandbox, branch and template resolver are shared;
   // only the agent differs, which is where per-phase model routing lands.

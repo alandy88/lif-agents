@@ -64,8 +64,7 @@ function harness(options: { revParseExit?: number } = {}) {
     },
   };
 
-  const preflight = () =>
-    (sandboxOptions[0]!.hooks?.sandbox?.onSandboxReady ?? []).map((hook) => hook.command);
+  const preflight = () => sandboxOptions[0]!.preflight;
 
   return { deps, calls, sandbox, preflight, agentProfiles, agents };
 }
