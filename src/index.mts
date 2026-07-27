@@ -32,8 +32,8 @@ export {
 } from "./lib/task-list.mts";
 export type { TaskItem } from "./lib/task-list.mts";
 
-export { ensureTaskList, runTaskLoop } from "./lib/task-loop.mts";
-export type { TaskLoopDeps, TaskLoopResult } from "./lib/task-loop.mts";
+export { ensureTaskList, runChecklistLoop } from "./lib/task-loop.mts";
+export type { ChecklistLoopDeps, ChecklistLoopResult } from "./lib/task-loop.mts";
 
 export {
   DEFAULT_PROFILE_SENTINEL,
@@ -44,7 +44,6 @@ export {
   PROFILE_LABELS,
   profiles,
   resolvePhases,
-  resolveProfile,
 } from "./lib/profiles.mts";
 export type {
   Effort,
@@ -54,7 +53,6 @@ export type {
   ProfileResolutionInput,
   Provider,
   ResolvedPhases,
-  ResolvedProfile,
 } from "./lib/profiles.mts";
 
 export {

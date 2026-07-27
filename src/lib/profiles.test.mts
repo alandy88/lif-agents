@@ -4,8 +4,8 @@ import {
   describeRun,
   forwardedEnvKeys,
   phaseProfiles,
+  profiles,
   resolvePhases,
-  resolveProfile,
 } from "./profiles.mts";
 
 test("describeRun names only the phases the lifecycle runs", () => {
@@ -16,63 +16,34 @@ test("describeRun names only the phases the lifecycle runs", () => {
   assert.match(taskPreset, /tasks .+, review /);
 });
 
-test("defaults to the claude profile with no input", () => {
-  const profile = resolveProfile();
-  assert.equal(profile.name, "claude");
-  assert.equal(profile.provider, "claude");
+test("ignores non-routing agent labels", () => {
+  const run = resolvePhases({ labels: ["agent:in-progress"] });
+  assert.equal(run.name, "mixed");
 });
 
 test("routes via the agent:gpt label", () => {
-  const profile = resolveProfile({ labels: ["ready-for-agent", "agent:gpt"] });
-  assert.equal(profile.name, "gpt");
-  assert.equal(profile.provider, "codex");
-});
-
-test("ignores non-routing agent labels", () => {
-  const profile = resolveProfile({ labels: ["agent:in-progress"] });
-  assert.equal(profile.name, "claude");
-});
-
-test("rejects unknown agent labels", () => {
-  assert.throws(() => resolveProfile({ labels: ["agent:mystery"] }), /Unknown agent label/);
-});
-
-test("rejects conflicting agent labels", () => {
-  assert.throws(
-    () => resolveProfile({ labels: ["agent:claude", "agent:gpt"] }),
-    /multiple agent labels/,
-  );
+  const run = resolvePhases({ labels: ["ready-for-agent", "agent:gpt"] });
+  assert.equal(run.name, "gpt");
+  assert.equal(run.phases.task.provider, "codex");
 });
 
 test("dispatch override wins over labels, even unknown ones", () => {
-  const profile = resolveProfile({ labels: ["agent:mystery"], dispatchProfile: "gpt" });
-  assert.equal(profile.name, "gpt");
+  const run = resolvePhases({ labels: ["agent:mystery"], dispatchProfile: "gpt" });
+  assert.equal(run.name, "gpt");
 });
 
 test("dispatch value 'default' falls through to labels", () => {
-  const profile = resolveProfile({ labels: ["agent:gpt"], dispatchProfile: "default" });
-  assert.equal(profile.name, "gpt");
-});
-
-test("resolveProfile rejects the phase-only 'mixed' dispatch value", () => {
-  assert.throws(
-    () => resolveProfile({ dispatchProfile: "mixed" }),
-    /Unknown workflow profile "mixed"/,
-  );
+  const run = resolvePhases({ labels: ["agent:gpt"], dispatchProfile: "default" });
+  assert.equal(run.name, "gpt");
 });
 
 test("rejects an unknown dispatch profile", () => {
-  assert.throws(() => resolveProfile({ dispatchProfile: "qwen" }), /Unknown workflow profile/);
-});
-
-test("applies a plausible model override", () => {
-  const profile = resolveProfile({ modelOverride: "claude-opus-4-8" });
-  assert.equal(profile.model, "claude-opus-4-8");
+  assert.throws(() => resolvePhases({ dispatchProfile: "qwen" }), /Unknown workflow profile/);
 });
 
 test("rejects a model override that doesn't match the provider", () => {
   assert.throws(
-    () => resolveProfile({ dispatchProfile: "gpt", modelOverride: "claude-opus-4-8" }),
+    () => resolvePhases({ dispatchProfile: "gpt", modelOverride: "claude-opus-4-8" }),
     /does not look like a codex model id/,
   );
 });
@@ -80,12 +51,12 @@ test("rejects a model override that doesn't match the provider", () => {
 test("forwarded env keys are scoped to the providers in use", () => {
   // Both auth modes per provider: the bare token the CLI reads itself, and the
   // `<cli> login` credentials blob providerPreflight materializes to disk.
-  assert.deepEqual(forwardedEnvKeys([resolveProfile({ dispatchProfile: "claude" })]), [
+  assert.deepEqual(forwardedEnvKeys([profiles.claude]), [
     "GH_TOKEN",
     "CLAUDE_CODE_OAUTH_TOKEN",
     "CLAUDE_CREDENTIALS_JSON",
   ]);
-  assert.deepEqual(forwardedEnvKeys([resolveProfile({ dispatchProfile: "gpt" })]), [
+  assert.deepEqual(forwardedEnvKeys([profiles.gpt]), [
     "GH_TOKEN",
     "OPENAI_API_KEY",
     "CODEX_AUTH_JSON",
