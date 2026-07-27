@@ -69,6 +69,17 @@ export interface PhaseInput {
 }
 
 /**
+ * Read a branch-local run artifact out of the sandbox. Absent and unreadable
+ * both read as "" — a task session writes its artifact only when it has
+ * something to say, so "no file" is the ordinary outcome of a clean run, not a
+ * failure to surface (`|| true` keeps a missing file from failing the exec).
+ */
+export async function readSandboxFile(sandbox: PhaseSandbox, file: string): Promise<string> {
+  const read = await sandbox.exec(`cat ${file} 2>/dev/null || true`);
+  return read.exitCode === 0 ? read.stdout : "";
+}
+
+/**
  * The one place a prompt reaches an agent. Defanging here rather than at each
  * call site is what makes it part of the practice layer: a phase cannot forget
  * it, and a template that gains a shell expression later cannot reopen the hole.

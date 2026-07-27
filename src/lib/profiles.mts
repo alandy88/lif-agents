@@ -51,7 +51,7 @@ export type ProfileResolutionInput = {
   modelOverride?: string;
 };
 
-export type ResolvedProfile = ModelProfile & {
+type ResolvedProfile = ModelProfile & {
   name: ProfileName;
 };
 
@@ -129,14 +129,6 @@ function resolvedNamedProfile(name: ProfileName, modelOverride?: string): Resolv
     );
   }
   return { name, ...base, model: override || base.model };
-}
-
-/** Resolve one named profile, retaining the historical Claude fallback. */
-export function resolveProfile(input: ProfileResolutionInput = {}): ResolvedProfile {
-  if (input.dispatchProfile?.trim() === MIXED_PROFILE_NAME) {
-    profileName(MIXED_PROFILE_NAME, "workflow profile");
-  }
-  return resolvedNamedProfile(resolveForcedName(input) ?? "claude", input.modelOverride);
 }
 
 export type ResolvedPhases = {

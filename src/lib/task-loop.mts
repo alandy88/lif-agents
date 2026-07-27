@@ -12,7 +12,7 @@
 
 import { parseTaskList, type TaskItem } from "./task-list.mts";
 
-export type TaskLoopDeps = {
+export type ChecklistLoopDeps = {
   /** Run ONE task in a fresh agent context; resolves the commit count it made. */
   runTask: (index: number, task: TaskItem, attempt: 1 | 2) => Promise<{ commits: number }>;
   /** Record the `Task-Done: <i>` trailer commit on the branch (durable state). */
@@ -24,7 +24,7 @@ export type TaskLoopDeps = {
   log?: (message: string) => void;
 };
 
-export type TaskLoopResult =
+export type ChecklistLoopResult =
   | { kind: "complete"; completed: number[]; skippedDone: number[] }
   | { kind: "stuck"; taskIndex: number; completed: number[]; skippedDone: number[]; remaining: number[] };
 
@@ -34,11 +34,11 @@ export type TaskLoopResult =
  * body checkbox is already checked (a human pre-checking a box is an
  * instruction to skip it).
  */
-export async function runTaskLoop(
+export async function runChecklistLoop(
   tasks: TaskItem[],
   done: Set<number>,
-  deps: TaskLoopDeps,
-): Promise<TaskLoopResult> {
+  deps: ChecklistLoopDeps,
+): Promise<ChecklistLoopResult> {
   const log = deps.log ?? (() => {});
   const completed: number[] = [];
   const skippedDone: number[] = [];

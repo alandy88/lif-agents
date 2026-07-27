@@ -35,7 +35,7 @@ import {
   stripTaskSection,
   taskDoneTrailer,
 } from "../lib/task-list.mts";
-import { ensureTaskList, runTaskLoop } from "../lib/task-loop.mts";
+import { ensureTaskList, runChecklistLoop } from "../lib/task-loop.mts";
 import { describeRun, forwardedEnvKeys, type ResolvedPhases } from "../lib/profiles.mts";
 import {
   admit,
@@ -47,6 +47,7 @@ import { assertKnownFlags, readFlag } from "../lib/cli.mts";
 import { isEntrypoint } from "../lib/entrypoint.mts";
 import { openRun, type RepoConfig, type RunDeps } from "../lib/run.mts";
 import { renderConventions } from "../lib/toolchains.mts";
+import { readSandboxFile } from "../phases/context.mts";
 import { runPlanPhase } from "../phases/plan.mts";
 import { runTaskPhase } from "../phases/task.mts";
 import { runReviewPhase } from "../phases/review.mts";
@@ -171,12 +172,6 @@ export async function runIssue(
   // the ledger loop has no checklist and no trailers.
   const done = parseTaskDoneTrailers(await logSince(branch));
 
-  /** Read a run artifact off the branch; absent and unreadable both read empty
-   *  (`|| true` keeps a missing file from surfacing as a failed exec). */
-  const readArtifact = async (file: string): Promise<string> => {
-    const read = await opened.sandbox.exec(`cat ${file} 2>/dev/null || true`);
-    return read.exitCode === 0 ? read.stdout : "";
-  };
   // `BRANCH` is injected by the phase from `ctx.branch`.
   const baseArgs = {
     ISSUE_NUMBER: String(issueNumber),
@@ -207,7 +202,7 @@ export async function runIssue(
     );
   }
 
-  const result = await runTaskLoop(tasks, done, {
+  const result = await runChecklistLoop(tasks, done, {
     runTask: async (index, task, attempt) => {
       // Injected, not merely mentioned: a session told to "read the notes file
       // if it exists" frequently won't, which is the exact cross-session
@@ -216,7 +211,7 @@ export async function runIssue(
         args: {
           ...baseArgs,
           ISSUE_BODY: stripTaskSection(issueBody),
-          NOTES: renderNotes(await readArtifact(NOTES_FILE)),
+          NOTES: renderNotes(await readSandboxFile(opened.sandbox, NOTES_FILE)),
           TASK_INDEX: String(index),
           TASK_COUNT: String(tasks.length),
           TASK_TEXT: task.text,
@@ -268,7 +263,7 @@ export async function runIssue(
     args: {
       ...baseArgs,
       ISSUE_BODY: issueBody,
-      NOTES: renderNotes(await readArtifact(NOTES_FILE)),
+      NOTES: renderNotes(await readSandboxFile(opened.sandbox, NOTES_FILE)),
     },
     name: `review-${issueNumber}`,
     summaryFile: SUMMARY_FILE,

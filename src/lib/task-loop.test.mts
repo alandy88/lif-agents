@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ensureTaskList, runTaskLoop, type TaskLoopDeps } from "./task-loop.mts";
+import { ensureTaskList, runChecklistLoop, type ChecklistLoopDeps } from "./task-loop.mts";
 import { parseTaskList } from "./task-list.mts";
 
 type Call = { index: number; attempt: number };
@@ -12,7 +12,7 @@ function makeDeps(commitsFor: (call: Call) => number) {
     checkedOff: [] as number[],
     pushes: 0,
   };
-  const deps: TaskLoopDeps = {
+  const deps: ChecklistLoopDeps = {
     runTask: async (index, _task, attempt) => {
       state.runs.push({ index, attempt });
       return { commits: commitsFor({ index, attempt }) };
@@ -35,7 +35,7 @@ const THREE_TASKS = parseTaskList("- [ ] one\n- [ ] two\n- [ ] three\n");
 test("happy path: every task runs once, records, checks off, pushes", async () => {
   const { deps, state } = makeDeps(() => 1);
   const done = new Set<number>();
-  const result = await runTaskLoop(THREE_TASKS, done, deps);
+  const result = await runChecklistLoop(THREE_TASKS, done, deps);
   assert.deepEqual(result, { kind: "complete", completed: [1, 2, 3], skippedDone: [] });
   assert.deepEqual(state.runs, [
     { index: 1, attempt: 1 },
@@ -51,7 +51,7 @@ test("happy path: every task runs once, records, checks off, pushes", async () =
 test("resume: trailer-done and body-checked tasks are skipped, not re-run", async () => {
   const tasks = parseTaskList("- [x] one\n- [ ] two\n- [ ] three\n");
   const { deps, state } = makeDeps(() => 1);
-  const result = await runTaskLoop(tasks, new Set([2]), deps);
+  const result = await runChecklistLoop(tasks, new Set([2]), deps);
   assert.deepEqual(result, { kind: "complete", completed: [3], skippedDone: [1, 2] });
   assert.deepEqual(state.runs, [{ index: 3, attempt: 1 }]);
 });
@@ -60,7 +60,7 @@ test("a no-commit task retries once with a fresh context, then succeeds", async 
   const { deps, state } = makeDeps(({ index, attempt }) =>
     index === 2 && attempt === 1 ? 0 : 1,
   );
-  const result = await runTaskLoop(THREE_TASKS, new Set(), deps);
+  const result = await runChecklistLoop(THREE_TASKS, new Set(), deps);
   assert.equal(result.kind, "complete");
   assert.deepEqual(state.runs, [
     { index: 1, attempt: 1 },
@@ -72,7 +72,7 @@ test("a no-commit task retries once with a fresh context, then succeeds", async 
 
 test("stuck after retry stops the loop and reports completed + remaining", async () => {
   const { deps, state } = makeDeps(({ index }) => (index === 2 ? 0 : 1));
-  const result = await runTaskLoop(THREE_TASKS, new Set(), deps);
+  const result = await runChecklistLoop(THREE_TASKS, new Set(), deps);
   assert.deepEqual(result, {
     kind: "stuck",
     taskIndex: 2,
