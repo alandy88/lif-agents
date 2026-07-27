@@ -76,7 +76,9 @@ export interface PhaseInput {
  * failure to surface (`|| true` keeps a missing file from failing the exec).
  */
 export async function readSandboxFile(sandbox: PhaseSandbox, file: string): Promise<string> {
-  const read = await sandbox.exec(`cat ${shellQuote(file)} 2>/dev/null || true`);
+  // `--` ends option parsing: quoting stops the SHELL, not `cat`, from reading
+  // a leading-dash path as a flag.
+  const read = await sandbox.exec(`cat -- ${shellQuote(file)} 2>/dev/null || true`);
   return read.exitCode === 0 ? read.stdout : "";
 }
 
