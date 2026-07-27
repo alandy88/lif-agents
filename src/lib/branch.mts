@@ -35,7 +35,7 @@ export interface ExecSandbox {
  * lifecycle can pass an issue-derived message or a path with a space, and no
  * caller should have to remember the rule for the hole to stay closed.
  */
-function shellQuote(value: string): string {
+export function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 

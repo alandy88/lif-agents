@@ -13,6 +13,7 @@
 // close (and the boundary test asserts it for `phases/` as well as `presets/`).
 // The structural seam also lets a phase test inject a fake sandbox.
 
+import { shellQuote } from "../lib/branch.mts";
 import { defangPromptArgs } from "../lib/defang.mts";
 
 /**
@@ -75,7 +76,7 @@ export interface PhaseInput {
  * failure to surface (`|| true` keeps a missing file from failing the exec).
  */
 export async function readSandboxFile(sandbox: PhaseSandbox, file: string): Promise<string> {
-  const read = await sandbox.exec(`cat ${file} 2>/dev/null || true`);
+  const read = await sandbox.exec(`cat ${shellQuote(file)} 2>/dev/null || true`);
   return read.exitCode === 0 ? read.stdout : "";
 }
 
