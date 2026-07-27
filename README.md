@@ -1,28 +1,53 @@
 # lif-sandcastle
 
-`@lif/sandcastle-kit` — the repo-agnostic engine behind the `.sandcastle/` agent
-pipelines in `lif-studio`, `comfyui-lif-nodes`, and `Morrow`.
+`@lif/sandcastle-kit` — the repo-agnostic engine behind `.sandcastle/` agent
+pipelines. A repo adopts an autonomous agent lifecycle by writing **one config
+file** and a **Dockerfile**; the kit owns the loop, the prompts, the model
+routing, the branch/PR mechanics, and provider authentication.
+
+Two lifecycles ship:
+
+| preset | source of work | run shape |
+|---|---|---|
+| `presets/implement` | a GitHub issue with a `## Tasks` checklist | plan → one fresh agent session per task → review → PR |
+| `presets/task` | `PLAN.md` + a `STATE.md` ledger | next task → task session → fresh-context verify → PR → squash-merge, ×N |
 
 Design and phasing: [docs/2026-07-26-sandcastle-kit-shared-package-prd.md](docs/2026-07-26-sandcastle-kit-shared-package-prd.md).
 
-**Status: P1 landed, plus both presets and the phase layer.** `host-exec`,
-`task-list`, `task-loop`, `profiles`, `github-issue`, `github-pr`, `defang`,
-and `templatePath` are here with their tests. The lifecycle stages live in
-`src/phases/` (`plan`, `task`, `review`, `verify`), and the two
-shipped lifecycles are compositions of them plus the `github-pr` adapter:
-`presets/implement` (the issue-driven loop from `comfyui-lif-nodes`) and
-`presets/task` (the `STATE.md` ledger loop from `Morrow`). No consumer has cut
-over yet. `phases/deliver` moved to `lib/github-pr`; the old subpath no
-longer resolves.
+---
 
-## Consuming
+## Install
 
 ```bash
-npm i -D github:alandy88/lif-sandcastle#v0.1.0
+npm i -D github:alandy88/lif-sandcastle#v0.2.4
 ```
 
-An issue-driven consumer's `.sandcastle/config.mts` is both the config and the
-CLI entrypoint — `npx tsx .sandcastle/config.mts --issue 42 --trigger issues`:
+**Pin a tag, never `#main`.** AFK runs fire unattended, so a kit change must not
+reach a repo's next run without an explicit bump — and `#main` is not installable
+anyway (no `dist/`; see [Releases](#releases)).
+
+That is the only pin. `@ai-hero/sandcastle` is a regular **dependency** of the
+kit, not a peer: a consumer never installs it, never names it in
+`package.json`, and never imports it.
+
+Requires Node ≥ 22 and a Docker daemon on the machine that runs the pipeline.
+
+## Adopting it in an existing repo
+
+Three files, none of them big:
+
+```
+.sandcastle/
+  config.mts        # config AND CLI entrypoint
+  Dockerfile        # the sandbox image — yours, because toolchains differ
+  .env.example      # documents the credentials a local run needs
+.github/workflows/
+  sandcastle-agent.yml   # only for the issue-driven preset
+```
+
+### 1. `.sandcastle/config.mts`
+
+Issue-driven — `npx tsx .sandcastle/config.mts --issue 42 --trigger issues`:
 
 ```ts
 import {
@@ -38,9 +63,7 @@ export default config;
 if (isEntrypoint(import.meta.url)) await runImplementLoop(config);
 ```
 
-A ledger-driven consumer (no GitHub issue source; `PLAN.md` is the plan and
-`STATE.md` the progress ledger) picks the other preset instead —
-`npx tsx .sandcastle/config.mts --iterations 3`:
+Ledger-driven — `npx tsx .sandcastle/config.mts --iterations 3`:
 
 ```ts
 import { isEntrypoint, runTaskLoop, type TaskConfig } from "@lif/sandcastle-kit/presets/task";
@@ -52,159 +75,297 @@ export default config;
 if (isEntrypoint(import.meta.url)) await runTaskLoop(config);
 ```
 
-That is the whole interface — one required field, no imports beyond the kit.
+One required field. `isEntrypoint` is what lets the same file be both the
+imported config object and the executable — no second `main.mts`.
 
-## Phases
+### 2. `.sandcastle/Dockerfile`
 
-A lifecycle's stages are the unit of reuse, not whole lifecycles. Each phase in
-`src/phases/` is an async function taking a `PhaseContext` (sandbox, branch,
-per-phase agent, template resolver) plus typed inputs, returning a typed result,
-and paired with a default prompt template:
+Sandcastle runs each session in a container built from **your** image, named
+`sandcastle:<repo-directory-name>` by default, with the repo worktree
+bind-mounted as the project root. The image needs your toolchain plus the
+provider CLIs (`claude`, `codex`) the profiles you use will shell out to. Build
+it before the first run:
 
-| phase | contract |
+```bash
+docker build -t sandcastle:my-repo -f .sandcastle/Dockerfile .
+```
+
+Two things are load-bearing because the kit reads its prompt templates in place
+from `node_modules`: **`node_modules` must sit inside the mounted workspace**,
+and **install must have run before the first template read**. `templatePath()`
+throws loudly at run start if the first does not hold, rather than failing
+mid-run on a missing `promptFile`.
+
+### 3. Credentials
+
+The host process needs the credentials for the providers the run actually uses;
+the kit forwards only those into the sandbox and materializes the login blobs
+back to the paths each CLI expects.
+
+| var | purpose |
 |---|---|
-| `plan` | slices the work into a checklist, editing the source of truth itself |
-| `task` | ONE fresh agent context delivering ONE unit of work; commit count is the landing signal |
-| `review` | artifact-producing — reads the whole change and leaves prose behind |
-| `verify` | binary gate — `COMPLETE` or the run stops |
+| `GH_TOKEN` | always — issue reads/writes, branch push, PR |
+| `CLAUDE_CODE_OAUTH_TOKEN` *or* `CLAUDE_CREDENTIALS_JSON` | Claude phases; the blob is the contents of `~/.claude/.credentials.json` from `claude login` |
+| `OPENAI_API_KEY` *or* `CODEX_AUTH_JSON` | Codex phases; the blob is `~/.codex/auth.json` from `codex login` |
 
-Composition is plain TypeScript. **No pipeline engine, no DAG config format, no
-plugin registry** — a preset is a thin file calling phase functions in order, and
-a consumer that wants mix-and-match (`lif-studio`'s swarm lanes) writes exactly
-what a preset writes internally.
+Locally, put them in `.sandcastle/.env` (sandcastle reads it; commit only
+`.env.example`). Under GitHub Actions the implement preset writes the
+key-name-only `.sandcastle/.env` itself, after profile resolution, so values
+never leave the Actions process environment.
 
-Two things are baked into the phases rather than into the presets, so no call
-site can forget them: every prompt argument is defanged, and `{{BRANCH}}` comes
-from the context. The `PhaseContext` sandbox and agent are typed *structurally*
-by the kit — naming sandcastle's types there would leak the dependency into a
-consumer composing phases, and the boundary test covers `phases/` for that
-reason.
+### 4. CI wiring (issue-driven preset)
 
-## The toolchain standard
+`.github/workflows/agent.yml` here is `on: workflow_call` — the consumer keeps
+the trigger and passes runner labels down:
 
-`toolchain` is a choice, not a description. Picking `python` **is** picking uv;
-the kit owns what follows from it:
+```yaml
+name: sandcastle-agent
+on:
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      issue: { required: true, type: string }
+      profile: { required: false, type: string, default: default }
+      model: { required: false, type: string, default: "" }
+
+jobs:
+  agent:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'ready-for-agent'
+    uses: alandy88/lif-sandcastle/.github/workflows/agent.yml@v0.2.4
+    with:
+      issue: ${{ inputs.issue || github.event.issue.number }}
+      runs-on: '["self-hosted","peter-3090-u","agent"]'
+      entrypoint: .sandcastle/config.mts
+      profile: ${{ inputs.profile || 'default' }}
+      model: ${{ inputs.model || '' }}
+      trigger: ${{ github.event_name }}
+    secrets: inherit
+```
+
+Other inputs: `install-command` (default `bun install`), `runtime` (default
+`bun`), `default-profile` (default `mixed`). Secrets: `AGENT_PAT` (push and PRs
+as a PAT so CI actually triggers), `CLAUDE_CODE_OAUTH_TOKEN`, `OPENAI_API_KEY`,
+`CODEX_AUTH_JSON`.
+
+Cross-owner reuse only resolves while this repo is **public** — private
+reusable workflows do not cross owners.
+
+## Config reference
+
+Both presets take the same `RepoConfig`. Everything keyed off the provider is
+the kit's; what is left cannot be written without naming your package manager.
+
+| field | required | what it is |
+|---|---|---|
+| `toolchain` | ✅ | `"python" \| "node" \| "dotnet"` — selects warm-up, test command, and the conventions block injected into every prompt |
+| `extraConventions` | | checks the toolchain name cannot imply (a second test suite, a generated file). Appended **under** the standard block, not instead of it |
+| `preflight` | | `() => string[]` — sandbox warm-up beyond the toolchain's, run after it and before provider auth |
+| `templateDir` | | workspace-relative dir whose same-named files override the kit's prompts, e.g. `".sandcastle/templates"` |
+
+### The toolchain standard
+
+`toolchain` is a choice, not a description. Picking `python` **is** picking uv:
 
 | | warm-up | test | conventions block |
 |---|---|---|---|
 | `python` | `uv sync` | `uv run python -m pytest` | + `uv run pre-commit run --all-files`, and the rule that Python tooling always goes through `uv run` |
 | `node` | `npm ci` | `npm test` | + `npm run typecheck`, `npm run lint`, and npm-not-yarn/pnpm |
-| `dotnet` | `dotnet restore` | `dotnet test` | + `dotnet build`, `dotnet format` |
+| `dotnet` | `dotnet restore` | `dotnet test` | + `dotnet build`, `dotnet format --verify-no-changes` |
 
 A free-text `conventions` string was the earlier design and it was wrong: it let
-three repos invent three dialects of the same toolchain, and the one that told
-an agent to run bare `pytest` instead of `uv run pytest` would fail only at
-runtime, inside an unattended sandbox, as a confusing import error. Adding a
-toolchain is a kit change with a test, reviewed once, and every consumer that
-picks it gets the same commands.
+three repos invent three dialects of the same toolchain, and the one that told an
+agent to run bare `pytest` would fail only at runtime, inside an unattended
+sandbox, as a confusing import error. Adding a toolchain is a kit change with a
+test, reviewed once, and every consumer that picks it gets the same commands.
 
-The remaining options are all additive, never replacements:
+### Model profiles
 
-- `extraConventions` — checks the toolchain name cannot imply, like a second
-  test suite at repo-specific paths. Appended under the standard block.
-- `preflight` — sandbox warm-up beyond the toolchain's, like a generated-file
-  step. Appended after it.
-- `templateDir` — a workspace-relative directory whose same-named files win over
-  the kit's default prompts.
+Per-phase routing, resolved once per run in this order: `--profile` →
+`agent:*` issue label → `AGENT_DEFAULT_PROFILE` → the mixed map.
 
-Deliberately **not** offered: a `createAgent` or `createSandboxProvider` hook.
-Either one would be typed as a sandcastle object and so would drag
-`@ai-hero/sandcastle` back into the consumer's imports and typecheck — the exact
-leak this boundary exists to close. When a consumer genuinely needs a different
-sandbox, the kit grows a *declarative* option (`sandbox: { mounts: [...] }`)
-whose types it owns, not a function returning somebody else's.
+| name | plan | task | review |
+|---|---|---|---|
+| `mixed` (default) | `claude-opus-5` | `gpt-5.6-sol` | `claude-opus-5` |
+| `claude` | `claude-opus-5` for all three |||
+| `gpt` | `gpt-5.6-sol` for all three |||
 
-### Provider authentication
+`--model <id>` overrides the model *within* a named profile (it is rejected
+against `mixed`, which runs different models per phase, and validated against
+the provider's id shape). Issue labels `agent:claude` / `agent:gpt` do the same
+selection from the issue side; the ledger preset has no labels, so it takes
+`--profile` / `--model` only.
 
-Each provider CLI authenticates two ways: a bare token the CLI reads itself
-(`CLAUDE_CODE_OAUTH_TOKEN`, `OPENAI_API_KEY`), or the credentials blob
-`<cli> login` writes to disk, forwarded as `CLAUDE_CREDENTIALS_JSON` /
-`CODEX_AUTH_JSON`. `providerPreflight` materializes the blob back to the path
-the CLI expects, guarded so the API-key path is a no-op rather than an error.
+### CLI flags
 
-`forwardedEnvKeys` and `providerPreflight` are two halves of one contract — a
-unit test asserts every `$VAR` the preflight consumes is one the kit forwards.
-They were split across the package boundary before, which is precisely the leak
-that put a `~/.codex/auth.json` heredoc in a consumer's config file.
+| preset | flags |
+|---|---|
+| `implement` | `--issue <n>` (required), `--profile`, `--model`, `--trigger` |
+| `task` | `--iterations <1-20>` (default 1), `--task <label>` (pins the first iteration only), `--profile`, `--model` |
 
-**Pin a tag, never `#main`.** AFK runs fire unattended; a kit change must not
-reach a repo's next run without an explicit bump.
+Unknown flags are a hard error, not a silent ignore.
 
-**That is the only pin a consumer has.** `@ai-hero/sandcastle` is a regular
-**dependency** of the kit, not a peer — a consumer never installs it, never
-names it in `package.json`, and never imports it. The kit is the abstraction;
-sandcastle is its implementation detail. A unit test asserts both halves: no
+## What each preset expects of the repo
+
+### `presets/implement`
+
+The issue is the source of truth. Guards run before anything is warmed: a closed
+issue is rejected; a `--trigger issues` run whose issue no longer carries
+`ready-for-agent` is skipped cleanly; an epic (native GitHub sub-issues) is
+rejected with a comment telling you to run the sub-issues individually.
+
+If the issue body has no `## Tasks` checklist, the plan phase writes one **into
+the issue body itself** and the host re-fetches it. More than 12 tasks stops the
+run — that is a mis-scoped issue, not a plan.
+
+Then one fresh agent session per unchecked task, on `agent/issue-<n>`. Each
+completed task gets an empty commit carrying a `Task-Done: <n>` trailer and the
+branch is pushed, so a re-fired run resumes from the trailers instead of
+rebuilding. Two run artifacts live on the branch — `AGENT_NOTES.md` (deviations,
+injected into every later session so context does not reset) and
+`AGENT_SUMMARY.md` (the reviewer's PR body) — and the host strips both before
+the PR, so a forgetful reviewer cannot leak them onto main.
+
+### `presets/task`
+
+No issue source. `PLAN.md` is the plan and `STATE.md` is the newest-first
+ledger; each task session appends an entry ending in a recommendation line:
+
+```markdown
+Next task: **1.4 Nature kit data**
+```
+
+That line drives the loop and derives the branch (`agent/1-4-nature-kit-data`).
+A ledger with no such line stops the run rather than guessing. Each iteration
+syncs main fast-forward-only, delivers the task (retried once with a fresh
+context if it made no commits), then runs a fresh-context verify that must emit
+`COMPLETE`. Failure pushes the branch for inspection and opens no PR; success
+opens a PR and squash-merges it.
+
+## Customizing prompts
+
+Point `templateDir` at a workspace-relative directory and any same-named file
+wins over the kit's default:
+
+```ts
+const config: ImplementConfig = {
+  toolchain: "node",
+  templateDir: ".sandcastle/templates",
+};
+```
+
+```
+.sandcastle/templates/implement/task-prompt.md   # overrides just this one
+```
+
+Defaults live in [templates/](templates/) and are resolved in place from
+`node_modules` — they are never copied into your repo, so an override is always
+a deliberate, visible file.
+
+| template | phase | placeholders available |
+|---|---|---|
+| `implement/plan-prompt.md` | plan | `BRANCH`, `ISSUE_NUMBER`, `ISSUE_TITLE`, `ISSUE_BODY`, `CONVENTIONS` |
+| `implement/task-prompt.md` | task | + `TASK_INDEX`, `TASK_COUNT`, `TASK_TEXT`, `TASK_LIST`, `NOTES` |
+| `implement/review-prompt.md` | review | `BRANCH`, `ISSUE_NUMBER`, `ISSUE_TITLE`, `ISSUE_BODY`, `NOTES`, `CONVENTIONS` |
+| `task/task-prompt.md` | task | `BRANCH`, `TASK_LABEL`, `CONVENTIONS`, `VERIFY` |
+| `task/verify-prompt.md` | verify | `BRANCH`, `TASK_LABEL`, `CONVENTIONS`, `VERIFY` |
+
+`{{BRANCH}}` always comes from the run context, and every argument is defanged
+against shell expansion by the phase — neither is something a template author or
+call site can forget.
+
+Prefer `extraConventions` over forking a template when all you want is one more
+check; an overridden prompt is a file you now maintain against kit updates.
+
+## Composing your own lifecycle
+
+If neither preset fits, compose the phases directly — that is the supported
+extension point, and a preset is nothing more than a file that does this.
+
+```ts
+import { openRun, resolvePhases, type RepoConfig } from "@lif/sandcastle-kit";
+import { runTaskPhase } from "@lif/sandcastle-kit/phases/task";
+import { runReviewPhase } from "@lif/sandcastle-kit/phases/review";
+
+const config: RepoConfig = { toolchain: "node" };
+const run = resolvePhases({ dispatchProfile: "claude" });
+await using opened = await openRun({ config, run, branch: "agent/spike" });
+
+const task = await runTaskPhase(opened.ctx.task, {
+  args: { TASK_LABEL: "Port the loader", CONVENTIONS: "...", VERIFY: "npm test" },
+  name: "task-spike",
+  template: "task/task-prompt.md",
+});
+if (task.commits === 0) throw new Error("no commits");
+
+await runReviewPhase(opened.ctx.review, { args: { ... }, name: "review-spike" });
+```
+
+`openRun` is the scaffold both presets share: resume the branch from origin,
+assemble preflight (toolchain → your `preflight` → provider auth, in that order),
+warm one sandbox, and hand back one `PhaseContext` per phase. The handle is
+`await using`-disposable.
+
+| phase | contract | default max iterations |
+|---|---|---|
+| `plan` | slices the work into a checklist, editing the source of truth itself | 2 |
+| `task` | ONE fresh agent context delivering ONE unit of work; commit count is the landing signal | 5 |
+| `review` | artifact-producing — reads the whole change and leaves prose behind | 1 |
+| `verify` | binary gate — `COMPLETE` or the run stops | 3 |
+
+**No pipeline engine, no DAG config format, no plugin registry.** The sandbox and
+agent in `PhaseContext` are typed *structurally*, so composing phases never drags
+`@ai-hero/sandcastle` into your typecheck (and lets a test inject a fake sandbox).
+
+Useful pieces exported from the root for hand-rolled loops: `templatePath`,
+`renderConventions`, `toolchains`, `resolvePhases`, `describeRun`,
+`forwardedEnvKeys`, `openRun`, `deliverPullRequest`, `githubIssueSource`,
+`parseTaskList` / `checkOffTask` / `taskDoneTrailer`, `ensureTaskList`,
+`push` / `pushCheckpoint` / `resumeFromOrigin` / `syncMain`, `defangPromptArgs`,
+`isEntrypoint`.
+
+## What the kit deliberately does not offer
+
+No `createAgent` or `createSandboxProvider` hook. Either would be typed as a
+sandcastle object and so would drag `@ai-hero/sandcastle` back into the
+consumer's imports and typecheck — the exact leak this boundary exists to close.
+When a consumer genuinely needs a different sandbox, the kit grows a
+*declarative* option (`sandbox: { mounts: [...] }`) whose types it owns, not a
+function returning somebody else's. A unit test asserts both halves: no
 `@ai-hero` type reaches a preset's public declaration, and the manifest declares
 no peer range.
 
-## Module boundary
-
-The test for any module: *if it cannot be written without naming a package
-manager, a test command, or a repo layout, it stays in the repo.*
-
+The test for any new module: *if it cannot be written without naming a package
+manager, a test command, or a repo layout, it stays in the consuming repo.*
 Standing rule: **nothing enters the kit until a second repo actually needs it.**
-A one-consumer "shared" module is indirection.
 
-## Templates
+## Releases
 
-Defaults live in `templates/` and are read in place from `node_modules`
-(PRD decision D1(b)):
+`dist/` is gitignored on `main` and force-added onto each `vX.Y.Z` tag commit, so
+git-URL installs get built output whether the runner uses `npm` or `bun`, while
+`main` stays clean. `package.json` on `main` reads `0.0.0-development` and is
+never bumped — only the release commit carries a real version, stamped next to
+the `dist/` it describes. **To read what is current, read the tags.**
 
-```ts
-import { templatePath } from "@lif/sandcastle-kit";
+Releases cut themselves: every push to `main` builds, and a new tag follows if
+the installable payload differs from the last tag's (`scripts/release-gate.mts`).
+The gate is the built output, not the commit subject — a "chore: bump routing
+model ids" commit changes the model every consumer resolves and would ship
+nothing under a subject filter. Commit type only picks the bump size: `feat` or
+`!` takes the minor, anything else the patch (below 1.0.0 a breaking change is a
+minor). A `workflow_dispatch` with an explicit `version` overrides both.
 
-const promptFile = templatePath("implement/task-prompt.md", {
-  overrideDir: ".sandcastle/templates",
-});
+Raw `.mts` is deliberately not shipped — `.mts` inside `node_modules` is exactly
+where tsx/bun dependency-transpilation behaviour is inconsistent. Sources import
+each other by `.mts` (the only specifier `node --experimental-strip-types`
+resolves when the tests run off `src/`); the JS emit rewrites those to `.mjs`,
+while declarations keep `.mts` and resolve to the sibling `.d.mts`, so a consumer
+typechecking against `dist/` sees real types, not `any`.
+
+## Developing the kit
+
+```bash
+npm test           # unit tests, node --experimental-strip-types off src/
+npm run typecheck
+npm run build
 ```
-
-The returned path is workspace-relative, as sandcastle's `promptFile` requires.
-Two consequences are load-bearing: `node_modules` must sit **inside** the mounted
-sandbox workspace, and install must have run before the first template read.
-
-## Why `dist/` ships in release tags
-
-Git-URL consumers install without a registry. `npm` runs `prepare` for git
-dependencies, but the runner images use `bun install`, whose `prepare` handling
-for git deps is not something the pipeline should depend on. So the built
-output must be in the git tree consumers install — but it does not belong in
-`main`'s history. `dist/` is gitignored on `main`; the release workflow
-(`.github/workflows/release.yml`) builds, tests, and cuts each `vX.Y.Z` tag
-from a commit that force-adds `dist/`. That commit lives only behind the tag
-ref, so both installers see identical built output while `main` stays clean.
-
-The version rides in that same commit. **`package.json` on `main` reads
-`0.0.0-development` and is never bumped** — not by a PR, not by the release
-workflow. Only the release commit carries a real version, stamped next to the
-`dist/` it describes, so the two cannot disagree and no bot ever pushes to
-`main`. To read what is current, read the tags.
-
-Releases cut themselves: every push to `main` builds, and if the installable
-payload differs from the last tag's, a new tag follows (that test is
-`scripts/release-gate.mts`). The release test is the built output,
-not the commit subject — `bb2f75a` ("chore: bump routing model ids") changed
-the model every consumer resolves and would have shipped nothing under a
-subject filter. Commit types only choose the size of the bump: `feat` or a `!`
-marker takes the minor, anything else takes the patch (below 1.0.0 a breaking
-change is a minor — see `scripts/next-version.mts`). A `workflow_dispatch` with
-an explicit `version` overrides both.
-
-A consequence worth stating: **`#main` is not installable** — it has no
-`dist/`. That is aligned with the standing rule that consumers pin a tag and
-never `#main`; the packaging now enforces what was previously only policy.
-
-Raw `.mts` is deliberately not shipped: `.mts` inside `node_modules` is exactly
-where tsx/bun dependency-transpilation behaviour is inconsistent.
-
-Sources import each other by `.mts` — unchanged from the donor repos, and the
-only specifier `node --experimental-strip-types` resolves when the tests run off
-`src/`. `rewriteRelativeImportExtensions` turns those into `.mjs` in the JS emit.
-Declaration files keep the `.mts` specifier, which TS 7 resolves to the sibling
-`.d.mts`; a consumer typechecking against `dist/` sees real types, not `any`.
-
-## Reusable workflow
-
-`.github/workflows/agent.yml` (`on: workflow_call`) is the other half of "define
-once". Consumers keep the trigger and pass runner labels and issue number down.
-This only resolves for `strawcake1/Morrow` while this repo is **public** —
-private reusable workflows do not cross owners.
