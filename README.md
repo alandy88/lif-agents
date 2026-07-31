@@ -31,11 +31,12 @@ Then verify, because **WezTerm falls back to full defaults on any config error
 without printing anything** — a clean-looking launch proves nothing:
 
 ```powershell
-wezterm show-keys | Select-String 'ALT\|CTRL'
+(wezterm show-keys | Select-String 'Split').Count    # 0 = loaded, 6 = defaults
 ```
 
-The pane-split disables should be listed. If they aren't, the config didn't
-load.
+Disabled assignments are removed from the key table rather than listed, so the
+absence of the six default `Split*` bindings is the signal. Six means WezTerm
+fell back to defaults and the config did not load.
 
 Once verified, remove the now-shadowed originals:
 

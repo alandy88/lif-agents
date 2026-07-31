@@ -59,4 +59,4 @@ elseif ($PSCmdlet.ShouldProcess($PROFILE, 'replace with dot-source stub')) {
 Write-Host ""
 Write-Host "Done. Open a new WezTerm window, then verify the config actually" -ForegroundColor Cyan
 Write-Host "loaded -- WezTerm falls back to full defaults on any error, silently:" -ForegroundColor Cyan
-Write-Host "  wezterm show-keys | Select-String 'ALT|CTRL'" -ForegroundColor White
+Write-Host "  (wezterm show-keys | Select-String 'Split').Count   # 0 = loaded, 6 = defaults" -ForegroundColor White
