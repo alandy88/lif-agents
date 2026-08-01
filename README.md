@@ -1,9 +1,7 @@
 # lif-terminal
 
-Native-Windows terminal config: WezTerm + Starship + the pwsh 7 profile. No WSL.
-
-Zellij is deliberately not tracked here — its `config.kdl` stays at
-`%APPDATA%\Zellij\config\config.kdl`.
+Native-Windows terminal config: WezTerm + psmux + Starship + the pwsh 7 profile.
+No WSL.
 
 ## Layout
 
@@ -11,11 +9,22 @@ Zellij is deliberately not tracked here — its `config.kdl` stays at
 |---|---|
 | `wezterm/wezterm.lua` | `WEZTERM_CONFIG_FILE` env var |
 | `starship/starship.toml` | `STARSHIP_CONFIG` env var |
+| `psmux/psmux.conf` | `PSMUX_CONFIG_FILE` env var |
 | `pwsh/profile.ps1` | dot-sourced from `$PROFILE` |
 
 Redirect env vars rather than symlinks: Windows symlinks need Developer Mode or
-admin, and junctions only work on directories — which `wezterm.lua` and
-`starship.toml` are not.
+admin, and junctions only work on directories — which `wezterm.lua`,
+`starship.toml`, and `psmux.conf` are not.
+
+## Prerequisites
+
+psmux is not installed by `install.ps1` — it comes from winget:
+
+```powershell
+winget install psmux
+```
+
+It ships `psmux`, `pmux`, and `tmux` aliases, all the same binary.
 
 ## Install
 
@@ -38,6 +47,12 @@ Disabled assignments are removed from the key table rather than listed, so the
 absence of the six default `Split*` bindings is the signal. Six means WezTerm
 fell back to defaults and the config did not load.
 
+psmux has no such silent fallback — it reports its config path directly:
+
+```powershell
+psmux display-message -p '#{prefix}'    # C-a = loaded, C-b = defaults
+```
+
 Once verified, remove the now-shadowed originals:
 
 - `%USERPROFILE%\.wezterm.lua`
@@ -48,6 +63,7 @@ Once verified, remove the now-shadowed originals:
 Design decisions and the traps hit while building this stack live in the
 `lif-notes` vault (`notes/terminal-setup.md`,
 `notes/wezterm-zellij-keybindings.md`), not here. This README covers setup only.
+Those notes still describe the Zellij era and have not been rewritten for psmux.
 
 `pwsh/profile.ps1` reads a BWS access token from `%USERPROFILE%\.bws\token.dpapi`
 (DPAPI-encrypted, machine-bound, not in this repo) and references a BWS project

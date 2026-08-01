@@ -69,7 +69,7 @@ config.hide_tab_bar_if_only_one_tab = true
 config.window_decorations = "TITLE | RESIZE"
 
 -- Dim inactive panes. Note: with WezTerm's splits disabled in favour of
--- Zellij, WezTerm only ever has one pane, so this is inert unless those
+-- psmux, WezTerm only ever has one pane, so this is inert unless those
 -- bindings are restored. Kept so it works if they ever are.
 config.inactive_pane_hsb = {
   saturation = 0.0,
@@ -91,7 +91,7 @@ end
 config.default_prog = { 'pwsh.exe', '-NoLogo' }
 
 -- Keybindings
--- Zellij is the multiplexer here, so WezTerm's own pane splitting and pane
+-- psmux is the multiplexer here, so WezTerm's own pane splitting and pane
 -- navigation are surrendered to it. Tab bindings are deliberately untouched,
 -- as is WezTerm's built-in mux server (never enabled).
 local disable = wezterm.action.DisableDefaultAssignment

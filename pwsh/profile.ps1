@@ -40,22 +40,31 @@ function ccm {
     _img '/image-matcher' $args[0] $(if ($args.Count -gt 1) { $args[1..($args.Count-1)] } else { @() })
 }
 
+# --- firstmate (WSL) ---
+# Launches Claude Code inside Ubuntu-24.04 at ~/firstmate. `bash -lc` is required:
+# nvm's PATH lives in ~/.profile, and firstmate's non-interactive bin/*.sh need node.
+# wsl.exe drops trailing positional args before bash sees them, so args are
+# single-quoted and spliced into the command string instead of passed through.
+function fm {
+    $q = ($args | ForEach-Object { "'" + ("$_" -replace "'", "'\''") + "'" }) -join ' '
+    wsl.exe -d Ubuntu-24.04 --cd /home/peter/firstmate -- bash -lc "claude --dangerously-skip-permissions $q"
+}
+
+# Shell in the firstmate home, for bin/ scripts, bootstrap, herdr, treehouse.
+function fmsh { wsl.exe -d Ubuntu-24.04 --cd /home/peter/firstmate -- bash -l }
+
+# Herdr in WSL, with a Claude pane already up in ~/firstmate. The logic lives in
+# the Linux script because PowerShell's native-arg handling eats $(...) and
+# embedded double quotes, and herdr sizes new panes from the attached client.
+function fmw { wsl.exe -d Ubuntu-24.04 -- /home/peter/.local/bin/fm-herdr }
+
 function lif { Set-Location 'D:\Git\lif-studio' }
 function notes { Set-Location 'D:\Git\lif-notes' }
 function imagehub { Set-Location 'D:\Git\Image-MetaHub-Personal' }
 
-# Zellij. `default_shell` in config.kdl is unreliable on Windows — when it isn't
-# picked up, zellij silently falls back to %COMSPEC% (cmd.exe). `options
-# --default-shell` is a CLI override that always wins, so inject it on the paths
-# that actually start a session. Everything else (ls, attach, kill-session, ...)
-# passes through verbatim.
-function z {
-    if ($args.Count -eq 0 -or $args[0] -in @('-s', '--session', '-l', '--layout', '-n', '--new-session-with-layout')) {
-        zellij @args options --default-shell 'C:/Program Files/PowerShell/7/pwsh.exe'
-    } else {
-        zellij @args
-    }
-}
+# psmux is the multiplexer. It defaults to pwsh and ships `psmux`/`pmux`/`tmux`
+# aliases of its own, so no wrapper function is needed here — the previous `z`
+# function existed only to force Zellij's shell, which it dropped on Windows.
 
 # --- BWS access token (DPAPI-decrypted at session start) ---
 $__bws = "$env:USERPROFILE\.bws\token.dpapi"
