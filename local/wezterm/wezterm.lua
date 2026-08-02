@@ -10,13 +10,21 @@ local config = wezterm.config_builder()
 local ok, overlay = pcall(dofile, wezterm.home_dir .. '/.config/lif-host.lua')
 if not ok or type(overlay) ~= 'table' then overlay = {} end
 
-local sd_cwd = overlay.stable_diffusion_cwd
-local lif_node_cwd = overlay.lif_node_cwd
-local playground_cwd = overlay.playground_cwd
+-- "" is truthy in Lua, so an overlay that sets a key to the empty string rather
+-- than omitting it would add a menu entry pointing at nowhere -- the exact harm
+-- install/AGENTS.md tells the installing agent to avoid, reached by following
+-- its advice to leave a value empty. Treat empty and absent as the same thing.
+local function cwd_or_nil(v)
+  if type(v) == 'string' and v ~= '' then return v end
+end
 
--- Launch menu configuration. Entries whose overlay key is absent are skipped,
--- so a host that has not defined one gets a smaller menu rather than an entry
--- pointing nowhere.
+local sd_cwd = cwd_or_nil(overlay.stable_diffusion_cwd)
+local lif_node_cwd = cwd_or_nil(overlay.lif_node_cwd)
+local playground_cwd = cwd_or_nil(overlay.playground_cwd)
+
+-- Launch menu configuration. Entries whose overlay key is absent or empty are
+-- skipped, so a host that has not defined one gets a smaller menu rather than
+-- an entry pointing nowhere.
 config.launch_menu = {}
 local menu = config.launch_menu
 

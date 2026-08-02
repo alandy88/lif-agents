@@ -24,21 +24,19 @@ Redirect env vars rather than symlinks on Windows: Windows symlinks need
 Developer Mode or admin, and junctions only work on directories — which
 `wezterm.lua` and `starship.toml` are not. `install.sh` symlinks instead.
 
-Herdr reads `%APPDATA%\herdr\config.toml` on Windows and
-`$XDG_CONFIG_HOME/herdr/config.toml` (default `~/.config`) on Linux. The macOS
-path is inferred, not verified; [the installation instructions](../install/AGENTS.md)
-record how to settle it. `HERDR_CONFIG_PATH` overrides the discovered path.
 `herdr/config.toml` here is a **template**, not a drop-in copy: its
 `default_shell` is environment-owned and substituted at install time.
 `install.sh` does that automatically; the Windows copy step is in
 [environments/windows-5090/README.md](../environments/windows-5090/README.md).
+Platform-specific config discovery and overrides are documented in the
+[installation instructions](../install/AGENTS.md).
 
 ## Prerequisites
 
 Nothing here installs software. Herdr, WezTerm, Starship, the Nerd Font and the
-agent CLIs must already be present; Herdr manages its own updates
-(`herdr update`). The full list with macOS install commands is in
-[install/AGENTS.md](../install/AGENTS.md).
+agent CLIs must already be present. The full prerequisite list and
+platform-specific update commands are in the
+[installation instructions](../install/AGENTS.md).
 
 ## Install
 
