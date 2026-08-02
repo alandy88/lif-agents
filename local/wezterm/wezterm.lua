@@ -253,7 +253,7 @@ config.keys = {
   -- on the last tab, the window. confirm = true is the only guard left:
   -- window_close_confirmation is 'NeverPrompt'.
   { key = 'w', mods = mod,      action = act.CloseCurrentPane { confirm = true } },
-  { key = 'w', mods = mod2,     action = act.CloseCurrentTab { confirm = false } },
+  { key = 'w', mods = mod2,     action = act.CloseCurrentTab { confirm = true } },
   -- Clearing the viewport as well as the scrollback is deliberate: this wipes
   -- the visible screen too, and is meant to. Do not revert to 'ScrollbackOnly'.
   { key = 'k', mods = mod,      action = act.ClearScrollback 'ScrollbackAndViewport' },
