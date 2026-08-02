@@ -4,7 +4,7 @@
 #
 # Unix counterpart to install.ps1. Windows cannot symlink files without
 # Developer Mode or admin, so install.ps1 redirects with env vars instead;
-# WSL and macOS symlink into ~/.config directly.
+# WSL and macOS symlink into $XDG_CONFIG_HOME (defaulting to ~/.config).
 #
 # Idempotent: safe to re-run after a `git pull`. Anything it would replace is
 # backed up to <name>.pre-lif-terminal.bak first -- the same suffix install.ps1

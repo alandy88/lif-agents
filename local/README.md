@@ -19,7 +19,8 @@ relative to this directory unless stated otherwise.
 | `hosts/*.example` | templates for the host overlay (see below) |
 
 The repo-root `install/install.sh` covers WSL and macOS, symlinking
-`wezterm/wezterm.lua` and `starship/starship.toml` into `~/.config` instead.
+`wezterm/wezterm.lua` and `starship/starship.toml` into
+`$XDG_CONFIG_HOME` (default: `~/.config`) instead.
 
 Redirect env vars rather than symlinks: Windows symlinks need Developer Mode or
 admin, and junctions only work on directories — which `wezterm.lua`,
@@ -45,7 +46,8 @@ git clone https://github.com/alandy88/lif-sandcastle   # anywhere you keep check
 On WSL or macOS, run `install/install.sh --host <name>` instead.
 
 Idempotent — re-run after a `git pull`. It backs up anything it replaces to
-`<name>.pre-lif-terminal.bak` and leaves the pre-existing configs in place.
+`<name>.pre-lif-terminal.bak` (or a numbered suffix when that backup already
+exists) and leaves the pre-existing configs in place.
 
 ## Host overlay
 

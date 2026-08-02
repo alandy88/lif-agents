@@ -2,7 +2,8 @@
 
 One directory per machine, holding the values that differ between machines so
 that nothing under `local/` has to. The configs read the overlay from a fixed
-path in `~/.config`; the installers put the selected host's files there.
+path in `~/.config`; the Unix installer puts the selected host's files there,
+while Windows keeps its overlay manually managed at the same location.
 
 | File | Read by | Installed as |
 |---|---|---|

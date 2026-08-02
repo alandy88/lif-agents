@@ -361,9 +361,9 @@ typechecking against `dist/` sees real types.
 
 ## Also in this repo
 
-The kit is the whole published package — everything below ships nowhere and is
-never imported. It lives here because it is the same person's environment, and
-one repo beats four.
+The kit's JavaScript API is the published surface; the directories below hold
+environment files and are never imported by the kit. They live here because it
+is the same person's environment, and one repo beats four.
 
 | Directory | What it holds |
 |---|---|
@@ -379,7 +379,7 @@ install/install.sh --host wsl              # WSL or macOS
 
 Bun installs this repo by tag and copies the whole tree into `node_modules`,
 ignoring `package.json`'s `files` — so keep large binaries out of `local/` and
-`remote/`. Nothing else about these directories reaches a consumer.
+`remote/`. These directories are not part of the kit's JavaScript API.
 
 ## Developing the kit
 
