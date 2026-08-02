@@ -249,8 +249,13 @@ config.keys = {
   -- Left bound by WezTerm on purpose (neither split nor navigation):
   --   SHIFT|ALT|CTRL + arrows -> AdjustPaneSize
   --   CTRL / SHIFT|CTRL + Z   -> TogglePaneZoomState
-  { key = 'w', mods = mod,      action = act.CloseCurrentPane { confirm = false } },
+  -- Herdr owns everything inside the single pane, so this closes the tab and,
+  -- on the last tab, the window. confirm = true is the only guard left:
+  -- window_close_confirmation is 'NeverPrompt'.
+  { key = 'w', mods = mod,      action = act.CloseCurrentPane { confirm = true } },
   { key = 'w', mods = mod2,     action = act.CloseCurrentTab { confirm = false } },
+  -- Clearing the viewport as well as the scrollback is deliberate: this wipes
+  -- the visible screen too, and is meant to. Do not revert to 'ScrollbackOnly'.
   { key = 'k', mods = mod,      action = act.ClearScrollback 'ScrollbackAndViewport' },
   -- Maximize/restore. Option/Alt+Enter remains fullscreen (a WezTerm default).
   { key = 'Enter', mods = mod2, action = act.EmitEvent 'toggle-maximize' },

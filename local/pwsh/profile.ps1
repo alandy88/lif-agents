@@ -70,7 +70,9 @@ function Invoke-LifClaude {
 
     $base = @('--dangerously-skip-permissions')
     $sub  = if ($Argv.Count -gt 0) { $Argv[0] } else { '' }
-    $rest = if ($Argv.Count -gt 1) { $Argv[1..($Argv.Count - 1)] } else { @() }
+    # @(...) is load-bearing: a single-element slice unwraps to a scalar string,
+    # and splatting a scalar string explodes it one character per argument.
+    $rest = @(if ($Argv.Count -gt 1) { $Argv[1..($Argv.Count - 1)] } else { @() })
 
     $had  = Test-Path Env:CLAUDE_CONFIG_DIR
     $prev = if ($had) { $env:CLAUDE_CONFIG_DIR } else { $null }
@@ -101,26 +103,6 @@ function cc   { Invoke-LifClaude (Join-Path $HOME '.claude')   $args }
 function ccp  { Invoke-LifClaude (Join-Path $HOME '.claude-p') $args }
 function ccr  { cc  resume @args }
 function ccpr { ccp resume @args }
-
-# Image slash-commands, run headless through `cc print`. Named img* rather than
-# cc* so they do not collide with the config-dir launchers above.
-function _img {
-    param([string]$slashCmd, [string]$path, [string[]]$extra)
-    $prompt = if ($extra.Count -gt 0) { "$slashCmd $path $($extra -join ' ')" } else { "$slashCmd $path" }
-    cc print $prompt
-}
-function imgclean {
-    if ($args.Count -lt 1) { Write-Host "Usage: imgclean <path> [extra args...]"; return }
-    _img '/image clean' $args[0] $(if ($args.Count -gt 1) { $args[1..($args.Count-1)] } else { @() })
-}
-function imgprev {
-    if ($args.Count -lt 1) { Write-Host "Usage: imgprev <path> [extra args...]"; return }
-    _img '/image preview' $args[0] $(if ($args.Count -gt 1) { $args[1..($args.Count-1)] } else { @() })
-}
-function imgmatch {
-    if ($args.Count -lt 1) { Write-Host "Usage: imgmatch <dir> [extra args...]"; return }
-    _img '/image-matcher' $args[0] $(if ($args.Count -gt 1) { $args[1..($args.Count-1)] } else { @() })
-}
 
 # --- firstmate (WSL) ---
 # Launches Claude Code inside the overlay's WSL distro at its firstmate dir.

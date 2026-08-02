@@ -95,6 +95,7 @@ installed on yet has no README to write, so it holds only a `.gitkeep`.
 |---|---|---|
 | `windows-5090` | the Windows box | hand-placed in `%USERPROFILE%\.config\`, see its README |
 | `macbookpro-work` | the work MacBook Pro | authored on the machine; sets `font_size`, `LIF_NOTES_DIR`, `LIF_GITHUB_DIR` and the machine-local extras, the rest deliberately unset |
+| `macmini` | the Mac mini (`peter-macmini`) | authored on the machine; sets `LIF_STUDIO_DIR` only, see its README |
 | `wsl` | the WSL box | empty slot; the installing agent authors it on the machine |
 
 To set up a machine, follow [install/AGENTS.md](../install/AGENTS.md).

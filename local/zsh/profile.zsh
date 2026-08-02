@@ -145,17 +145,6 @@ ccp()  { _cc_run "$HOME/.claude-p" "$@"; }
 ccr()  { cc  resume "$@"; }
 ccpr() { ccp resume "$@"; }
 
-# Image slash-commands, run headless through `cc print`. Named img* rather than
-# cc* so they do not collide with the config-dir launchers above.
-_img() {
-    local slash=$1 path=$2
-    shift 2
-    if [ $# -gt 0 ]; then cc print "$slash $path $*"; else cc print "$slash $path"; fi
-}
-imgclean() { [ $# -ge 1 ] || { echo "Usage: imgclean <path> [extra args...]"; return 1; }; _img '/image clean' "$@"; }
-imgprev()  { [ $# -ge 1 ] || { echo "Usage: imgprev <path> [extra args...]"; return 1; }; _img '/image preview' "$@"; }
-imgmatch() { [ $# -ge 1 ] || { echo "Usage: imgmatch <dir> [extra args...]"; return 1; }; _img '/image-matcher' "$@"; }
-
 # --- firstmate ---
 # The pwsh versions cross a wsl.exe bridge because firstmate lives in WSL. Here
 # it is local, so there is no bridge: run it, in a subshell so the caller's cwd

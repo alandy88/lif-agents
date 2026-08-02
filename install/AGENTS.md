@@ -20,7 +20,7 @@ credentials or preferences — see "Stop and ask".
 An *environment* is a named machine identity that owns every machine-specific
 value: see [environments/README.md](../environments/README.md), which lists
 exactly what an environment owes. An environment names a **machine**, not a
-platform. Existing names: `macbookpro-work`, `wsl`, `windows-5090`.
+platform. Existing names: `macbookpro-work`, `macmini`, `wsl`, `windows-5090`.
 
 - Already installed on this machine → `install/install.sh` reads the name it
   recorded in `$XDG_CONFIG_HOME/lif-env`; no `--env` needed.
@@ -32,6 +32,32 @@ platform. Existing names: `macbookpro-work`, `wsl`, `windows-5090`.
   [local/README.md](../local/README.md)); the rest of this file does not apply.
 - A machine with no environment yet → ask the captain for a name, create
   `environments/<name>/`, and pass `--env <name>`.
+
+### A machine installed before the `mac` → `macbookpro-work` rename
+
+`mac` used to be the Mac mini's name. It now belongs to the work MacBook Pro,
+and the Mac mini is `macmini`. A Mac installed under the old name has no
+`$XDG_CONFIG_HOME/lif-env` memo (the memo is only ever written by an install
+that took `--env`), so `install.sh` there exits 2 until the move below is done.
+Its two overlay files survive the rename as untracked files in a directory the
+repo no longer knows about.
+
+On the Mac mini, once, after this branch has merged and that machine has
+pulled — the files are **untracked**, so plain `mv`, not `git mv`:
+
+```bash
+cd ~/repos/lif-sandcastle && git pull
+mkdir -p environments/macmini
+mv environments/mac/host.lua environments/mac/host.sh environments/macmini/
+rmdir environments/mac
+install/install.sh --env macmini    # relinks lif-host.* and writes the memo
+```
+
+The final `install.sh --env macmini` is what makes every later run
+argument-free. **Never run `install/install.sh --env macbookpro-work` on the
+Mac mini.** `environments/macbookpro-work/` ships no overlay files, so the
+installer takes its stale-overlay branch, *deletes* both `lif-host.*` symlinks
+(`lif` stops working) and permanently records the machine as the wrong one.
 
 ## 2. Stop and ask the captain
 
