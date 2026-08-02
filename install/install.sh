@@ -16,17 +16,13 @@
 #
 # Usage: install/install.sh [--env <name>] [--dry-run] [--skip-shell-rc]
 #
-#   --env     environment to select from environments/. Symlinks its
-#             host.lua/host.sh/host.ps1 to ~/.config/lif-host.*, which the
-#             configs read. --host is accepted as an alias.
-#             With no --env: the name recorded by the last install on this
-#             machine ($XDG_CONFIG_HOME/lif-env), else "wsl" under WSL.
-#             An environment is a machine identity, not a platform, so there is
-#             nothing to detect on a first macOS install -- pass --env once and
-#             the name is remembered for every later run.
+#   --env     select from environments/ and link its overlays to ~/.config.
+#             Without it: reuse $XDG_CONFIG_HOME/lif-env, else detect WSL.
+#             A first macOS install must pass --env; --host is an alias.
 #   --dry-run print what would change without touching anything.
-#   --skip-shell-rc
-#             do not append the profile source line to ~/.zshrc.
+#   --skip-shell-rc  do not append the profile source line to ~/.zshrc.
+#
+# Environment names and overlay requirements: install/AGENTS.md.
 
 set -euo pipefail
 

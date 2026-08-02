@@ -2,10 +2,10 @@
 
 **An environment is a named machine identity.** It owns every value that differs
 between machines, so that nothing under `local/` has to. `macbookpro-work`,
-`wsl` and `windows-5090` are environments. An environment names a *machine*,
-not a platform: a second Mac gets its own directory, not a share of this one's.
-There is no "default" environment and no
-platform is the base case the others deviate from. In particular the Windows
+`macmini`, `wsl` and `windows-5090` are environments. An environment names a
+*machine*, not a platform: a second Mac gets its own directory, not a share of
+this one's. There is no "default" environment and no platform is the base case
+the others deviate from. In particular the Windows
 drive paths (`D:\Git\...`, `C:\Program Files\PowerShell\7\pwsh.exe`) are the
 property of `windows-5090` only.
 
