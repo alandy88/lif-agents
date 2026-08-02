@@ -16,10 +16,14 @@
 #
 # Usage: install/install.sh [--env <name>] [--dry-run] [--skip-shell-rc]
 #
-#   --env     environment to select from environments/ (default: detected --
-#             "mac" on Darwin, "wsl" under WSL). Symlinks its host.lua/host.sh/
-#             host.ps1 to ~/.config/lif-host.*, which the configs read.
-#             --host is accepted as an alias.
+#   --env     environment to select from environments/. Symlinks its
+#             host.lua/host.sh/host.ps1 to ~/.config/lif-host.*, which the
+#             configs read. --host is accepted as an alias.
+#             With no --env: the name recorded by the last install on this
+#             machine ($XDG_CONFIG_HOME/lif-env), else "wsl" under WSL.
+#             An environment is a machine identity, not a platform, so there is
+#             nothing to detect on a first macOS install -- pass --env once and
+#             the name is remembered for every later run.
 #   --dry-run print what would change without touching anything.
 #   --skip-shell-rc
 #             do not append the profile source line to ~/.zshrc.
@@ -32,9 +36,16 @@ dry_run=0
 skip_rc=0
 host=
 
+# Where the resolved environment name is remembered between runs, so that a
+# re-run after `git pull` needs no --env.
+env_memo=$config_home/lif-env
+
+# Deliberately does not guess on Darwin. Environments are machine identities:
+# once there is more than one Mac, no OS check can tell them apart, and a wrong
+# guess would install another machine's paths. "wsl" survives only because it
+# is an existing environment name.
 detect_host() {
     case "$(uname -s)" in
-        Darwin) echo mac ;;
         Linux)
             # WSL reports "microsoft" in the kernel release on both WSL1 and WSL2.
             if grep -qi microsoft /proc/sys/kernel/osrelease 2>/dev/null; then
@@ -56,9 +67,19 @@ while [ $# -gt 0 ]; do
     esac
 done
 
+# Explicit --env wins; then whatever the last install on this machine chose;
+# then detection. Reading the memo before detecting is what lets a named Mac
+# re-install with no arguments.
+if [ -z "$host" ] && [ -r "$env_memo" ]; then
+    host=$(cat "$env_memo")
+fi
 [ -n "$host" ] || host=$(detect_host)
 if [ -z "$host" ]; then
-    echo "could not detect an environment; pass --env <name> (see $repo/environments/)" >&2
+    echo "could not determine an environment; pass --env <name> once and it will" >&2
+    echo "be remembered in $env_memo (see $repo/environments/)" >&2
+    printf 'available: ' >&2
+    for d in "$repo"/environments/*/; do [ -d "$d" ] && printf '%s ' "$(basename "$d")"; done >&2 || true
+    echo >&2
     exit 2
 fi
 if [ ! -d "$repo/environments/$host" ]; then
@@ -289,6 +310,19 @@ fi
 # ~/.config) on unix; HERDR_CONFIG_PATH overrides it.
 write_file "$config_home/herdr/config.toml" \
     "$(sed "s|@LIF_HERDR_DEFAULT_SHELL@|$herdr_shell|" "$repo/local/herdr/config.toml")"
+
+# Remember the environment so later runs need no --env. Written last, so a run
+# that failed partway does not record a name it never finished installing.
+echo "Environment memo"
+if [ $dry_run -eq 1 ]; then
+    echo "  would record $host in $env_memo"
+elif [ -f "$env_memo" ] && [ "$(cat "$env_memo")" = "$host" ]; then
+    echo "  ok   $env_memo ($host)"
+else
+    mkdir -p "$(dirname "$env_memo")"
+    printf '%s\n' "$host" > "$env_memo"
+    echo "  set  $env_memo ($host)"
+fi
 
 echo
 echo "Done. Open a new WezTerm window, then verify the config actually loaded --"

@@ -19,19 +19,25 @@ credentials or preferences — see "Stop and ask".
 
 An *environment* is a named machine identity that owns every machine-specific
 value: see [environments/README.md](../environments/README.md), which lists
-exactly what an environment owes. Existing names: `mac`, `wsl`, `windows-5090`.
+exactly what an environment owes. An environment names a **machine**, not a
+platform. Existing names: `macbookpro-work`, `wsl`, `windows-5090`.
 
-- macOS or WSL → continue here; `install/install.sh` detects `mac`/`wsl`.
+- Already installed on this machine → `install/install.sh` reads the name it
+  recorded in `$XDG_CONFIG_HOME/lif-env`; no `--env` needed.
+- WSL → `install/install.sh` detects `wsl`.
+- macOS → **there is nothing to detect.** Do not assume this is an existing
+  Mac environment because the OS matches; ask the captain which machine this
+  is, then pass `--env <name>`.
 - Windows → use `install/install.ps1` instead (see
   [local/README.md](../local/README.md)); the rest of this file does not apply.
-- A new machine that is neither `mac` nor `wsl` → ask the captain for a name,
-  create `environments/<name>/`, and pass `--env <name>`.
+- A machine with no environment yet → ask the captain for a name, create
+  `environments/<name>/`, and pass `--env <name>`.
 
 ## 2. Stop and ask the captain
 
-Seven values cannot be inferred and must not be guessed. A plausible-looking
+Eight values cannot be inferred and must not be guessed. A plausible-looking
 invented path is worse than no path: the launch menu silently opens agents in
-the wrong directory, and `lif`/`notes`/`imagehub` fail confusingly.
+the wrong directory, and `lif`/`notes`/`imagehub`/`github` fail confusingly.
 
 | Ask for | Goes in |
 |---|---|
@@ -41,6 +47,7 @@ the wrong directory, and `lif`/`notes`/`imagehub` fail confusingly.
 | lif-studio path | `host.sh` `LIF_STUDIO_DIR` |
 | lif-notes path | `host.sh` `LIF_NOTES_DIR` |
 | Image-MetaHub-Personal path | `host.sh` `LIF_IMAGEHUB_DIR` |
+| general checkout root | `host.sh` `LIF_GITHUB_DIR` |
 | Bitwarden Secrets project id (UUID) | `host.sh` `LIF_BWS_PROJECT_ID` |
 
 Also worth confirming rather than assuming: `LIF_FIRSTMATE_DIR`
@@ -91,9 +98,13 @@ the BWS project id). Leave them untracked; do not commit them, and do not
 ## 5. Run the installer
 
 ```bash
-install/install.sh --dry-run     # preview; add --env <name> to override detection
-install/install.sh
+install/install.sh --env <name> --dry-run    # preview
+install/install.sh --env <name>
 ```
+
+`--env` is required on a macOS machine that has never been installed on, and
+optional afterwards -- the installer records the name in
+`$XDG_CONFIG_HOME/lif-env` and reuses it.
 
 It is idempotent. Regular files and directories it replaces are backed up to
 `<name>.pre-lif-terminal.bak`; an existing symlink is replaced without a backup.
@@ -111,6 +122,8 @@ It:
   from `XDG_CONFIG_HOME` with a `~/.config` fallback and carries no "Application
   Support" path. Confirm with `herdr config check`; if a future version
   disagrees, point Herdr at the file with `HERDR_CONFIG_PATH`
+- records the environment name in `$XDG_CONFIG_HOME/lif-env`, last, so a run
+  that failed partway does not record a name it never finished installing
 
 The Starship prompt is wired by the profile (`starship init zsh`), not by
 `~/.zshrc` directly, so it arrives with the rest of the profile. If the existing

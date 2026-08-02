@@ -1,8 +1,10 @@
 # environments/
 
 **An environment is a named machine identity.** It owns every value that differs
-between machines, so that nothing under `local/` has to. `mac`, `wsl` and
-`windows-5090` are environments; there is no "default" environment and no
+between machines, so that nothing under `local/` has to. `macbookpro-work`,
+`wsl` and `windows-5090` are environments. An environment names a *machine*,
+not a platform: a second Mac gets its own directory, not a share of this one's.
+There is no "default" environment and no
 platform is the base case the others deviate from. In particular the Windows
 drive paths (`D:\Git\...`, `C:\Program Files\PowerShell\7\pwsh.exe`) are the
 property of `windows-5090` only.
@@ -24,8 +26,11 @@ PowerShell overlays do too. `host.sh` is sourced as shell code and must be
 syntactically valid. Templates with the full key list:
 `local/hosts/lif-host.{lua,sh,ps1}.example`.
 
-Select an environment with `install/install.sh --env <name>`; with no `--env` it
-detects `mac` on Darwin and `wsl` under WSL. `--host` is accepted as an alias.
+Select an environment with `install/install.sh --env <name>`. The installer
+records the name in `$XDG_CONFIG_HOME/lif-env`, so later runs on that machine
+need no `--env`; failing that it detects `wsl` under WSL. It deliberately does
+not guess on macOS -- no OS check can tell two Macs apart, and a wrong guess
+would install the other machine's paths. `--host` is accepted as an alias.
 
 ## What an environment owes
 
@@ -45,14 +50,21 @@ captain** — never invent a plausible-looking path.
 | `LIF_STUDIO_DIR` / `StudioDir` | `lif` jumps here | **ask** |
 | `LIF_NOTES_DIR` / `NotesDir` | `notes` jumps here | **ask** |
 | `LIF_IMAGEHUB_DIR` / `ImageHubDir` | `imagehub` jumps here | **ask** |
+| `LIF_GITHUB_DIR` / `GithubDir` | `github` jumps here; the function shadows GitHub Desktop's `github` launcher | **ask** |
 | `LIF_BWS_PROJECT_ID` / `BwsProjectId` | Bitwarden Secrets project UUID | **ask**; secret-adjacent, see below |
 | `LIF_FIRSTMATE_DIR` / `FirstmateDir` | firstmate checkout; `fm`/`fmsh` use it | `~/firstmate` by convention — confirm |
 | `LIF_HERDR_PATH` / `HerdrPath` | launcher `fmw` runs | `~/.local/bin/fm-herdr` by convention — confirm |
 | `LIF_HERDR_DEFAULT_SHELL` | shell Herdr opens panes with | defaults per platform, see below |
 | `WslDistro` | distro the pwsh `fm*` bridges target | `windows-5090` only; no unix meaning |
 
-Seven values are captain-only: the three WezTerm cwds, the three directory
+Eight values are captain-only: the three WezTerm cwds, the four directory
 shortcuts, and the BWS project id.
+
+The table is what an environment *owes*, not all it may hold. `host.sh` and
+`host.ps1` are sourced as shell code, so they are also the right slot for a
+machine's own environment - a PATH entry for a tool installed on one box, a
+work-only variable, a token file to source. Anything no other machine wants
+belongs there rather than in `local/`, which is shared by all of them.
 
 `LIF_HERDR_DEFAULT_SHELL` fills `default_shell` in `local/herdr/config.toml`,
 which ships as a template rather than a literal path precisely because that
@@ -82,7 +94,7 @@ installed on yet has no README to write, so it holds only a `.gitkeep`.
 | Name | Machine | Overlay state |
 |---|---|---|
 | `windows-5090` | the Windows box | hand-placed in `%USERPROFILE%\.config\`, see its README |
-| `mac` | the captain's Mac mini | installed and verified; overlay authored on the machine, see its README |
+| `macbookpro-work` | the work MacBook Pro | authored on the machine; sets `font_size`, `LIF_NOTES_DIR`, `LIF_GITHUB_DIR` and the machine-local extras, the rest deliberately unset |
 | `wsl` | the WSL box | empty slot; the installing agent authors it on the machine |
 
 To set up a machine, follow [install/AGENTS.md](../install/AGENTS.md).
