@@ -174,7 +174,7 @@ There is no DPAPI off Windows, so the token lives in the OS keystore:
 ## 7. Verify, and report honestly
 
 ```bash
-command -v wezterm >/dev/null || { echo "wezterm not on PATH"; exit 1; }
+command -v wezterm >/dev/null || { echo 'wezterm not on PATH'; exit 1; }
 ! wezterm show-keys | grep -q Split  # exits 0 when the config loaded, 1 on the defaults fallback
 herdr config check                   # validates the installed herdr config
 exec zsh -l                          # prompt should be Starship; `cc`, `lif`, `fm` should exist
