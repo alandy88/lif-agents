@@ -9,15 +9,20 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   entire tag tree into `node_modules`. Keep large binaries out of `local/` and `remote/`.
 - **`local/` is a git subtree** of `alandy88/lif-terminal`, imported with
   `git subtree add --prefix=local https://github.com/alandy88/lif-terminal.git main`
-  without `--squash`, so this branch carries lif-terminal's commits. If PR #12 lands
-  with a real merge commit, refresh with `git subtree pull --prefix=local
-  https://github.com/alandy88/lif-terminal.git main`; if it is squash-merged, retain
-  the `git-subtree-dir: local` and `git-subtree-split: <sha>` trailers and use that
-  same command. Squash-merging without those trailers removes lif-terminal's history
-  from main; a real merge preserves the history and the simple refresh. Every pull
-  raises a modify/delete conflict at `local/install.ps1` because upstream keeps it at
-  its root; keep `local/install.ps1` deleted and port upstream changes to
-  `install/install.ps1` by hand. See `/home/peter/firstmate/data/agentcfg-monorepo-v1/report.md`.
+  without `--squash`, so this branch carries lif-terminal's commits. Which refresh
+  command works depends on whether that history is reachable from your checkout:
+  - history reachable (this branch, or a `main` that took a real merge commit) —
+    `git subtree pull --prefix=local https://github.com/alandy88/lif-terminal.git main`
+  - history not reachable (a squash-merged `main`) — the plain pull fails with
+    `fatal: refusing to merge unrelated histories`; use the same command with
+    `--squash`, which needs the squash commit body to have kept the
+    `git-subtree-dir: local` and `git-subtree-split: <sha>` trailers.
+
+  Squash-merging removes lif-terminal's history from `main` either way; only a real
+  merge commit preserves both the history and the simpler refresh. Every pull raises a
+  modify/delete conflict at `local/install.ps1` because upstream keeps it at its root:
+  keep `local/install.ps1` deleted and port upstream changes to `install/install.ps1`
+  by hand. See `/home/peter/firstmate/data/agentcfg-monorepo-v1/report.md`.
 - Non-kit areas (`local/`, `hosts/`, `install/`, `remote/`) are documented in the README's
   "Also in this repo" section; the design rationale is in
   `/home/peter/firstmate/data/agentcfg-monorepo-v1/report.md`.
