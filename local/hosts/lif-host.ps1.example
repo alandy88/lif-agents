@@ -12,5 +12,6 @@ $LifHost = @{
     StudioDir    = 'REPLACE_ME'
     NotesDir     = 'REPLACE_ME'
     ImageHubDir  = 'REPLACE_ME'
+    GithubDir    = 'REPLACE_ME'
     BwsProjectId = 'REPLACE_ME'
 }

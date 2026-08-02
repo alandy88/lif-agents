@@ -38,38 +38,87 @@ function Get-LifHostValue {
 function Invoke-Starship-TransientFunction { &starship module character }
 Enable-TransientPrompt
 
-function cc {
-    $base = @('--dangerously-skip-permissions')
-    $rest = if ($args.Count -gt 1) { $args[1..($args.Count - 1)] } else { @() }
-
-    switch -Exact ($args[0]) {
-        'resume'   { claude @base --resume @rest }
-        'remote'   { claude @base remote-control --spawn worktree @rest }
-        'w'        { if ($rest.Count -gt 0) { claude @base --worktree $rest[0] } else { claude @base --worktree } }
-        'sonnet'   { claude @base --model claude-sonnet-4-6 @rest }
-        'opus'     { claude @base --model 'claude-opus-4-6[1m]' @rest }
-        'opus45'   { claude @base --model claude-opus-4-5-20251101 @rest }
-        'bare'     { claude @base --bare --print @rest }
-        'print'    { claude @base -p @rest }
-        'designer' { claude @base --agent designer-genz @rest }
-        default    { claude @base @args }
+# --- Herdr ---
+# Herdr is the multiplexer; this is the tmux-shaped front door onto it. Mirrors
+# `tm` in zsh/profile.zsh -- keep the two in step.
+#   tm            attach to the default persistent session (creating it)
+#   tm work       attach to "work", creating it if missing
+#   tm ls         list sessions
+#   tm kill work  stop "work"
+function tm {
+    $sub = if ($args.Count -gt 0) { $args[0] } else { '' }
+    switch -Exact ($sub) {
+        ''      { herdr }
+        'ls'    { herdr session list }
+        'kill'  { herdr session stop $args[1] }
+        default { herdr --session $sub }
     }
 }
+
+# --- Claude Code ---
+# One dispatcher, two config directories. Mirrors _cc_run in zsh/profile.zsh.
+#   cc  [word] [args...]   CLAUDE_CONFIG_DIR=~\.claude    (standard)
+#   ccp [word] [args...]   CLAUDE_CONFIG_DIR=~\.claude-p  (personal)
+#   ccr / ccpr             the same two, resuming
+# The optional first word is either a model (fable|opus|opus1m|opus45|sonnet|
+# haiku) or an action (resume|remote|w|bare|print|designer); anything else is
+# passed straight through. CLAUDE_CONFIG_DIR is set for the call and restored
+# afterwards, so it is deterministic even when the session already exports one.
+# `claude` here is the bws-wrapping function at the bottom, deliberately.
+function Invoke-LifClaude {
+    param([string]$ConfigDir, [string[]]$Argv)
+
+    $base = @('--dangerously-skip-permissions')
+    $sub  = if ($Argv.Count -gt 0) { $Argv[0] } else { '' }
+    $rest = if ($Argv.Count -gt 1) { $Argv[1..($Argv.Count - 1)] } else { @() }
+
+    $had  = Test-Path Env:CLAUDE_CONFIG_DIR
+    $prev = if ($had) { $env:CLAUDE_CONFIG_DIR } else { $null }
+    $env:CLAUDE_CONFIG_DIR = $ConfigDir
+    try {
+        switch -Exact ($sub) {
+            'fable'    { claude @base --model claude-fable-5 @rest }
+            'opus'     { claude @base --model claude-opus-5 @rest }
+            'opus1m'   { claude @base --model 'claude-opus-5[1m]' @rest }
+            'opus45'   { claude @base --model claude-opus-4-5-20251101 @rest }
+            'sonnet'   { claude @base --model claude-sonnet-5 @rest }
+            'haiku'    { claude @base --model claude-haiku-4-5 @rest }
+            'resume'   { claude @base --resume @rest }
+            'remote'   { claude @base remote-control --spawn worktree @rest }
+            'w'        { if ($rest.Count -gt 0) { claude @base --worktree $rest[0] } else { claude @base --worktree } }
+            'bare'     { claude @base --bare --print @rest }
+            'print'    { claude @base -p @rest }
+            'designer' { claude @base --agent designer-genz @rest }
+            ''         { claude @base }
+            default    { claude @base @Argv }
+        }
+    } finally {
+        if ($had) { $env:CLAUDE_CONFIG_DIR = $prev }
+        else { Remove-Item Env:CLAUDE_CONFIG_DIR -ErrorAction SilentlyContinue }
+    }
+}
+function cc   { Invoke-LifClaude (Join-Path $HOME '.claude')   $args }
+function ccp  { Invoke-LifClaude (Join-Path $HOME '.claude-p') $args }
+function ccr  { cc  resume @args }
+function ccpr { ccp resume @args }
+
+# Image slash-commands, run headless through `cc print`. Named img* rather than
+# cc* so they do not collide with the config-dir launchers above.
 function _img {
     param([string]$slashCmd, [string]$path, [string[]]$extra)
     $prompt = if ($extra.Count -gt 0) { "$slashCmd $path $($extra -join ' ')" } else { "$slashCmd $path" }
     cc print $prompt
 }
-function ccc {
-    if ($args.Count -lt 1) { Write-Host "Usage: ccc <path> [extra args...]"; return }
+function imgclean {
+    if ($args.Count -lt 1) { Write-Host "Usage: imgclean <path> [extra args...]"; return }
     _img '/image clean' $args[0] $(if ($args.Count -gt 1) { $args[1..($args.Count-1)] } else { @() })
 }
-function ccp {
-    if ($args.Count -lt 1) { Write-Host "Usage: ccp <path> [extra args...]"; return }
+function imgprev {
+    if ($args.Count -lt 1) { Write-Host "Usage: imgprev <path> [extra args...]"; return }
     _img '/image preview' $args[0] $(if ($args.Count -gt 1) { $args[1..($args.Count-1)] } else { @() })
 }
-function ccm {
-    if ($args.Count -lt 1) { Write-Host "Usage: ccm <dir> [extra args...]"; return }
+function imgmatch {
+    if ($args.Count -lt 1) { Write-Host "Usage: imgmatch <dir> [extra args...]"; return }
     _img '/image-matcher' $args[0] $(if ($args.Count -gt 1) { $args[1..($args.Count-1)] } else { @() })
 }
 
@@ -100,12 +149,15 @@ function fmw {
     wsl.exe -d $v[0] -- $v[1]
 }
 
+# Directory shortcuts. `github` deliberately shadows GitHub Desktop's `github`
+# launcher where that is on PATH.
 function lif { if ($v = Get-LifHostValue StudioDir) { Set-Location $v } }
 function notes { if ($v = Get-LifHostValue NotesDir) { Set-Location $v } }
 function imagehub { if ($v = Get-LifHostValue ImageHubDir) { Set-Location $v } }
+function github { if ($v = Get-LifHostValue GithubDir) { Set-Location $v } }
 
-# Herdr handles multiplexing; no wrapper function is needed here. The previous
-# `z` function existed only to force Zellij's shell, which it dropped on Windows.
+# Multiplexing lives in `tm` near the top of this file. The previous `z`
+# function existed only to force Zellij's shell, which it dropped on Windows.
 
 # --- BWS access token (DPAPI-decrypted at session start) ---
 $__bws = "$env:USERPROFILE\.bws\token.dpapi"
