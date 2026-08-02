@@ -18,7 +18,8 @@
 param()
 
 $ErrorActionPreference = 'Stop'
-$repo = $PSScriptRoot
+# This script lives in install/; the configs live under local/.
+$repo = Split-Path $PSScriptRoot -Parent
 
 function Set-UserEnv {
     param([string]$Name, [string]$Value)
@@ -36,12 +37,12 @@ function Set-UserEnv {
 }
 
 Write-Host "Environment variables" -ForegroundColor Cyan
-Set-UserEnv WEZTERM_CONFIG_FILE (Join-Path $repo 'wezterm\wezterm.lua')
-Set-UserEnv STARSHIP_CONFIG     (Join-Path $repo 'starship\starship.toml')
-Set-UserEnv PSMUX_CONFIG_FILE   (Join-Path $repo 'psmux\psmux.conf')
+Set-UserEnv WEZTERM_CONFIG_FILE (Join-Path $repo 'local\wezterm\wezterm.lua')
+Set-UserEnv STARSHIP_CONFIG     (Join-Path $repo 'local\starship\starship.toml')
+Set-UserEnv PSMUX_CONFIG_FILE   (Join-Path $repo 'local\psmux\psmux.conf')
 
 Write-Host "PowerShell profile" -ForegroundColor Cyan
-$stub = ". '$(Join-Path $repo 'pwsh\profile.ps1')'"
+$stub = ". '$(Join-Path $repo 'local\pwsh\profile.ps1')'"
 if ((Test-Path $PROFILE) -and (Get-Content $PROFILE -Raw).Trim() -eq $stub) {
     Write-Host "  ok   $PROFILE" -ForegroundColor DarkGray
 }

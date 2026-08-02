@@ -105,8 +105,11 @@ if is_windows then
   config.window_frame = { font_size = 5.0 }
 end
 
--- Default shell
-config.default_prog = { 'pwsh.exe', '-NoLogo' }
+-- Default shell. Forced only on Windows -- 'pwsh.exe' does not exist on WSL or
+-- macOS, and WezTerm's own default there (the login shell) is what we want.
+if is_windows then
+  config.default_prog = { 'pwsh.exe', '-NoLogo' }
+end
 
 -- Keybindings
 -- psmux is the multiplexer here, so WezTerm's own pane splitting and pane

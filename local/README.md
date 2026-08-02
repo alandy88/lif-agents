@@ -1,7 +1,12 @@
 # lif-terminal
 
-Native-Windows terminal config: WezTerm + psmux + Starship + the pwsh 7 profile.
-Optional firstmate helpers launch into WSL; the terminal itself runs on Windows.
+Terminal config: WezTerm + psmux + Starship + the pwsh 7 profile. Windows is
+the primary host; WSL and macOS install the WezTerm and Starship halves. The
+optional firstmate helpers launch into WSL.
+
+Absorbed into `lif-sandcastle` with history; the installers now live one level
+up in `install/`, and the per-machine overlays in `hosts/`. Paths below are
+relative to this directory unless stated otherwise.
 
 ## Layout
 
@@ -12,6 +17,9 @@ Optional firstmate helpers launch into WSL; the terminal itself runs on Windows.
 | `psmux/psmux.conf` | `PSMUX_CONFIG_FILE` env var |
 | `pwsh/profile.ps1` | dot-sourced from `$PROFILE` |
 | `hosts/*.example` | templates for the host overlay (see below) |
+
+The repo-root `install/install.sh` covers WSL and macOS, symlinking
+`wezterm/wezterm.lua` and `starship/starship.toml` into `~/.config` instead.
 
 Redirect env vars rather than symlinks: Windows symlinks need Developer Mode or
 admin, and junctions only work on directories — which `wezterm.lua`,
@@ -30,9 +38,11 @@ It ships `psmux`, `pmux`, and `tmux` aliases, all the same binary.
 ## Install
 
 ```powershell
-git clone https://github.com/alandy88/lif-terminal   # anywhere you keep checkouts
-.\lif-terminal\install.ps1                          # -WhatIf to preview
+git clone https://github.com/alandy88/lif-sandcastle   # anywhere you keep checkouts
+.\lif-sandcastle\install\install.ps1                  # -WhatIf to preview
 ```
+
+On WSL or macOS, run `install/install.sh --host <name>` instead.
 
 Idempotent — re-run after a `git pull`. It backs up anything it replaces to
 `<name>.pre-lif-terminal.bak` and leaves the pre-existing configs in place.
@@ -53,9 +63,12 @@ placeholders:
 
 ```powershell
 New-Item -ItemType Directory -Force "$env:USERPROFILE\.config" | Out-Null
-Copy-Item .\lif-terminal\hosts\lif-host.lua.example "$env:USERPROFILE\.config\lif-host.lua"
-Copy-Item .\lif-terminal\hosts\lif-host.ps1.example "$env:USERPROFILE\.config\lif-host.ps1"
+Copy-Item .\lif-sandcastle\local\hosts\lif-host.lua.example "$env:USERPROFILE\.config\lif-host.lua"
+Copy-Item .\lif-sandcastle\local\hosts\lif-host.ps1.example "$env:USERPROFILE\.config\lif-host.ps1"
 ```
+
+On WSL and macOS `install.sh` does this step for you, from a committed
+`hosts/<name>/` directory rather than a hand-copied file.
 
 Every key is optional. Both configs degrade safely without the overlay: a
 missing or malformed `lif-host.lua` yields

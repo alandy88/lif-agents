@@ -41,7 +41,7 @@ while [ $# -gt 0 ]; do
         --host) host=${2:-}; shift 2 || { echo "--host needs a name" >&2; exit 2; } ;;
         --host=*) host=${1#--host=}; shift ;;
         --dry-run) dry_run=1; shift ;;
-        -h|--help) sed -n '2,20p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n '2,19p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "unknown argument: $1" >&2; exit 2 ;;
     esac
 done
@@ -53,7 +53,10 @@ if [ -z "$host" ]; then
 fi
 if [ ! -d "$repo/hosts/$host" ]; then
     echo "no such host overlay: hosts/$host" >&2
-    echo "available: $(ls "$repo/hosts" 2>/dev/null | tr '\n' ' ')" >&2
+    printf 'available: ' >&2
+    # Portable listing: find -printf and ls -d are GNU-isms macOS does not have.
+    for d in "$repo"/hosts/*/; do [ -d "$d" ] && printf '%s ' "$(basename "$d")"; done >&2 || true
+    echo >&2
     exit 2
 fi
 
