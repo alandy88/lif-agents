@@ -25,9 +25,9 @@ Developer Mode or admin, and junctions only work on directories — which
 `wezterm.lua` and `starship.toml` are not. `install.sh` symlinks instead.
 
 Herdr reads `%APPDATA%\herdr\config.toml` on Windows and
-`$XDG_CONFIG_HOME/herdr/config.toml` (default `~/.config`) on Linux. The macOS
-path is inferred, not verified; [the installation instructions](../install/AGENTS.md)
-record how to settle it. `HERDR_CONFIG_PATH` overrides the discovered path.
+`$XDG_CONFIG_HOME/herdr/config.toml` (default `~/.config`) on Linux and,
+*verified on macOS 26.5.2*, on macOS too. `HERDR_CONFIG_PATH` overrides the
+discovered path.
 `herdr/config.toml` here is a **template**, not a drop-in copy: its
 `default_shell` is environment-owned and substituted at install time.
 `install.sh` does that automatically; the Windows copy step is in
@@ -36,8 +36,9 @@ record how to settle it. `HERDR_CONFIG_PATH` overrides the discovered path.
 ## Prerequisites
 
 Nothing here installs software. Herdr, WezTerm, Starship, the Nerd Font and the
-agent CLIs must already be present; Herdr manages its own updates
-(`herdr update`). The full list with macOS install commands is in
+agent CLIs must already be present. `herdr update` self-updates on WSL/Linux,
+but a Homebrew install on macOS must use `brew upgrade herdr`. The full list
+with macOS install commands is in
 [install/AGENTS.md](../install/AGENTS.md).
 
 ## Install
