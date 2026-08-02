@@ -113,30 +113,40 @@ tm() {
 # deterministic even when the surrounding shell already exports one, and so it
 # survives into the `bws run` child that the claude wrapper at the bottom
 # spawns. `claude` here is that wrapper, deliberately -- not `command claude`.
+#
+# The permission posture is environment-owned: set LIF_CLAUDE_PERMISSION_MODE in
+# the overlay to pass `--permission-mode <mode>` instead of the shared default of
+# `--dangerously-skip-permissions`. Read at call time, so it follows the overlay
+# even though the overlay is sourced before this function is defined.
 _cc_run() {
     local dir=$1; shift
-    local B=--dangerously-skip-permissions
+    local -a B
+    if [ -n "${LIF_CLAUDE_PERMISSION_MODE:-}" ]; then
+        B=(--permission-mode "$LIF_CLAUDE_PERMISSION_MODE")
+    else
+        B=(--dangerously-skip-permissions)
+    fi
     local sub=${1:-}
     [ $# -gt 0 ] && shift
     (
         CLAUDE_CONFIG_DIR=$dir
         export CLAUDE_CONFIG_DIR
         case "$sub" in
-            fable)    claude "$B" --model claude-fable-5 "$@" ;;
-            opus)     claude "$B" --model claude-opus-5 "$@" ;;
-            opus1m)   claude "$B" --model 'claude-opus-5[1m]' "$@" ;;
-            opus45)   claude "$B" --model claude-opus-4-5-20251101 "$@" ;;
-            sonnet)   claude "$B" --model claude-sonnet-5 "$@" ;;
-            haiku)    claude "$B" --model claude-haiku-4-5 "$@" ;;
-            resume)   claude "$B" --resume "$@" ;;
-            remote)   claude "$B" remote-control --spawn worktree "$@" ;;
-            w)        if [ $# -gt 0 ]; then claude "$B" --worktree "$1"
-                      else claude "$B" --worktree; fi ;;
-            bare)     claude "$B" --bare --print "$@" ;;
-            print)    claude "$B" -p "$@" ;;
-            designer) claude "$B" --agent designer-genz "$@" ;;
-            '')       claude "$B" ;;
-            *)        claude "$B" "$sub" "$@" ;;
+            fable)    claude "${B[@]}" --model claude-fable-5 "$@" ;;
+            opus)     claude "${B[@]}" --model claude-opus-5 "$@" ;;
+            opus1m)   claude "${B[@]}" --model 'claude-opus-5[1m]' "$@" ;;
+            opus45)   claude "${B[@]}" --model claude-opus-4-5-20251101 "$@" ;;
+            sonnet)   claude "${B[@]}" --model claude-sonnet-5 "$@" ;;
+            haiku)    claude "${B[@]}" --model claude-haiku-4-5 "$@" ;;
+            resume)   claude "${B[@]}" --resume "$@" ;;
+            remote)   claude "${B[@]}" remote-control --spawn worktree "$@" ;;
+            w)        if [ $# -gt 0 ]; then claude "${B[@]}" --worktree "$1"
+                      else claude "${B[@]}" --worktree; fi ;;
+            bare)     claude "${B[@]}" --bare --print "$@" ;;
+            print)    claude "${B[@]}" -p "$@" ;;
+            designer) claude "${B[@]}" --agent designer-genz "$@" ;;
+            '')       claude "${B[@]}" ;;
+            *)        claude "${B[@]}" "$sub" "$@" ;;
         esac
     )
 }
