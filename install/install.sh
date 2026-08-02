@@ -8,7 +8,7 @@
 #
 # Idempotent: safe to re-run after a `git pull`. Anything it would replace is
 # backed up to <name>.pre-lif-terminal.bak first -- the same suffix install.ps1
-# uses -- and never silently overwritten.
+# uses -- with a numbered suffix if needed, and never silently overwritten.
 #
 # Usage: install/install.sh [--host <name>] [--dry-run]
 #
@@ -60,9 +60,27 @@ if [ ! -d "$repo/hosts/$host" ]; then
     exit 2
 fi
 
+backup_path() {
+    local path=$1 candidate index
+
+    candidate=$path.pre-lif-terminal.bak
+    if [ ! -e "$candidate" ] && [ ! -L "$candidate" ]; then
+        echo "$candidate"
+        return
+    fi
+
+    index=1
+    candidate=$path.pre-lif-terminal.$index.bak
+    while [ -e "$candidate" ] || [ -L "$candidate" ]; do
+        index=$((index + 1))
+        candidate=$path.pre-lif-terminal.$index.bak
+    done
+    echo "$candidate"
+}
+
 # link <target> <link-path>
 link() {
-    local target=$1 link=$2
+    local target=$1 link=$2 backup
 
     if [ -L "$link" ] && [ "$(readlink "$link")" = "$target" ]; then
         echo "  ok   $link"
@@ -79,12 +97,49 @@ link() {
         if [ -L "$link" ]; then
             rm "$link"          # our own or another symlink: nothing to preserve
         else
-            mv "$link" "$link.pre-lif-terminal.bak"
-            echo "  bak  $link.pre-lif-terminal.bak"
+            backup=$(backup_path "$link")
+            mv "$link" "$backup"
+            echo "  bak  $backup"
         fi
     fi
     ln -s "$target" "$link"
     echo "  set  $link -> $target"
+}
+
+resolve_link_target() {
+    local link=$1 target target_dir
+
+    target=$(readlink "$link") || return 1
+    target_dir=$(dirname "$target")
+    case "$target" in
+        /*) ;;
+        *) target_dir=$(dirname "$link")/$target_dir ;;
+    esac
+    (cd "$target_dir" 2>/dev/null && printf '%s/%s\n' "$(pwd -P)" "$(basename "$target")")
+}
+
+clear_overlay() {
+    local link=$1 target
+
+    if [ ! -L "$link" ]; then
+        if [ -e "$link" ]; then
+            echo "  keep $link (not a repo host symlink)"
+        fi
+        return
+    fi
+
+    target=$(resolve_link_target "$link" 2>/dev/null || true)
+    case "$target" in
+        "$repo/hosts/"*)
+            if [ $dry_run -eq 1 ]; then
+                echo "  would remove $link (stale host overlay)"
+            else
+                rm "$link"
+                echo "  clear $link (stale host overlay)"
+            fi
+            ;;
+        *) echo "  keep $link (symlink outside repo hosts/)" ;;
+    esac
 }
 
 echo "Configs"
@@ -100,6 +155,7 @@ for pair in "host.lua:$HOME/.config/lif-host.lua" "host.ps1:$HOME/.config/lif-ho
         link "$src" "${pair#*:}"
     else
         echo "  skip hosts/$host/${pair%%:*} (not present)"
+        clear_overlay "${pair#*:}"
     fi
 done
 

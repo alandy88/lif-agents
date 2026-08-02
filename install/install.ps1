@@ -7,9 +7,9 @@
   directories -- so redirect env vars are used instead. Idempotent: safe to
   re-run after a `git pull`.
 
-  Backs up any file it replaces to <name>.pre-lif-terminal.bak. The original
-  configs are left in place; delete them once you have verified the new paths
-  actually load.
+  Backs up any file it replaces to <name>.pre-lif-terminal.bak, using a
+  numbered suffix when that backup already exists. The original configs are
+  left in place; delete them once you have verified the new paths actually load.
 
 .PARAMETER WhatIf
   Show what would change without touching anything.
@@ -48,8 +48,14 @@ if ((Test-Path $PROFILE) -and (Get-Content $PROFILE -Raw).Trim() -eq $stub) {
 }
 elseif ($PSCmdlet.ShouldProcess($PROFILE, 'replace with dot-source stub')) {
     if (Test-Path $PROFILE) {
-        Copy-Item $PROFILE "$PROFILE.pre-lif-terminal.bak" -Force
-        Write-Host "  bak  $PROFILE.pre-lif-terminal.bak" -ForegroundColor Yellow
+        $backup = "$PROFILE.pre-lif-terminal.bak"
+        $backupIndex = 1
+        while (Test-Path -LiteralPath $backup) {
+            $backup = "$PROFILE.pre-lif-terminal.$backupIndex.bak"
+            $backupIndex++
+        }
+        Copy-Item $PROFILE $backup
+        Write-Host "  bak  $backup" -ForegroundColor Yellow
     }
     else {
         New-Item (Split-Path $PROFILE) -ItemType Directory -Force | Out-Null
