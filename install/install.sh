@@ -118,6 +118,23 @@ resolve_link_target() {
     (cd "$target_dir" 2>/dev/null && printf '%s/%s\n' "$(pwd -P)" "$(basename "$target")")
 }
 
+link_overlay() {
+    local target=$1 link=$2 resolved
+
+    if [ -L "$link" ]; then
+        resolved=$(resolve_link_target "$link" 2>/dev/null || true)
+        case "$resolved" in
+            "$repo/hosts/"*) ;;
+            *) echo "  keep $link (symlink outside repo hosts/)"; return ;;
+        esac
+    elif [ -e "$link" ]; then
+        echo "  keep $link (not a repo host symlink)"
+        return
+    fi
+
+    link "$target" "$link"
+}
+
 clear_overlay() {
     local link=$1 target
 
@@ -152,7 +169,7 @@ echo "Host overlay ($host)"
 for pair in "host.lua:$HOME/.config/lif-host.lua" "host.ps1:$HOME/.config/lif-host.ps1"; do
     src=$repo/hosts/$host/${pair%%:*}
     if [ -f "$src" ]; then
-        link "$src" "${pair#*:}"
+        link_overlay "$src" "${pair#*:}"
     else
         echo "  skip hosts/$host/${pair%%:*} (not present)"
         clear_overlay "${pair#*:}"

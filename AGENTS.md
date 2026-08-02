@@ -7,9 +7,17 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   Moving `src/`, `templates/`, or `package.json` into a subdirectory breaks every consumer.
 - **Bun consumers get the whole tree.** Bun ignores `package.json`'s `files` and copies the
   entire tag tree into `node_modules`. Keep large binaries out of `local/` and `remote/`.
-- **`local/` is a git subtree** of `alandy88/lif-terminal`. Refresh with
-  `git subtree pull --prefix=local https://github.com/alandy88/lif-terminal.git main`.
-  Editing files under `local/` is fine but creates conflicts for that pull.
+- **`local/` is a git subtree** of `alandy88/lif-terminal`, imported with
+  `git subtree add --prefix=local https://github.com/alandy88/lif-terminal.git main`
+  without `--squash`, so this branch carries lif-terminal's commits. If PR #12 lands
+  with a real merge commit, refresh with `git subtree pull --prefix=local
+  https://github.com/alandy88/lif-terminal.git main`; if it is squash-merged, retain
+  the `git-subtree-dir: local` and `git-subtree-split: <sha>` trailers and use that
+  same command. Squash-merging without those trailers removes lif-terminal's history
+  from main; a real merge preserves the history and the simple refresh. Every pull
+  raises a modify/delete conflict at `local/install.ps1` because upstream keeps it at
+  its root; keep `local/install.ps1` deleted and port upstream changes to
+  `install/install.ps1` by hand. See `/home/peter/firstmate/data/agentcfg-monorepo-v1/report.md`.
 - Non-kit areas (`local/`, `hosts/`, `install/`, `remote/`) are documented in the README's
   "Also in this repo" section; the design rationale is in
   `/home/peter/firstmate/data/agentcfg-monorepo-v1/report.md`.

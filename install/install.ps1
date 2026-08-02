@@ -41,7 +41,9 @@ Set-UserEnv WEZTERM_CONFIG_FILE (Join-Path $repo 'local\wezterm\wezterm.lua')
 Set-UserEnv STARSHIP_CONFIG     (Join-Path $repo 'local\starship\starship.toml')
 
 Write-Host "PowerShell profile" -ForegroundColor Cyan
-$stub = ". '$(Join-Path $repo 'local\pwsh\profile.ps1')'"
+$profileScript = Join-Path $repo 'local\pwsh\profile.ps1'
+$escapedProfileScript = $profileScript.Replace("'", "''")
+$stub = ". '$escapedProfileScript'"
 if ((Test-Path $PROFILE) -and (Get-Content $PROFILE -Raw).Trim() -eq $stub) {
     Write-Host "  ok   $PROFILE" -ForegroundColor DarkGray
 }
