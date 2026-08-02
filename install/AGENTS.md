@@ -57,12 +57,19 @@ commands. Prefer that over inventing values.
 Install these first; the repo installs none of them. macOS commands assume
 [Homebrew](https://brew.sh).
 
+On a machine running services, prefix the `brew` commands with
+`HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1`. Homebrew otherwise
+runs `brew cleanup` on the first install after a 30-day gap, and its autoremove
+step uninstalls orphaned formulae unrelated to the one you asked for — observed
+on the captain's Mac mini, where `brew install herdr` also removed
+`python@3.13`.
+
 | Prerequisite | macOS | WSL (Ubuntu) |
 |---|---|---|
 | WezTerm | `brew install --cask wezterm` | installed on the **Windows** side; WSL only supplies the shell |
 | Starship | `brew install starship` | `curl -sS https://starship.rs/install.sh \| sh` |
 | JetBrainsMono Nerd Font | `brew install --cask font-jetbrains-mono-nerd-font` | install on the Windows side, where WezTerm renders |
-| Herdr | `brew install herdr`, then `herdr update` to self-update — *inferred*: the 0.7.5 binary queries `formulae.brew.sh/api/formula/herdr.json`, i.e. it expects a Homebrew install on macOS. Settled by `brew info herdr` on the Mac | already present on the captain's WSL box; `herdr update` self-updates |
+| Herdr | `brew install herdr`; update later with `brew upgrade herdr`. Do **not** use `herdr update` here — 0.7.5 answers `self-update is disabled for Homebrew installs` and exits 0, so it silently does nothing. *Verified on macOS 26.5.2*: herdr 0.7.5 is in homebrew-core | already present on the captain's WSL box; `herdr update` self-updates |
 | zsh | ships with macOS | `sudo apt install zsh` (WSL defaults to bash) |
 | `claude`, `codex`, `opencode` | the agents the launch menu and `cc` invoke; install per their own docs | same |
 | `bws` (Bitwarden Secrets CLI) | only if this machine uses BWS | same |
@@ -99,14 +106,18 @@ It:
   block to `~/.zshrc` that sources it (`--skip-shell-rc` opts out). It never
   rewrites an existing `~/.zshrc` — the captain curates that file
 - renders `local/herdr/config.toml` into `$XDG_CONFIG_HOME/herdr/config.toml`,
-  substituting this environment's `default_shell`. Herdr reads that path on
-  Linux (verified) and, *inferred*, on macOS too: the 0.7.5 binary resolves its
-  config from `XDG_CONFIG_HOME` with a `~/.config` fallback and carries no
-  "Application Support" path. Settle it on the Mac with `herdr config check`;
-  if it disagrees, point Herdr at the file with `HERDR_CONFIG_PATH`
+  substituting this environment's `default_shell`. Herdr 0.7.5 reads that path
+  on Linux and, *verified on macOS 26.5.2*, on macOS too: it resolves its config
+  from `XDG_CONFIG_HOME` with a `~/.config` fallback and carries no "Application
+  Support" path. Confirm with `herdr config check`; if a future version
+  disagrees, point Herdr at the file with `HERDR_CONFIG_PATH`
 
 The Starship prompt is wired by the profile (`starship init zsh`), not by
-`~/.zshrc` directly, so it arrives with the rest of the profile.
+`~/.zshrc` directly, so it arrives with the rest of the profile. If the existing
+`~/.zshrc` already runs `starship init`, the appended block does not remove it
+and Starship initializes twice per shell — redundant rather than broken. Report
+the duplicate line to the captain instead of deleting it yourself; the rc is
+theirs.
 
 If the captain's login shell is bash rather than zsh, add the same source line
 to `~/.bashrc` by hand — the profile detects the shell and works in both.
@@ -124,10 +135,14 @@ There is no DPAPI off Windows, so the token lives in the OS keystore:
 ## 7. Verify, and report honestly
 
 ```bash
-wezterm show-keys | grep -c Split    # 0 = config loaded, 6 = WezTerm fell back to defaults
+! wezterm show-keys | grep -q Split  # exits 0 when the config loaded, 1 on the defaults fallback
 herdr config check                   # validates the installed herdr config
 exec zsh -l                          # prompt should be Starship; `cc`, `lif`, `fm` should exist
 ```
+
+Use the assertion form: `grep -c Split` prints the `0` you want to see but
+*exits 1* when the count is zero, so under `set -e` — or to any agent reading
+the exit status — a successful install looks like a failed one.
 
 WezTerm falls back to its full defaults on any config error **and prints
 nothing**, so a clean-looking launch proves nothing — run the `show-keys` check.

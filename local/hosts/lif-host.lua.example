@@ -6,6 +6,10 @@
 -- and WSL, Windows drive paths on windows-5090. Neither is the default.
 -- Replace every REPLACE_ME -- do not guess a path, ask. See
 -- environments/README.md for the full key list.
+--
+-- No value for a key? Delete the whole line -- do not set it to "". An absent
+-- key drops its launch-menu entries; an empty string is truthy in Lua and would
+-- keep them, pointing at nowhere.
 
 return {
   stable_diffusion_cwd = "REPLACE_ME",

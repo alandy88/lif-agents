@@ -97,6 +97,11 @@ link() {
         return
     fi
     if [ $dry_run -eq 1 ]; then
+        # Say what would be moved aside, not just what would be created: "what
+        # of mine gets touched?" is the question a preview exists to answer.
+        if [ -e "$link" ] && [ ! -L "$link" ]; then
+            echo "  would bak  $(backup_path "$link")"
+        fi
         echo "  would link $link -> $target"
         return
     fi
@@ -191,6 +196,10 @@ write_file() {
         return
     fi
     if [ $dry_run -eq 1 ]; then
+        # Unlike link(), this backs up a symlink too, so test for one as well.
+        if [ -e "$path" ] || [ -L "$path" ]; then
+            echo "  would bak  $(backup_path "$path")"
+        fi
         echo "  would write $path"
         return
     fi
@@ -284,6 +293,6 @@ write_file "$config_home/herdr/config.toml" \
 echo
 echo "Done. Open a new WezTerm window, then verify the config actually loaded --"
 echo "WezTerm falls back to full defaults on any error, silently:"
-echo "  wezterm show-keys | grep -c Split    # 0 = loaded, 6 = defaults"
+echo "  ! wezterm show-keys | grep -q Split  # exits 0 when the config loaded"
 echo "  herdr config check                   # validates the herdr config"
 echo "Start a new zsh to pick up the profile and the Starship prompt."

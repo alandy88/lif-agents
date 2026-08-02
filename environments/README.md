@@ -72,16 +72,17 @@ id and the BWS access token stay out of git:
   Keychain, Linux/WSL from `~/.bws/token` (mode 0600), Windows from a DPAPI
   blob — see `local/README.md`.
 
-Consequently a populated environment directory is **not** committed: committed
-environment directories carry a `README.md` describing the machine, and the
-values are placed on the machine itself.
+Consequently a populated environment directory is **not** committed: what a
+committed environment directory carries is a `README.md` describing the machine,
+while the values are placed on the machine itself. An environment nobody has
+installed on yet has no README to write, so it holds only a `.gitkeep`.
 
 ## The environments
 
 | Name | Machine | Overlay state |
 |---|---|---|
 | `windows-5090` | the Windows box | hand-placed in `%USERPROFILE%\.config\`, see its README |
-| `mac` | a Mac | empty slot; the installing agent authors it on the machine |
+| `mac` | the captain's Mac mini | installed and verified; overlay authored on the machine, see its README |
 | `wsl` | the WSL box | empty slot; the installing agent authors it on the machine |
 
 To set up a machine, follow [install/AGENTS.md](../install/AGENTS.md).
