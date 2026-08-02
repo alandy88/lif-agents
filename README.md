@@ -370,7 +370,7 @@ is the same person's environment, and one repo beats four.
 | `local/` | terminal config: WezTerm, Starship, Herdr, the pwsh 7 profile. Absorbed from `lif-terminal` with its history. See [local/README.md](local/README.md). |
 | `hosts/` | per-machine overlays, one directory per host, keeping machine-specific paths out of `local/`. See [hosts/README.md](hosts/README.md). |
 | `install/` | `install.ps1` (Windows, env-var redirection) and `install.sh` (WSL/macOS, symlinks). Both idempotent; both back up what they replace. |
-| `remote/` | provisioning for the self-hosted runner the reusable workflow targets. Scaffold. |
+| `remote/` | provisioning for the self-hosted runner the reusable workflow targets. See [remote/runner/README.md](remote/runner/README.md). |
 
 ```bash
 install/install.sh --host wsl --dry-run    # preview
