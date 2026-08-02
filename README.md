@@ -16,7 +16,11 @@ Design and phasing: [docs/2026-07-26-sandcastle-kit-shared-package-prd.md](docs/
 
 ---
 
-## Install
+## Install the kit
+
+> Looking to set up a machine's **terminal** (WezTerm, Starship, Herdr, shell
+> profile) from this repo? That is a different thing entirely and `npm` plays no
+> part in it — go to [install/AGENTS.md](install/AGENTS.md).
 
 ```bash
 npm i -D github:alandy88/lif-sandcastle#v0.2.4
@@ -367,15 +371,18 @@ is the same person's environment, and one repo beats four.
 
 | Directory | What it holds |
 |---|---|
-| `local/` | terminal config: WezTerm, Starship, Herdr, the pwsh 7 profile. Absorbed from `lif-terminal` with its history. See [local/README.md](local/README.md). |
-| `hosts/` | per-machine overlays, one directory per host, keeping machine-specific paths out of `local/`. See [hosts/README.md](hosts/README.md). |
-| `install/` | `install.ps1` (Windows, env-var redirection) and `install.sh` (WSL/macOS, symlinks). Both idempotent; both back up what they replace. |
+| `local/` | terminal config: WezTerm, Starship, Herdr, the pwsh 7 profile, the zsh profile. Absorbed from `lif-terminal` with its history. See [local/README.md](local/README.md). |
+| `environments/` | one directory per named machine, holding every machine-specific value and declaring which values an environment owes. See [environments/README.md](environments/README.md). |
+| `install/` | `install.ps1` (Windows, env-var redirection) and `install.sh` (macOS/WSL, symlinks + the zsh and Herdr wiring). Both idempotent; both back up what they replace. Agents installing this on a machine start at [install/AGENTS.md](install/AGENTS.md). |
 | `remote/` | provisioning for the self-hosted runner the reusable workflow targets. See [remote/runner/README.md](remote/runner/README.md). |
 
 ```bash
-install/install.sh --host wsl --dry-run    # preview
-install/install.sh --host wsl              # WSL or macOS
+install/install.sh --dry-run              # preview; environment auto-detected
+install/install.sh --env mac              # macOS or WSL; --env overrides detection
 ```
+
+The installer places config and installs no software; the prerequisites and the
+values it cannot invent are in [install/AGENTS.md](install/AGENTS.md).
 
 Bun installs this repo by tag and copies the whole tree into `node_modules`,
 ignoring `package.json`'s `files` — so keep large binaries out of `local/` and

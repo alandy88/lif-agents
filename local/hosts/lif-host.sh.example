@@ -1,0 +1,24 @@
+# Environment overlay for zsh/profile.zsh -- copy to
+# <environments>/<env>/host.sh (install.sh links it to ~/.config/lif-host.sh)
+# and fill in. Sourced, not executed: set variables, run nothing.
+#
+# Every key is optional; the profile warns instead of failing when one it needs
+# is unset. Replace every REPLACE_ME -- do not guess a path, ask.
+# Full key list and which values are captain-only: environments/README.md.
+
+LIF_STUDIO_DIR=REPLACE_ME       # `lif` jumps here
+LIF_NOTES_DIR=REPLACE_ME        # `notes` jumps here
+LIF_IMAGEHUB_DIR=REPLACE_ME     # `imagehub` jumps here
+
+LIF_FIRSTMATE_DIR="$HOME/firstmate"          # `fm`, `fmsh`
+LIF_HERDR_PATH="$HOME/.local/bin/fm-herdr"   # `fmw`
+
+# Bitwarden Secrets project id (a UUID). The access *token* is never here:
+# macOS reads it from the Keychain, Linux/WSL from ~/.bws/token (mode 0600).
+LIF_BWS_PROJECT_ID=REPLACE_ME
+
+# Shell Herdr opens panes with. install.sh writes this into the installed
+# herdr config.toml; leave unset to take whichever zsh is on PATH (or the login
+# shell if there is none). Never set it empty -- Herdr reads an empty value as
+# "fall back to Windows PowerShell".
+# LIF_HERDR_DEFAULT_SHELL=/bin/zsh

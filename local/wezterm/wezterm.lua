@@ -2,11 +2,11 @@ local wezterm = require 'wezterm'
 
 local config = wezterm.config_builder()
 
--- Host overlay: per-machine paths, kept out of this repo.
+-- Environment overlay: per-machine paths, kept out of this repo.
 -- `pcall(dofile)` rather than `require` so a *syntax error* in the overlay
 -- degrades too -- WezTerm silently falls back to its full defaults on any
 -- config error and prints nothing, so an unguarded read would break
--- everything below invisibly. See hosts/lif-host.lua.example.
+-- everything below invisibly. See environments/README.md.
 local ok, overlay = pcall(dofile, wezterm.home_dir .. '/.config/lif-host.lua')
 if not ok or type(overlay) ~= 'table' then overlay = {} end
 
@@ -70,14 +70,18 @@ end
 -- Window appearance
 config.initial_cols = 120
 config.initial_rows = 28
--- Nerd Font is installed Windows-side; WezTerm renders from the host.
--- Installed under the abbreviated family names "JetBrainsMono NF" / "NFM",
--- which WezTerm resolves from the canonical names via DirectWrite.
+-- The Nerd Font is a prerequisite this repo does not install; it must be
+-- present on the machine WezTerm runs on (that is the Windows side when
+-- WezTerm renders a WSL shell, and the Mac itself on macOS). Windows installs
+-- it under the abbreviated family names "JetBrainsMono NF" / "NFM", which
+-- WezTerm resolves from the canonical names via DirectWrite.
 config.font = wezterm.font_with_fallback {
   'JetBrainsMono Nerd Font',
   'JetBrainsMono Nerd Font Mono',
 }
-config.font_size = 10
+-- Display-specific, so the environment may override it (a HiDPI Mac usually
+-- wants more than 10).
+config.font_size = overlay.font_size or 10
 config.color_scheme = 'rose-pine-moon'
 config.max_fps = 120
 

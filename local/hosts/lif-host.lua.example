@@ -1,8 +1,15 @@
--- Host overlay for wezterm/wezterm.lua -- copy to
--- %USERPROFILE%\.config\lif-host.lua and fill in. See README.md.
+-- Environment overlay for wezterm/wezterm.lua -- copy to
+-- environments/<env>/host.lua (install.sh links it to ~/.config/lif-host.lua),
+-- or on Windows straight to %USERPROFILE%\.config\lif-host.lua, and fill in.
+--
+-- Paths are written in the target environment's own notation: POSIX on macOS
+-- and WSL, Windows drive paths on windows-5090. Neither is the default.
+-- Replace every REPLACE_ME -- do not guess a path, ask. See
+-- environments/README.md for the full key list.
 
 return {
-  stable_diffusion_cwd = "X:\\path\\to\\stable-diffusion",
-  lif_node_cwd = "X:\\path\\to\\comfyui-lif-nodes",
-  playground_cwd = "X:\\path\\to\\playground",
+  stable_diffusion_cwd = "REPLACE_ME",
+  lif_node_cwd = "REPLACE_ME",
+  playground_cwd = "REPLACE_ME",
+  -- font_size = 14,   -- optional; omit to keep the default of 10
 }
