@@ -59,8 +59,9 @@ repo builds `sandcastle:<repo-directory-name>`.
 
 `agent.yml` declares four optional `workflow_call` secrets. Consumers pass them
 with `secrets: inherit`, so each is in practice an **Actions secret on the
-consumer repo** (or on the org, inherited by it). None live on the runner host,
-and no value ever belongs in this repo.
+consumer repo** (or on the org, inherited by it). They are exposed to the runner
+process only for the duration of the job, not configured persistently on the
+host, and no value ever belongs in this repo.
 
 | secret | required | what it does |
 |---|---|---|
@@ -80,8 +81,8 @@ declares nor exports it, so under Actions the only working Claude auth path is
 `CLAUDE_CODE_OAUTH_TOKEN`. Closing that is a workflow change and out of scope
 for this doc.
 
-Rotation is a repo/org settings edit and nothing more: the runner host caches
-none of these — they arrive per job as job environment variables.
+Rotation is a repo/org settings edit: these arrive per job as job environment
+variables.
 
 ## Installing the runner on the host
 
@@ -142,7 +143,7 @@ by adding a `run: which bun git gh docker` step to a scratch workflow.
 
 ### Maintenance
 
-- The runner self-updates its own agent binary; the **toolchain does not**.
+- The runner self-updates its own application; the **toolchain does not**.
   `bun upgrade` and `gh`/`docker` updates are manual.
 - Jobs run directly on the host as the service user, checked out under
   `~/actions-runner/_work`. Only trusted consumer repos should target these
