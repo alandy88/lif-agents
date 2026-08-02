@@ -1,0 +1,12 @@
+# Host overlay for pwsh/profile.ps1 -- copy to
+# %USERPROFILE%\.config\lif-host.ps1 and fill in. See README.md.
+
+$LifHost = @{
+    WslDistro    = 'YOUR-WSL-DISTRO'
+    FirstmateDir = '/home/YOUR-USER/firstmate'
+    HerdrPath    = '/home/YOUR-USER/.local/bin/fm-herdr'
+    StudioDir    = 'X:\path\to\lif-studio'
+    NotesDir     = 'X:\path\to\lif-notes'
+    ImageHubDir  = 'X:\path\to\Image-MetaHub-Personal'
+    BwsProjectId = '00000000-0000-0000-0000-000000000000'
+}

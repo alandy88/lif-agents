@@ -359,6 +359,28 @@ Raw `.mts` is not shipped — tsx/bun transpilation of `.mts` inside
 declarations keep `.mts` and resolve to the sibling `.d.mts`, so a consumer
 typechecking against `dist/` sees real types.
 
+## Also in this repo
+
+The kit's JavaScript API is the published surface; the directories below hold
+environment files and are never imported by the kit. They live here because it
+is the same person's environment, and one repo beats four.
+
+| Directory | What it holds |
+|---|---|
+| `local/` | terminal config: WezTerm, Starship, Herdr, the pwsh 7 profile. Absorbed from `lif-terminal` with its history. See [local/README.md](local/README.md). |
+| `hosts/` | per-machine overlays, one directory per host, keeping machine-specific paths out of `local/`. See [hosts/README.md](hosts/README.md). |
+| `install/` | `install.ps1` (Windows, env-var redirection) and `install.sh` (WSL/macOS, symlinks). Both idempotent; both back up what they replace. |
+| `remote/` | provisioning for the self-hosted runner the reusable workflow targets. Scaffold. |
+
+```bash
+install/install.sh --host wsl --dry-run    # preview
+install/install.sh --host wsl              # WSL or macOS
+```
+
+Bun installs this repo by tag and copies the whole tree into `node_modules`,
+ignoring `package.json`'s `files` — so keep large binaries out of `local/` and
+`remote/`. These directories are not part of the kit's JavaScript API.
+
 ## Developing the kit
 
 ```bash

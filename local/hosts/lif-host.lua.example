@@ -1,0 +1,8 @@
+-- Host overlay for wezterm/wezterm.lua -- copy to
+-- %USERPROFILE%\.config\lif-host.lua and fill in. See README.md.
+
+return {
+  stable_diffusion_cwd = "X:\\path\\to\\stable-diffusion",
+  lif_node_cwd = "X:\\path\\to\\comfyui-lif-nodes",
+  playground_cwd = "X:\\path\\to\\playground",
+}
