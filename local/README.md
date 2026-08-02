@@ -1,7 +1,7 @@
 # lif-terminal
 
 Terminal config: WezTerm + Herdr + Starship + a shell profile — pwsh 7 on
-Windows, zsh on macOS and WSL. Every host installs all four; only the shell
+Windows, zsh on macOS and WSL. Every environment uses all four; only the shell
 profile differs. On Windows the firstmate helpers bridge into WSL, on macOS and
 WSL they run locally.
 
@@ -25,10 +25,12 @@ Developer Mode or admin, and junctions only work on directories — which
 `wezterm.lua` and `starship.toml` are not. `install.sh` symlinks instead.
 
 Herdr reads `%APPDATA%\herdr\config.toml` on Windows and
-`$XDG_CONFIG_HOME/herdr/config.toml` (default `~/.config`) on unix;
-`HERDR_CONFIG_PATH` overrides both. `herdr/config.toml` here is a **template**,
-not a drop-in copy: its `default_shell` is environment-owned and substituted at
-install time. `install.sh` does that automatically; the Windows copy step is in
+`$XDG_CONFIG_HOME/herdr/config.toml` (default `~/.config`) on Linux. The macOS
+path is inferred, not verified; [the installation instructions](../install/AGENTS.md)
+record how to settle it. `HERDR_CONFIG_PATH` overrides the discovered path.
+`herdr/config.toml` here is a **template**, not a drop-in copy: its
+`default_shell` is environment-owned and substituted at install time.
+`install.sh` does that automatically; the Windows copy step is in
 [environments/windows-5090/README.md](../environments/windows-5090/README.md).
 
 ## Prerequisites
@@ -50,9 +52,8 @@ On macOS or WSL, run `install/install.sh` instead (it detects the environment;
 [install/AGENTS.md](../install/AGENTS.md), which covers the prerequisites and
 the values that must be asked for rather than guessed.
 
-Idempotent — re-run after a `git pull`. It backs up anything it replaces to
-`<name>.pre-lif-terminal.bak` (or a numbered suffix when that backup already
-exists) and leaves the pre-existing configs in place.
+Idempotent — re-run after a `git pull`. See the installing-agent instructions
+above for the Unix installer's backup behavior.
 
 ## Environment overlay
 
@@ -86,8 +87,10 @@ committed, for any environment.
 
 Every key is optional. All three configs degrade safely without the overlay: a
 missing or malformed `lif-host.lua` yields an empty launch menu with the rest of
-the WezTerm config intact, and a missing or malformed `lif-host.sh`/`lif-host.ps1`
-leaves the affected shell functions warning instead of running.
+the WezTerm config intact, and missing `lif-host.sh`/`lif-host.ps1` files leave
+the affected shell functions warning instead of running. Malformed PowerShell
+is also caught; `lif-host.sh` is sourced as shell code and must be syntactically
+valid.
 
 Then verify, because **WezTerm falls back to full defaults on any config error
 without printing anything** — a clean-looking launch proves nothing:

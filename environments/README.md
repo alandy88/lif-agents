@@ -18,9 +18,11 @@ One directory per environment, each holding up to three files:
 The installed names keep the `lif-host` prefix the configs already read; renaming
 them would break the Windows overlay, which is hand-placed at those paths.
 
-Every file is optional and every key inside it is optional — a missing or
-malformed overlay degrades to defaults rather than breaking the config.
-Templates with the full key list: `local/hosts/lif-host.{lua,sh,ps1}.example`.
+Every file is optional and every key inside it is optional. Missing overlays
+degrade to defaults rather than breaking the config; malformed Lua and
+PowerShell overlays do too. `host.sh` is sourced as shell code and must be
+syntactically valid. Templates with the full key list:
+`local/hosts/lif-host.{lua,sh,ps1}.example`.
 
 Select an environment with `install/install.sh --env <name>`; with no `--env` it
 detects `mac` on Darwin and `wsl` under WSL. `--host` is accepted as an alias.
@@ -64,8 +66,8 @@ the installer always writes a concrete value.
 Overlay files may name a secret's *location*, never its value. The BWS project
 id and the BWS access token stay out of git:
 
-- `local/.gitignore` ignores `lif-host.{lua,sh,ps1}` anywhere in the tree, so a
-  populated overlay cannot be committed by accident.
+- The root `.gitignore` ignores `environments/*/host.{lua,sh,ps1}`, so a
+  populated environment overlay cannot be committed by accident.
 - The access token is never in an overlay at all. macOS reads it from the
   Keychain, Linux/WSL from `~/.bws/token` (mode 0600), Windows from a DPAPI
   blob — see `local/README.md`.

@@ -88,8 +88,9 @@ install/install.sh --dry-run     # preview; add --env <name> to override detecti
 install/install.sh
 ```
 
-It is idempotent and backs up anything it replaces to
-`<name>.pre-lif-terminal.bak`. It:
+It is idempotent. Regular files and directories it replaces are backed up to
+`<name>.pre-lif-terminal.bak`; an existing symlink is replaced without a backup.
+It:
 
 - symlinks `wezterm.lua` and `starship.toml` into `$XDG_CONFIG_HOME`
 - symlinks the environment's `host.lua` / `host.sh` / `host.ps1` to

@@ -373,12 +373,12 @@ is the same person's environment, and one repo beats four.
 |---|---|
 | `local/` | terminal config: WezTerm, Starship, Herdr, the pwsh 7 profile, the zsh profile. Absorbed from `lif-terminal` with its history. See [local/README.md](local/README.md). |
 | `environments/` | one directory per named machine, holding every machine-specific value and declaring which values an environment owes. See [environments/README.md](environments/README.md). |
-| `install/` | `install.ps1` (Windows, env-var redirection) and `install.sh` (macOS/WSL, symlinks + the zsh and Herdr wiring). Both idempotent; both back up what they replace. Agents installing this on a machine start at [install/AGENTS.md](install/AGENTS.md). |
+| `install/` | `install.ps1` (Windows, env-var redirection) and `install.sh` (macOS/WSL, symlinks + the zsh and Herdr wiring). Both are idempotent. Agents installing this on a machine start at [install/AGENTS.md](install/AGENTS.md). |
 | `remote/` | provisioning for the self-hosted runner the reusable workflow targets. See [remote/runner/README.md](remote/runner/README.md). |
 
 ```bash
 install/install.sh --dry-run              # preview; environment auto-detected
-install/install.sh --env mac              # macOS or WSL; --env overrides detection
+install/install.sh --env wsl              # override environment detection
 ```
 
 The installer places config and installs no software; the prerequisites and the
