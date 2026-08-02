@@ -2,52 +2,70 @@ local wezterm = require 'wezterm'
 
 local config = wezterm.config_builder()
 
--- Paths for launch menu entries
-local comfyui_bat_path = "C:\\Apps\\ComfyUI-Portable\\run_nvidia_gpu.bat"
-local comfyui_v2_bat_path = "C:\\Apps\\ComfyUI-Portable-V2\\ComfyUI-Easy-Install\\run_nvidia_gpu.bat"
-local comfyui_cwd = "C:\\Apps\\ComfyUI-Portable"
-local comfyui_remote_script = "d:\\share\\Scripts\\ComfyUI-RemoteStart.ps1"
-local comfyui_remote_stop_script = "d:\\share\\Scripts\\ComfyUI-RemoteStop.ps1"
-local claude_cwd = "D:\\Git\\stable-diffusion"
-local claude_cwd_lif = "D:\\share\\ComfyuiPersonalNodes\\comfyui-lif-nodes"
+-- Host overlay: per-machine paths, kept out of this repo.
+-- `pcall(dofile)` rather than `require` so a *syntax error* in the overlay
+-- degrades too -- WezTerm silently falls back to its full defaults on any
+-- config error and prints nothing, so an unguarded read would break
+-- everything below invisibly. See hosts/lif-host.lua.example.
+local ok, overlay = pcall(dofile, wezterm.home_dir .. '/.config/lif-host.lua')
+if not ok or type(overlay) ~= 'table' then overlay = {} end
 
--- Launch menu configuration
-config.launch_menu = {
-  {
+local sd_cwd = overlay.stable_diffusion_cwd
+local lif_node_cwd = overlay.lif_node_cwd
+local playground_cwd = overlay.playground_cwd
+
+-- Launch menu configuration. Entries whose overlay key is absent are skipped,
+-- so a host that has not defined one gets a smaller menu rather than an entry
+-- pointing nowhere.
+config.launch_menu = {}
+local menu = config.launch_menu
+
+if sd_cwd then
+  table.insert(menu, {
     label = "Claude:Stable Diffusion",
     args = { 'claude', '--dangerously-skip-permissions' },
-    cwd = claude_cwd,
-  },
-  {
+    cwd = sd_cwd,
+  })
+end
+if lif_node_cwd then
+  table.insert(menu, {
     label = "Claude:LIF Node",
     args = { 'claude', '--dangerously-skip-permissions' },
-    cwd = claude_cwd_lif,
-  },
-  {
+    cwd = lif_node_cwd,
+  })
+end
+if playground_cwd then
+  table.insert(menu, {
     label = "Claude: Playground",
     args = { 'claude', '--dangerously-skip-permissions' },
-    cwd = 'D:\\Git\\playground',
-  },
-  {
+    cwd = playground_cwd,
+  })
+end
+if sd_cwd then
+  table.insert(menu, {
     label = "Codex:Stable Diffusion",
     args = { 'codex' },
-    cwd = claude_cwd,
-  },
-  {
+    cwd = sd_cwd,
+  })
+end
+if lif_node_cwd then
+  table.insert(menu, {
     label = "Codex:LIF Node",
-    args = { 'codex', '--cd', claude_cwd_lif },
-  },  
-  {
+    args = { 'codex', '--cd', lif_node_cwd },
+  })
+  table.insert(menu, {
     label = "OpenCode: LIF Node",
     args = { 'opencode' },
-    cwd = claude_cwd_lif,
-  },
-  {
+    cwd = lif_node_cwd,
+  })
+end
+if sd_cwd then
+  table.insert(menu, {
     label = "OpenCode: Stable Diffusion",
     args = { 'opencode' },
-    cwd = claude_cwd,
-  },
-}
+    cwd = sd_cwd,
+  })
+end
 
 -- Window appearance
 config.initial_cols = 120

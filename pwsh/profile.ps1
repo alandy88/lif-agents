@@ -1,5 +1,35 @@
-# oh-my-posh init pwsh --config C:\Users\peter\emodipt-extend.omp.json | Invoke-Expression
 Invoke-Expression (&starship init powershell)
+
+# --- Host overlay: per-machine paths and ids, kept out of this repo ---
+# Sets $LifHost. Absent overlay -> empty table; host-path consumers below guard
+# on their own key and warn rather than erroring. See hosts/lif-host.ps1.example.
+$__lifHostOverlay = "$env:USERPROFILE\.config\lif-host.ps1"
+$LifHost = @{}
+# try/catch because a *syntax* error in the overlay makes the dot-source throw
+# a terminating parse error, which would otherwise abort the rest of this file.
+if (Test-Path $__lifHostOverlay) {
+    try { . $__lifHostOverlay }
+    catch {
+        $LifHost = @{}
+        Write-Warning "lif-host overlay failed to load: $_"
+    }
+}
+if ($LifHost -isnot [hashtable]) { $LifHost = @{} }
+if (-not $LifHost.BwsProjectId) {
+    Remove-Item Env:LIF_STUDIO_BWS_PROJECT -ErrorAction SilentlyContinue
+}
+Remove-Variable __lifHostOverlay -ErrorAction SilentlyContinue
+
+# Returns the overlay values for $Keys, or $null after warning if any is unset.
+function Get-LifHostValue {
+    param([string[]]$Keys)
+    $missing = $Keys | Where-Object { -not $LifHost[$_] }
+    if ($missing) {
+        Write-Warning "lif-host overlay does not define '$($missing -join "', '")' (see hosts/lif-host.ps1.example)"
+        return $null
+    }
+    $Keys | ForEach-Object { $LifHost[$_] }
+}
 
 # Transient prompt: collapse past prompts to a minimal character in scrollback
 function Invoke-Starship-TransientFunction { &starship module character }
@@ -41,26 +71,35 @@ function ccm {
 }
 
 # --- firstmate (WSL) ---
-# Launches Claude Code inside Ubuntu-24.04 at ~/firstmate. `bash -lc` is required:
+# Launches Claude Code inside the overlay's WSL distro at its firstmate dir.
+# `bash -lc` is required:
 # nvm's PATH lives in ~/.profile, and firstmate's non-interactive bin/*.sh need node.
 # wsl.exe drops trailing positional args before bash sees them, so args are
 # single-quoted and spliced into the command string instead of passed through.
 function fm {
+    if (-not ($v = Get-LifHostValue WslDistro, FirstmateDir)) { return }
     $q = ($args | ForEach-Object { "'" + ("$_" -replace "'", "'\''") + "'" }) -join ' '
-    wsl.exe -d Ubuntu-24.04 --cd /home/peter/firstmate -- bash -lc "claude --dangerously-skip-permissions $q"
+    wsl.exe -d $v[0] --cd $v[1] -- bash -lc "claude --dangerously-skip-permissions $q"
 }
 
 # Shell in the firstmate home, for bin/ scripts, bootstrap, herdr, treehouse.
-function fmsh { wsl.exe -d Ubuntu-24.04 --cd /home/peter/firstmate -- bash -l }
+function fmsh {
+    if (-not ($v = Get-LifHostValue WslDistro, FirstmateDir)) { return }
+    wsl.exe -d $v[0] --cd $v[1] -- bash -l
+}
 
-# Herdr in WSL, with a Claude pane already up in ~/firstmate. The logic lives in
-# the Linux script because PowerShell's native-arg handling eats $(...) and
-# embedded double quotes, and herdr sizes new panes from the attached client.
-function fmw { wsl.exe -d Ubuntu-24.04 -- /home/peter/.local/bin/fm-herdr }
+# Herdr in WSL, with a Claude pane already up in the firstmate directory. The
+# logic lives in the Linux script because PowerShell's native-arg handling
+# eats $(...) and embedded double quotes, and herdr sizes new panes from the
+# attached client.
+function fmw {
+    if (-not ($v = Get-LifHostValue WslDistro, HerdrPath)) { return }
+    wsl.exe -d $v[0] -- $v[1]
+}
 
-function lif { Set-Location 'D:\Git\lif-studio' }
-function notes { Set-Location 'D:\Git\lif-notes' }
-function imagehub { Set-Location 'D:\Git\Image-MetaHub-Personal' }
+function lif { if ($v = Get-LifHostValue StudioDir) { Set-Location $v } }
+function notes { if ($v = Get-LifHostValue NotesDir) { Set-Location $v } }
+function imagehub { if ($v = Get-LifHostValue ImageHubDir) { Set-Location $v } }
 
 # psmux is the multiplexer. It defaults to pwsh and ships `psmux`/`pmux`/`tmux`
 # aliases of its own, so no wrapper function is needed here — the previous `z`
@@ -71,7 +110,7 @@ $__bws = "$env:USERPROFILE\.bws\token.dpapi"
 if (Test-Path $__bws) {
     $sec = Get-Content $__bws | ConvertTo-SecureString
     $env:BWS_ACCESS_TOKEN       = [System.Net.NetworkCredential]::new('', $sec).Password
-    $env:LIF_STUDIO_BWS_PROJECT = 'be3c7d47-4b61-4b34-bef7-b45c00ae000f'
+    if ($LifHost.BwsProjectId) { $env:LIF_STUDIO_BWS_PROJECT = $LifHost.BwsProjectId }
     Remove-Variable sec
 }
 Remove-Variable __bws -ErrorAction SilentlyContinue
@@ -95,4 +134,3 @@ function claude {
         & $exe @args
     }
 }
-

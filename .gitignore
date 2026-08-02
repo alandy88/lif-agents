@@ -1,3 +1,10 @@
 *.bak
 *.pre-lif-terminal.bak
 local.ps1
+
+# Real host overlays never belong in the repo -- only the .example templates
+# under hosts/ are tracked. Covers a stray copy anywhere in the tree.
+lif-host.lua
+lif-host.ps1
+!hosts/lif-host.lua.example
+!hosts/lif-host.ps1.example
