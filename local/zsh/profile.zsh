@@ -4,7 +4,11 @@
 # from ~/.zshrc by a marked block. Sourced, never executed.
 #
 # Written to run under bash too (no zsh-only syntax) so a bash login on WSL can
-# source the same file; only the `starship init` line differs per shell.
+# source the same file; only the `starship init` and completion lines differ.
+#
+# This file owns everything portable across machines. Anything true of one
+# machine only -- a checkout path, a work token, a platform-specific PATH entry
+# -- belongs in the environment overlay instead. See environments/README.md.
 #
 # Where a mechanism in profile.ps1 is Windows-only, the equivalent here is
 # native rather than a literal port: `fm`/`fmsh`/`fmw` shell out to wsl.exe from
@@ -47,34 +51,99 @@ _lif_need() {
     return 1
 }
 
-# --- Claude Code ---
-cc() {
-    local sub=${1:-}
-    [ $# -gt 0 ] && shift
-    case "$sub" in
-        resume)   claude --dangerously-skip-permissions --resume "$@" ;;
-        remote)   claude --dangerously-skip-permissions remote-control --spawn worktree "$@" ;;
-        w)        if [ $# -gt 0 ]; then claude --dangerously-skip-permissions --worktree "$1"
-                  else claude --dangerously-skip-permissions --worktree; fi ;;
-        sonnet)   claude --dangerously-skip-permissions --model claude-sonnet-4-6 "$@" ;;
-        opus)     claude --dangerously-skip-permissions --model 'claude-opus-4-6[1m]' "$@" ;;
-        opus45)   claude --dangerously-skip-permissions --model claude-opus-4-5-20251101 "$@" ;;
-        bare)     claude --dangerously-skip-permissions --bare --print "$@" ;;
-        print)    claude --dangerously-skip-permissions -p "$@" ;;
-        designer) claude --dangerously-skip-permissions --agent designer-genz "$@" ;;
-        '')       claude --dangerously-skip-permissions ;;
-        *)        claude --dangerously-skip-permissions "$sub" "$@" ;;
+# --- Editor ---
+if command -v nvim >/dev/null 2>&1; then
+    EDITOR=nvim
+    VISUAL=nvim
+    export EDITOR VISUAL
+    alias vim='nvim'
+    alias vi='nvim'
+fi
+
+# --- Python ---
+# Only alias when there is no bare `python`, so a venv that provides one is not
+# shadowed by the system python3.
+if ! command -v python >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then
+    alias python=python3
+fi
+if ! command -v pip >/dev/null 2>&1 && command -v pip3 >/dev/null 2>&1; then
+    alias pip=pip3
+fi
+
+# --- PATH ---
+# Prepended, and guarded so re-sourcing this file does not stack duplicates.
+case ":$PATH:" in
+    *":$HOME/.local/bin:"*) ;;
+    *) PATH="$HOME/.local/bin:$PATH"; export PATH ;;
+esac
+
+if [ -d "$HOME/.bun" ]; then
+    BUN_INSTALL="$HOME/.bun"
+    export BUN_INSTALL
+    case ":$PATH:" in
+        *":$BUN_INSTALL/bin:"*) ;;
+        *) PATH="$BUN_INSTALL/bin:$PATH"; export PATH ;;
+    esac
+    [ -s "$BUN_INSTALL/_bun" ] && . "$BUN_INSTALL/_bun"
+fi
+
+# --- Herdr ---
+# Herdr is the multiplexer; this is the tmux-shaped front door onto it.
+#   tm            attach to the default persistent session (creating it)
+#   tm work       attach to "work", creating it if missing
+#   tm ls         list sessions
+#   tm kill work  stop "work"
+tm() {
+    case "${1:-}" in
+        "")     herdr ;;
+        ls)     herdr session list ;;
+        kill)   herdr session stop "$2" ;;
+        *)      herdr --session "$1" ;;
     esac
 }
 
-_img() {
-    local slash=$1 path=$2
-    shift 2
-    if [ $# -gt 0 ]; then cc print "$slash $path $*"; else cc print "$slash $path"; fi
+# --- Claude Code ---
+# One dispatcher, two config directories:
+#   cc  [word] [args...]   CLAUDE_CONFIG_DIR=~/.claude    (standard)
+#   ccp [word] [args...]   CLAUDE_CONFIG_DIR=~/.claude-p  (personal)
+#   ccr / ccpr             the same two, resuming
+# The optional first word is either a model (fable|opus|opus1m|opus45|sonnet|
+# haiku) or an action (resume|remote|w|bare|print|designer); anything else is
+# passed straight through. CLAUDE_CONFIG_DIR is exported in a subshell so it is
+# deterministic even when the surrounding shell already exports one, and so it
+# survives into the `bws run` child that the claude wrapper at the bottom
+# spawns. `claude` here is that wrapper, deliberately -- not `command claude`.
+_cc_run() {
+    local dir=$1; shift
+    local B=--dangerously-skip-permissions
+    local sub=${1:-}
+    [ $# -gt 0 ] && shift
+    (
+        CLAUDE_CONFIG_DIR=$dir
+        export CLAUDE_CONFIG_DIR
+        case "$sub" in
+            fable)    claude "$B" --model claude-fable-5 "$@" ;;
+            opus)     claude "$B" --model claude-opus-5 "$@" ;;
+            opus1m)   claude "$B" --model 'claude-opus-5[1m]' "$@" ;;
+            opus45)   claude "$B" --model claude-opus-4-5-20251101 "$@" ;;
+            sonnet)   claude "$B" --model claude-sonnet-5 "$@" ;;
+            haiku)    claude "$B" --model claude-haiku-4-5 "$@" ;;
+            resume)   claude "$B" --resume "$@" ;;
+            remote)   claude "$B" remote-control --spawn worktree "$@" ;;
+            w)        if [ $# -gt 0 ]; then claude "$B" --worktree "$1"
+                      else claude "$B" --worktree; fi ;;
+            bare)     claude "$B" --bare --print "$@" ;;
+            print)    claude "$B" -p "$@" ;;
+            designer) claude "$B" --agent designer-genz "$@" ;;
+            '')       claude "$B" ;;
+            *)        claude "$B" "$sub" "$@" ;;
+        esac
+    )
 }
-ccc() { [ $# -ge 1 ] || { echo "Usage: ccc <path> [extra args...]"; return 1; }; _img '/image clean' "$@"; }
-ccp() { [ $# -ge 1 ] || { echo "Usage: ccp <path> [extra args...]"; return 1; }; _img '/image preview' "$@"; }
-ccm() { [ $# -ge 1 ] || { echo "Usage: ccm <dir> [extra args...]"; return 1; }; _img '/image-matcher' "$@"; }
+cc()   { _cc_run "$HOME/.claude"   "$@"; }
+ccp()  { _cc_run "$HOME/.claude-p" "$@"; }
+ccr()  { cc  resume "$@"; }
+ccpr() { ccp resume "$@"; }
 
 # --- firstmate ---
 # The pwsh versions cross a wsl.exe bridge because firstmate lives in WSL. Here
@@ -99,11 +168,12 @@ fmw() {
     "$LIF_HERDR_PATH" "$@"
 }
 
+# Directory shortcuts. `github` deliberately shadows GitHub Desktop's `github`
+# launcher on PATH, which is what the alias it replaces did too.
 lif()      { _lif_need LIF_STUDIO_DIR   && cd "$LIF_STUDIO_DIR"; }
 notes()    { _lif_need LIF_NOTES_DIR    && cd "$LIF_NOTES_DIR"; }
 imagehub() { _lif_need LIF_IMAGEHUB_DIR && cd "$LIF_IMAGEHUB_DIR"; }
-
-# Herdr handles multiplexing; no wrapper function is needed here.
+github()   { _lif_need LIF_GITHUB_DIR   && cd "$LIF_GITHUB_DIR"; }
 
 # --- BWS access token ---
 # DPAPI has no unix counterpart, so the token comes from the OS keystore:
@@ -157,3 +227,13 @@ claude() {
         "$exe" "$@"
     fi
 }
+
+# --- Completions ---
+# Last, so anything above that adds to fpath is picked up. zsh only: bash's
+# completion system is initialised by its own /etc profile scripts.
+if [ -n "${ZSH_VERSION:-}" ]; then
+    [ -d "$HOME/.docker/completions" ] && fpath=("$HOME/.docker/completions" $fpath)
+    [ -d /opt/homebrew/share/zsh/site-functions ] && fpath=(/opt/homebrew/share/zsh/site-functions $fpath)
+    autoload -Uz compinit
+    compinit
+fi

@@ -377,8 +377,9 @@ is the same person's environment, and one repo beats four.
 | `remote/` | provisioning for the self-hosted runner the reusable workflow targets. See [remote/runner/README.md](remote/runner/README.md). |
 
 ```bash
-install/install.sh --dry-run              # preview; environment auto-detected
-install/install.sh --env wsl              # override environment detection
+install/install.sh --env <name> --dry-run # preview a first install
+install/install.sh --env <name>           # install and remember the environment
+install/install.sh                        # later runs reuse the remembered name
 ```
 
 The installer places config and installs no software; the prerequisites and the

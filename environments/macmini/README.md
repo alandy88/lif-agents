@@ -1,16 +1,27 @@
-# `mac` — the captain's Mac mini (`peter-macmini`)
+# macmini — the captain's Mac mini (`peter-macmini`)
 
 macOS 26.5.2, arm64 (Apple Silicon), Homebrew at `/opt/homebrew/bin/brew`.
-Installed with `install/install.sh` (detects `mac` on Darwin, no `--env` needed).
 
-The overlay files themselves are **not** committed: `host.lua` and `host.sh` hold
-the captain's real paths and are gitignored — see
-[../README.md](../README.md#secrets). This file records what the machine owes and
-what has already been settled on it, so the next agent does not re-derive it.
+This machine was installed before the `mac` → `macbookpro-work` rename, when
+`mac` was its name; see "A machine installed before the rename" in
+[install/AGENTS.md](../../install/AGENTS.md) for the one-time move that finishes
+that rename on the machine itself. Until that move is done, `install.sh` there
+exits 2 rather than installing.
+
+**Its overlay files are deliberately not committed** — `host.lua` and `host.sh`
+hold the captain's real paths and are gitignored, see
+[../README.md](../README.md#secrets). After the move they live at
+`environments/macmini/host.{lua,sh}` on the machine, symlinked to
+`~/.config/lif-host.{lua,sh}` by `install/install.sh --env macmini`. This file
+records what the machine owes and what has already been settled on it, so the
+next agent does not re-derive it.
+
+No `host.ps1`: there is no pwsh 7 on this machine.
 
 ## What this machine owns
 
-Of the seven captain-only values, exactly one exists here.
+Of the eight captain-only values in [../README.md](../README.md), exactly one
+exists here.
 
 | Key | Value on this machine |
 |---|---|
@@ -20,23 +31,27 @@ Of the seven captain-only values, exactly one exists here.
 | `playground_cwd` | absent — omit the key |
 | `LIF_NOTES_DIR` | absent — omit the key |
 | `LIF_IMAGEHUB_DIR` | absent — omit the key |
+| `LIF_GITHUB_DIR` | absent — omit the key |
 | `LIF_BWS_PROJECT_ID` | unused; this machine does not use BWS, so skip `install/AGENTS.md` §6 entirely |
 | `LIF_FIRSTMATE_DIR` | absent — there is no firstmate checkout here |
 | `LIF_HERDR_PATH` | absent — there is no `fm-herdr` launcher here |
 | `LIF_HERDR_DEFAULT_SHELL` | leave unset; `install.sh` resolves `/bin/zsh` from PATH |
 
 **Omit an absent key; never write `""`.** In Lua the empty string is ordinarily
-truthy; `local/wezterm/wezterm.lua` defensively normalizes it to absent, but the
-overlay should still say what it means.
+truthy; `local/wezterm/wezterm.lua` defensively normalizes it to absent via
+`cwd_or_nil`, but the overlay should still say what it means.
 
 An **empty launch menu is the correct outcome here**, not a failed install.
 
 `font_size` is deliberately **omitted**, so WezTerm uses its default of 10. That
 is a captain decision for this display, not an oversight — do not raise it
 because the HiDPI note in `local/wezterm/wezterm.lua` suggests a Mac usually
-wants more.
+wants more, and do not add a `font_size` key to this environment's `host.lua`.
 
-No `host.ps1`: there is no pwsh 7 on this machine.
+The window treatment is shared, not machine-specific: this machine takes the
+same titlebar-less, transparent, blurred window as the rest of the fleet, by
+explicit captain decision. Do not add a per-machine `window_decorations`
+override.
 
 ## Settled on this machine
 

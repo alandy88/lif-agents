@@ -45,8 +45,10 @@ git clone https://github.com/alandy88/lif-sandcastle   # anywhere you keep check
 .\lif-sandcastle\install\install.ps1                  # -WhatIf to preview
 ```
 
-On macOS or WSL, run `install/install.sh` instead (it detects the environment;
-`--env <name>` overrides). Agents installing this on a machine should follow
+On macOS or WSL, run `install/install.sh` instead. It reuses the environment
+recorded by the last run on that machine, detects `wsl` under WSL, and never
+guesses on macOS -- so a first install there needs `--env <name>`. Agents
+installing this on a machine should follow
 [install/AGENTS.md](../install/AGENTS.md), which covers the prerequisites and
 the values that must be asked for rather than guessed.
 
