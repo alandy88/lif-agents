@@ -147,8 +147,12 @@ by adding a `run: which bun git gh docker` step to a scratch workflow.
 - Jobs run directly on the host as the service user, checked out under
   `~/actions-runner/_work`. Only trusted consumer repos should target these
   labels — anything that can dispatch this workflow gets code execution on the
-  host. That is why `agent.yml` routes every free-text input through environment
-  variables instead of `${{ }}` interpolation.
+  host. The free-text dispatch inputs (`profile`, `model`, and `issue`) are
+  routed through environment variables instead of `${{ }}` interpolation, while
+  `install-command` is a deliberate exception interpolated into a host-side
+  `run:` script because it can only come from the consumer's committed workflow
+  file, not dispatch free text; treat that caller-controlled command as trusted
+  shell.
 - Disk fills quietly: `_work` checkouts (`fetch-depth: 0`) plus the Docker image
   cache. Prune both periodically.
 
