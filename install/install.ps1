@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Point WezTerm, Starship, psmux, and the PowerShell profile at this repo.
+  Point WezTerm, Starship, and the PowerShell profile at this repo.
 
 .DESCRIPTION
   Windows symlinks need Developer Mode or admin, and junctions only work on
@@ -39,7 +39,6 @@ function Set-UserEnv {
 Write-Host "Environment variables" -ForegroundColor Cyan
 Set-UserEnv WEZTERM_CONFIG_FILE (Join-Path $repo 'local\wezterm\wezterm.lua')
 Set-UserEnv STARSHIP_CONFIG     (Join-Path $repo 'local\starship\starship.toml')
-Set-UserEnv PSMUX_CONFIG_FILE   (Join-Path $repo 'local\psmux\psmux.conf')
 
 Write-Host "PowerShell profile" -ForegroundColor Cyan
 $stub = ". '$(Join-Path $repo 'local\pwsh\profile.ps1')'"
