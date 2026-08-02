@@ -1,6 +1,6 @@
 # lif-terminal
 
-Native-Windows terminal config: WezTerm + psmux + Starship + the pwsh 7 profile.
+Native-Windows terminal config: WezTerm + Herdr + Starship + the pwsh 7 profile.
 Optional firstmate helpers launch into WSL; the terminal itself runs on Windows.
 
 ## Layout
@@ -9,23 +9,27 @@ Optional firstmate helpers launch into WSL; the terminal itself runs on Windows.
 |---|---|
 | `wezterm/wezterm.lua` | `WEZTERM_CONFIG_FILE` env var |
 | `starship/starship.toml` | `STARSHIP_CONFIG` env var |
-| `psmux/psmux.conf` | `PSMUX_CONFIG_FILE` env var |
+| `herdr/config.toml` | copied to `%APPDATA%\herdr\config.toml` |
 | `pwsh/profile.ps1` | dot-sourced from `$PROFILE` |
 | `hosts/*.example` | templates for the host overlay (see below) |
 
 Redirect env vars rather than symlinks: Windows symlinks need Developer Mode or
-admin, and junctions only work on directories — which `wezterm.lua`,
-`starship.toml`, and `psmux.conf` are not.
+admin, and junctions only work on directories — which `wezterm.lua` and
+`starship.toml` are not.
+
+Herdr reads `%APPDATA%\herdr\config.toml` by default; `HERDR_CONFIG_PATH`
+overrides that path. The repo copy is the source of truth — copy it over the
+default path by hand:
+
+```powershell
+New-Item -ItemType Directory -Force "$env:APPDATA\herdr" | Out-Null
+Copy-Item .\lif-terminal\herdr\config.toml "$env:APPDATA\herdr\config.toml"
+```
 
 ## Prerequisites
 
-psmux is not installed by `install.ps1` — it comes from winget:
-
-```powershell
-winget install psmux
-```
-
-It ships `psmux`, `pmux`, and `tmux` aliases, all the same binary.
+Herdr is not installed by `install.ps1` — install it separately and let it
+manage its own updates (`herdr update`).
 
 ## Install
 
@@ -74,10 +78,10 @@ Disabled assignments are removed from the key table rather than listed, so the
 absence of the six default `Split*` bindings is the signal. Six means WezTerm
 fell back to defaults and the config did not load.
 
-psmux has no such silent fallback — it reports its config path directly:
+Herdr validates its own config on demand:
 
 ```powershell
-psmux display-message -p '#{prefix}'    # C-a = loaded, C-b = defaults
+herdr config check    # validates config.toml and prints diagnostics
 ```
 
 Once verified, remove the now-shadowed originals:
@@ -90,7 +94,7 @@ Once verified, remove the now-shadowed originals:
 Design decisions and the traps hit while building this stack live in the
 `lif-notes` vault (`notes/terminal-setup.md`,
 `notes/wezterm-zellij-keybindings.md`), not here. This README covers setup only.
-Those notes still describe the Zellij era and have not been rewritten for psmux.
+Those notes still describe the Zellij era and have not been rewritten for Herdr.
 
 `pwsh/profile.ps1` reads a BWS access token from `%USERPROFILE%\.bws\token.dpapi`
 (DPAPI-encrypted, machine-bound, not in this repo); the project id it pairs with

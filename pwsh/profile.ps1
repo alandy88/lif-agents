@@ -101,9 +101,8 @@ function lif { if ($v = Get-LifHostValue StudioDir) { Set-Location $v } }
 function notes { if ($v = Get-LifHostValue NotesDir) { Set-Location $v } }
 function imagehub { if ($v = Get-LifHostValue ImageHubDir) { Set-Location $v } }
 
-# psmux is the multiplexer. It defaults to pwsh and ships `psmux`/`pmux`/`tmux`
-# aliases of its own, so no wrapper function is needed here — the previous `z`
-# function existed only to force Zellij's shell, which it dropped on Windows.
+# Herdr handles multiplexing; no wrapper function is needed here. The previous
+# `z` function existed only to force Zellij's shell, which it dropped on Windows.
 
 # --- BWS access token (DPAPI-decrypted at session start) ---
 $__bws = "$env:USERPROFILE\.bws\token.dpapi"
