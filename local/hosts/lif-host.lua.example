@@ -8,8 +8,8 @@
 -- environments/README.md for the full key list.
 --
 -- No value for a key? Delete the whole line -- do not set it to "". An absent
--- key drops its launch-menu entries; an empty string is truthy in Lua and would
--- keep them, pointing at nowhere.
+-- key states the intent clearly; wezterm.lua defensively treats an empty string
+-- as absent too because empty strings are otherwise truthy in Lua.
 
 return {
   stable_diffusion_cwd = "REPLACE_ME",

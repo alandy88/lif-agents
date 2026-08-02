@@ -25,9 +25,8 @@ Of the seven captain-only values, exactly one exists here.
 | `LIF_HERDR_PATH` | absent — there is no `fm-herdr` launcher here |
 | `LIF_HERDR_DEFAULT_SHELL` | leave unset; `install.sh` resolves `/bin/zsh` from PATH |
 
-**Omit an absent key; never write `""`.** In Lua the empty string is truthy, so
-an empty `stable_diffusion_cwd` would keep its launch-menu entries and point them
-at nowhere. `local/wezterm/wezterm.lua` now normalizes both to absent, but the
+**Omit an absent key; never write `""`.** In Lua the empty string is ordinarily
+truthy; `local/wezterm/wezterm.lua` defensively normalizes it to absent, but the
 overlay should still say what it means.
 
 An **empty launch menu is the correct outcome here**, not a failed install.
