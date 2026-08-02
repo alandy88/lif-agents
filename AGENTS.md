@@ -2,6 +2,15 @@
 
 This file is the project's committed home for project-intrinsic agent knowledge: build, test, release, architecture, and sharp-edge notes that should travel with the code.
 
+- **Asked to "install this" on a machine? Read [install/AGENTS.md](install/AGENTS.md) — not
+  the README's `Install` heading.** This repo holds two unrelated things. The captain's
+  terminal setup (WezTerm, Starship, Herdr, shell profile) is installed by `install/`;
+  `npm i -D github:alandy88/lif-sandcastle` installs the *kit*, a JavaScript package for
+  other repos, and does nothing to this machine's terminal.
+- **Machine-specific values belong to a named environment**, one directory per machine
+  under `environments/`, which also states exactly which values an environment owes.
+  No platform is the default: the Windows drive paths belong to `windows-5090` alone.
+  See [environments/README.md](environments/README.md).
 - **The kit must stay at the repo root.** Neither npm nor bun can install from a
   subdirectory of a git URL, and all three consumers pin `github:alandy88/lif-sandcastle#vX.Y.Z`.
   Moving `src/`, `templates/`, or `package.json` into a subdirectory breaks every consumer.
@@ -23,11 +32,11 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   modify/delete conflict at `local/install.ps1` because upstream keeps it at its root:
   keep `local/install.ps1` deleted and port upstream changes to `install/install.ps1`
   by hand. See `/home/peter/firstmate/data/agentcfg-monorepo-v1/report.md`.
-- Non-kit areas (`local/`, `hosts/`, `install/`, `remote/`) are documented in the README's
+- Non-kit areas (`local/`, `environments/`, `install/`, `remote/`) are documented in the README's
   "Also in this repo" section; the design rationale is in
   `/home/peter/firstmate/data/agentcfg-monorepo-v1/report.md`.
 - Releases are cut from built `dist/` diffs, not commit subjects — see README "Releases".
-  Commits that touch only `local/`, `hosts/`, `install/`, or `remote/` never tag a release.
+  Commits that touch only `local/`, `environments/`, `install/`, or `remote/` never tag a release.
 
 ## Maintaining this file
 

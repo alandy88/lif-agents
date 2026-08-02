@@ -1,9 +1,13 @@
 onboarding = false
 [terminal]
-# Executable used for new interactive panes.
-# Absolute path: bare "pwsh.exe" is fine on PATH, but an empty value falls back
-# to powershell.exe (Windows PowerShell 5.1) rather than inheriting the parent shell.
-default_shell = "C:/Program Files/PowerShell/7/pwsh.exe"
+# Executable used for new interactive panes. This is a machine-specific value,
+# so it is environment-owned rather than committed: the placeholder below is
+# substituted at install time from LIF_HERDR_DEFAULT_SHELL (see
+# environments/README.md). install.sh does it; on Windows the substitution is
+# part of the copy step in environments/windows-5090/README.md.
+# An empty value falls back to powershell.exe (Windows PowerShell 5.1) rather
+# than inheriting the parent shell, so it must be replaced, never blanked.
+default_shell = "@LIF_HERDR_DEFAULT_SHELL@"
 
 [ui]
 agent_panel_sort = "priority"

@@ -1,0 +1,139 @@
+# Installing the terminal setup — instructions for the installing agent
+
+**You are here because someone cloned this repo on a machine and asked you to
+install it.** This file is the entrypoint for that. It covers the terminal
+setup: WezTerm, Starship, Herdr, and the shell profile.
+
+**Do not run `npm i -D github:alandy88/lif-sandcastle`.** The README's `Install`
+heading belongs to `@lif/sandcastle-kit`, a JavaScript package other repos
+depend on. It has nothing to do with this machine's terminal, and installing it
+here does nothing the captain asked for.
+
+This repo installs **no software**. It places configuration files. Everything in
+"Prerequisites" has to exist first, and some of it needs the captain's
+credentials or preferences — see "Stop and ask".
+
+---
+
+## 1. Work out which environment this is
+
+An *environment* is a named machine identity that owns every machine-specific
+value: see [environments/README.md](../environments/README.md), which lists
+exactly what an environment owes. Existing names: `mac`, `wsl`, `windows-5090`.
+
+- macOS or WSL → continue here; `install/install.sh` detects `mac`/`wsl`.
+- Windows → use `install/install.ps1` instead (see
+  [local/README.md](../local/README.md)); the rest of this file does not apply.
+- A new machine that is neither `mac` nor `wsl` → ask the captain for a name,
+  create `environments/<name>/`, and pass `--env <name>`.
+
+## 2. Stop and ask the captain
+
+Seven values cannot be inferred and must not be guessed. A plausible-looking
+invented path is worse than no path: the launch menu silently opens agents in
+the wrong directory, and `lif`/`notes`/`imagehub` fail confusingly.
+
+| Ask for | Goes in |
+|---|---|
+| stable-diffusion checkout path | `host.lua` `stable_diffusion_cwd` |
+| comfyui-lif-nodes checkout path | `host.lua` `lif_node_cwd` |
+| playground checkout path | `host.lua` `playground_cwd` |
+| lif-studio path | `host.sh` `LIF_STUDIO_DIR` |
+| lif-notes path | `host.sh` `LIF_NOTES_DIR` |
+| Image-MetaHub-Personal path | `host.sh` `LIF_IMAGEHUB_DIR` |
+| Bitwarden Secrets project id (UUID) | `host.sh` `LIF_BWS_PROJECT_ID` |
+
+Also worth confirming rather than assuming: `LIF_FIRSTMATE_DIR`
+(`~/firstmate` by convention), `LIF_HERDR_PATH` (`~/.local/bin/fm-herdr`), and
+whether this machine uses BWS at all.
+
+Ask for all of them in one message, then continue. Every key is optional at
+runtime — an environment with none of them still installs and still gives a
+working terminal, just with an empty launch menu and warning `lif`/`notes`
+commands. Prefer that over inventing values.
+
+## 3. Prerequisites
+
+Install these first; the repo installs none of them. macOS commands assume
+[Homebrew](https://brew.sh).
+
+| Prerequisite | macOS | WSL (Ubuntu) |
+|---|---|---|
+| WezTerm | `brew install --cask wezterm` | installed on the **Windows** side; WSL only supplies the shell |
+| Starship | `brew install starship` | `curl -sS https://starship.rs/install.sh \| sh` |
+| JetBrainsMono Nerd Font | `brew install --cask font-jetbrains-mono-nerd-font` | install on the Windows side, where WezTerm renders |
+| Herdr | `brew install herdr`, then `herdr update` to self-update — *inferred*: the 0.7.5 binary queries `formulae.brew.sh/api/formula/herdr.json`, i.e. it expects a Homebrew install on macOS. Settled by `brew info herdr` on the Mac | already present on the captain's WSL box; `herdr update` self-updates |
+| zsh | ships with macOS | `sudo apt install zsh` (WSL defaults to bash) |
+| `claude`, `codex`, `opencode` | the agents the launch menu and `cc` invoke; install per their own docs | same |
+| `bws` (Bitwarden Secrets CLI) | only if this machine uses BWS | same |
+
+`claude`, `codex`, `opencode` and `bws` are optional: without them the config
+still installs and the affected functions simply fail when called.
+
+## 4. Author the environment overlay
+
+Create `environments/<env>/host.lua` and `environments/<env>/host.sh` from
+`local/hosts/lif-host.lua.example` and `local/hosts/lif-host.sh.example`, filled
+in with the answers from step 2. Write paths in this machine's own notation —
+POSIX on macOS and WSL. Do not copy `windows-5090`'s drive paths.
+
+These files are gitignored on purpose (they hold the captain's real paths and
+the BWS project id). Leave them untracked; do not commit them, and do not
+`git add -f`.
+
+## 5. Run the installer
+
+```bash
+install/install.sh --dry-run     # preview; add --env <name> to override detection
+install/install.sh
+```
+
+It is idempotent. Regular files and directories it replaces are backed up to
+`<name>.pre-lif-terminal.bak`; an existing symlink is replaced without a backup.
+It:
+
+- symlinks `wezterm.lua` and `starship.toml` into `$XDG_CONFIG_HOME`
+- symlinks the environment's `host.lua` / `host.sh` / `host.ps1` to
+  `~/.config/lif-host.*`
+- symlinks the zsh profile to `~/.config/lif-shell.zsh` and appends one marked
+  block to `~/.zshrc` that sources it (`--skip-shell-rc` opts out). It never
+  rewrites an existing `~/.zshrc` — the captain curates that file
+- renders `local/herdr/config.toml` into `$XDG_CONFIG_HOME/herdr/config.toml`,
+  substituting this environment's `default_shell`. Herdr reads that path on
+  Linux (verified) and, *inferred*, on macOS too: the 0.7.5 binary resolves its
+  config from `XDG_CONFIG_HOME` with a `~/.config` fallback and carries no
+  "Application Support" path. Settle it on the Mac with `herdr config check`;
+  if it disagrees, point Herdr at the file with `HERDR_CONFIG_PATH`
+
+The Starship prompt is wired by the profile (`starship init zsh`), not by
+`~/.zshrc` directly, so it arrives with the rest of the profile.
+
+If the captain's login shell is bash rather than zsh, add the same source line
+to `~/.bashrc` by hand — the profile detects the shell and works in both.
+
+## 6. Set up the BWS token (only if this machine uses BWS)
+
+There is no DPAPI off Windows, so the token lives in the OS keystore:
+
+- **macOS** — Keychain. The captain enters the token; you should not see it:
+  `security add-generic-password -a "$USER" -s lif-bws-token -w`
+- **Linux/WSL** — `~/.bws/token`, `chmod 600`. The profile refuses to read it
+  if group or other can. This is weaker than DPAPI (no machine binding); say so
+  rather than implying parity.
+
+## 7. Verify, and report honestly
+
+```bash
+wezterm show-keys | grep -c Split    # 0 = config loaded, 6 = WezTerm fell back to defaults
+herdr config check                   # validates the installed herdr config
+exec zsh -l                          # prompt should be Starship; `cc`, `lif`, `fm` should exist
+```
+
+WezTerm falls back to its full defaults on any config error **and prints
+nothing**, so a clean-looking launch proves nothing — run the `show-keys` check.
+An empty launch menu is likewise indistinguishable from a working one until you
+open the launcher, so open it.
+
+Report what actually happened, including anything you skipped for a missing
+prerequisite or an unanswered value. "Installed" while the launch menu is empty
+is a false report.

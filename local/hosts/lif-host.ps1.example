@@ -1,12 +1,16 @@
-# Host overlay for pwsh/profile.ps1 -- copy to
-# %USERPROFILE%\.config\lif-host.ps1 and fill in. See README.md.
+# Environment overlay for pwsh/profile.ps1 -- copy to
+# %USERPROFILE%\.config\lif-host.ps1 and fill in. This half is only read by the
+# PowerShell profile; on macOS and WSL the equivalent is host.sh.
+#
+# Replace every REPLACE_ME -- do not guess a path, ask. See
+# environments/README.md for the full key list.
 
 $LifHost = @{
-    WslDistro    = 'YOUR-WSL-DISTRO'
+    WslDistro    = 'REPLACE_ME'       # distro the fm/fmsh/fmw bridges target
     FirstmateDir = '/home/YOUR-USER/firstmate'
     HerdrPath    = '/home/YOUR-USER/.local/bin/fm-herdr'
-    StudioDir    = 'X:\path\to\lif-studio'
-    NotesDir     = 'X:\path\to\lif-notes'
-    ImageHubDir  = 'X:\path\to\Image-MetaHub-Personal'
-    BwsProjectId = '00000000-0000-0000-0000-000000000000'
+    StudioDir    = 'REPLACE_ME'
+    NotesDir     = 'REPLACE_ME'
+    ImageHubDir  = 'REPLACE_ME'
+    BwsProjectId = 'REPLACE_ME'
 }

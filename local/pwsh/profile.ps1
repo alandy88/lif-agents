@@ -1,9 +1,12 @@
 Invoke-Expression (&starship init powershell)
 
-# --- Host overlay: per-machine paths and ids, kept out of this repo ---
-# Sets $LifHost. Absent overlay -> empty table; host-path consumers below guard
-# on their own key and warn rather than erroring. See hosts/lif-host.ps1.example.
-$__lifHostOverlay = "$env:USERPROFILE\.config\lif-host.ps1"
+# --- Environment overlay: per-machine paths and ids, kept out of this repo ---
+# Sets $LifHost. Absent overlay -> empty table; path consumers below guard on
+# their own key and warn rather than erroring. See hosts/lif-host.ps1.example.
+# USERPROFILE is Windows-only, so fall back to HOME -- that is where install.sh
+# links the overlay when pwsh 7 runs on macOS or WSL.
+$__lifHostHome = if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }
+$__lifHostOverlay = Join-Path $__lifHostHome '.config/lif-host.ps1'
 $LifHost = @{}
 # try/catch because a *syntax* error in the overlay makes the dot-source throw
 # a terminating parse error, which would otherwise abort the rest of this file.
@@ -18,7 +21,7 @@ if ($LifHost -isnot [hashtable]) { $LifHost = @{} }
 if (-not $LifHost.BwsProjectId) {
     Remove-Item Env:LIF_STUDIO_BWS_PROJECT -ErrorAction SilentlyContinue
 }
-Remove-Variable __lifHostOverlay -ErrorAction SilentlyContinue
+Remove-Variable __lifHostOverlay, __lifHostHome -ErrorAction SilentlyContinue
 
 # Returns the overlay values for $Keys, or $null after warning if any is unset.
 function Get-LifHostValue {
