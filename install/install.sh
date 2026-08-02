@@ -128,15 +128,29 @@ resolve_link_target() {
     (cd "$target_dir" 2>/dev/null && printf '%s/%s\n' "$(pwd -P)" "$(basename "$target")")
 }
 
+is_repo_overlay_link() {
+    local link=$1 target resolved
+
+    target=$(readlink "$link") || return 1
+    case "$target" in
+        "$repo/environments/"*|"$repo/hosts/"*) return 0 ;;
+    esac
+
+    resolved=$(resolve_link_target "$link" 2>/dev/null || true)
+    case "$resolved" in
+        "$repo/environments/"*|"$repo/hosts/"*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 link_overlay() {
-    local target=$1 link=$2 resolved
+    local target=$1 link=$2
 
     if [ -L "$link" ]; then
-        resolved=$(resolve_link_target "$link" 2>/dev/null || true)
-        case "$resolved" in
-            "$repo/environments/"*) ;;
-            *) echo "  keep $link (symlink outside repo environments/)"; return ;;
-        esac
+        if ! is_repo_overlay_link "$link"; then
+            echo "  keep $link (symlink outside repo environments/)"
+            return
+        fi
     elif [ -e "$link" ]; then
         echo "  keep $link (not a repo environment symlink)"
         return
@@ -146,7 +160,7 @@ link_overlay() {
 }
 
 clear_overlay() {
-    local link=$1 target
+    local link=$1
 
     if [ ! -L "$link" ]; then
         if [ -e "$link" ]; then
@@ -155,18 +169,16 @@ clear_overlay() {
         return
     fi
 
-    target=$(resolve_link_target "$link" 2>/dev/null || true)
-    case "$target" in
-        "$repo/environments/"*)
-            if [ $dry_run -eq 1 ]; then
-                echo "  would remove $link (stale environment overlay)"
-            else
-                rm "$link"
-                echo "  clear $link (stale environment overlay)"
-            fi
-            ;;
-        *) echo "  keep $link (symlink outside repo environments/)" ;;
-    esac
+    if ! is_repo_overlay_link "$link"; then
+        echo "  keep $link (symlink outside repo environments/)"
+        return
+    fi
+    if [ $dry_run -eq 1 ]; then
+        echo "  would remove $link (stale environment overlay)"
+    else
+        rm "$link"
+        echo "  clear $link (stale environment overlay)"
+    fi
 }
 
 # write_file <path> <content>: install a rendered (non-symlink) file, backing up
