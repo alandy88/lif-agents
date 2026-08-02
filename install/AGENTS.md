@@ -174,6 +174,7 @@ There is no DPAPI off Windows, so the token lives in the OS keystore:
 ## 7. Verify, and report honestly
 
 ```bash
+command -v wezterm >/dev/null || { echo 'wezterm not on PATH'; exit 1; }
 ! wezterm show-keys | grep -q Split  # exits 0 when the config loaded, 1 on the defaults fallback
 herdr config check                   # validates the installed herdr config
 exec zsh -l                          # prompt should be Starship; `cc`, `lif`, `fm` should exist
@@ -181,7 +182,11 @@ exec zsh -l                          # prompt should be Starship; `cc`, `lif`, `
 
 Use the assertion form: `grep -c Split` prints the `0` you want to see but
 *exits 1* when the count is zero, so under `set -e` — or to any agent reading
-the exit status — a successful install looks like a failed one.
+the exit status — a successful install looks like a failed one. The check can
+lie in the other direction too: without the `command -v` guard, a missing
+`wezterm` (over `ssh host '…'`, under CI, or in any non-login shell without
+Homebrew's PATH) produces no output, so `grep -q` finds nothing and the negation
+exits 0 — certifying a machine it never inspected.
 
 WezTerm falls back to its full defaults on any config error **and prints
 nothing**, so a clean-looking launch proves nothing — run the `show-keys` check.

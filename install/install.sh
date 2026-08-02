@@ -323,6 +323,8 @@ fi
 echo
 echo "Done. Open a new WezTerm window, then verify the config actually loaded --"
 echo "WezTerm falls back to full defaults on any error, silently:"
+echo "  command -v wezterm >/dev/null || { echo 'wezterm not on PATH'; exit 1; }"
 echo "  ! wezterm show-keys | grep -q Split  # exits 0 when the config loaded"
+echo "  (without the guard, a missing wezterm makes the check pass silently)"
 echo "  herdr config check                   # validates the herdr config"
 echo "Start a new zsh to pick up the profile and the Starship prompt."

@@ -5,6 +5,9 @@
 -- save, but note that WezTerm falls back to its FULL defaults on any config
 -- error and prints nothing, so a clean-looking launch proves nothing. Verify:
 --   wezterm show-keys | grep -c Split    # 0 = loaded, 6 = defaults
+-- Check that wezterm is on PATH first: if it is missing the pipeline prints
+-- nothing, and the assertion form `! wezterm show-keys | grep -q Split` exits 0
+-- on a machine it never inspected.
 --
 -- Herdr is the multiplexer. WezTerm's own pane splitting is deliberately
 -- surrendered to it, so nothing here re-binds a Split* action.
