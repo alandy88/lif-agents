@@ -73,11 +73,11 @@ function tm {
 function Invoke-LifClaude {
     param([string]$ConfigDir, [string[]]$Argv)
 
-    $base = if ($LifHost.ClaudePermissionMode) {
+    $base = @(if ($LifHost.ClaudePermissionMode) {
         @('--permission-mode', $LifHost.ClaudePermissionMode)
     } else {
         @('--dangerously-skip-permissions')
-    }
+    })
     $sub  = if ($Argv.Count -gt 0) { $Argv[0] } else { '' }
     # @(...) is load-bearing: a single-element slice unwraps to a scalar string,
     # and splatting a scalar string explodes it one character per argument.
