@@ -142,8 +142,8 @@ config.max_fps = 120
 config.initial_cols = 120
 config.initial_rows = 28
 config.window_padding = { left = 12, right = 12, top = 10, bottom = 10 }
--- No titlebar anywhere: the mod+drag mouse binding at the bottom of this file
--- replaces it as the way to move the window.
+-- No titlebar anywhere: the drag_mod+drag mouse binding at the bottom of this
+-- file replaces it as the way to move the window.
 config.window_decorations = 'RESIZE'
 config.window_close_confirmation = 'NeverPrompt'
 config.adjust_window_size_when_changing_font_size = false
@@ -265,14 +265,29 @@ config.keys = {
 }
 
 -- --- Mouse ---
--- window_decorations = 'RESIZE' removes the titlebar, so mod+drag anywhere in
--- the terminal body becomes the way to move the window.
-config.mouse_bindings = {
-  {
+-- window_decorations = 'RESIZE' removes the titlebar, so drag anywhere in the
+-- terminal body becomes the way to move the window.
+--
+-- Deliberately NOT `mod` (CTRL|SHIFT off macOS). When a TUI has mouse
+-- reporting on -- Claude Code, Herdr, nvim, i.e. nearly always -- SHIFT is
+-- WezTerm's bypass modifier: it withholds the event from the app and then
+-- matches "as though the SHIFT key were not pressed". A CTRL|SHIFT binding
+-- therefore never matches inside a TUI; the stripped CTRL event falls through
+-- to the default cell-selection binding and the drag highlights text instead.
+-- One modifier, same behaviour in every pane.
+local drag_mod = is_macos and 'SUPER' or 'CTRL'
+
+-- An entry applies only when the pane's reporting state matches this field
+-- (default false), so covering both states takes two otherwise identical
+-- entries.
+config.mouse_bindings = {}
+for _, reporting in ipairs { true, false } do
+  table.insert(config.mouse_bindings, {
     event = { Down = { streak = 1, button = 'Left' } },
-    mods = mod,
+    mods = drag_mod,
     action = act.StartWindowDrag,
-  },
-}
+    mouse_reporting = reporting,
+  })
+end
 
 return config
