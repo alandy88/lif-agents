@@ -55,6 +55,7 @@ captain** — never invent a plausible-looking path.
 | `LIF_FIRSTMATE_DIR` / `FirstmateDir` | firstmate checkout; `fm`/`fmsh` use it | `~/firstmate` by convention — confirm |
 | `LIF_HERDR_PATH` / `HerdrPath` | launcher `fmw` runs | `~/.local/bin/fm-herdr` by convention — confirm |
 | `LIF_HERDR_DEFAULT_SHELL` | shell Herdr opens panes with | defaults per platform, see below |
+| `LIF_CLAUDE_PERMISSION_MODE` / `ClaudePermissionMode` | `claude --permission-mode` the `cc`/`ccp` launchers use | optional; omit for `--dangerously-skip-permissions` |
 | `WslDistro` | distro the pwsh `fm*` bridges target | `windows-5090` only; no unix meaning |
 
 Eight values are captain-only: the three WezTerm cwds, the four directory

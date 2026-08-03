@@ -65,10 +65,19 @@ function tm {
 # passed straight through. CLAUDE_CONFIG_DIR is set for the call and restored
 # afterwards, so it is deterministic even when the session already exports one.
 # `claude` here is the bws-wrapping function at the bottom, deliberately.
+#
+# The permission posture is environment-owned: set ClaudePermissionMode in the
+# overlay to pass `--permission-mode <mode>` instead of the shared default of
+# `--dangerously-skip-permissions`. Read at call time, so it follows the overlay
+# even though the overlay is loaded before this function is defined.
 function Invoke-LifClaude {
     param([string]$ConfigDir, [string[]]$Argv)
 
-    $base = @('--dangerously-skip-permissions')
+    $base = if ($LifHost.ClaudePermissionMode) {
+        @('--permission-mode', $LifHost.ClaudePermissionMode)
+    } else {
+        @('--dangerously-skip-permissions')
+    }
     $sub  = if ($Argv.Count -gt 0) { $Argv[0] } else { '' }
     # @(...) is load-bearing: a single-element slice unwraps to a scalar string,
     # and splatting a scalar string explodes it one character per argument.
