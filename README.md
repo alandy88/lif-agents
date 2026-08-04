@@ -1,13 +1,16 @@
 # lif-agents
 
-Two independent halves:
+The captain's agent configurations, in two sets:
 
-- **`local/`** — terminal configuration for the captain's machines: WezTerm,
-  Starship, Herdr, and a shell profile.
-- **`remote/`** — `@lif/sandcastle-kit`, the package other repos install to run
-  `.sandcastle/` agent pipelines.
+1. **`local/`** — configuration for the captain's own personal machines, Mac or
+   Windows PCs.
+2. **`remote/`** — configuration for remote environments: cloud VMs and build
+   agents, running under the Sandcastle framework
+   (`@lif/sandcastle-kit`).
 
-## `local/`: terminal configuration
+## Local machines
+
+### Setup
 
 ```bash
 git clone https://github.com/alandy88/lif-agents
@@ -16,22 +19,45 @@ local/install/install.sh --env <name> --dry-run   # preview
 local/install/install.sh --env <name>             # install
 ```
 
-On Windows, run `local\install\install.ps1` instead. Later runs need no
-`--env`; the installer remembers the machine.
+On Windows, run `local\install\install.ps1` instead (`-WhatIf` to preview).
+Later runs need no `--env`; the installer reuses the environment recorded by the
+last run on that machine. `<name>` is a directory under `local/environments/`.
 
-`<name>` is a directory under `local/environments/`.
+The installer is idempotent — re-run it after a `git pull`.
 
-Install instructions, including prerequisites and the values the installer
-cannot guess: [local/install/AGENTS.md](local/install/AGENTS.md). What each
-config file is and where it lands: [local/README.md](local/README.md).
+### What it installs
 
-## `remote/`: the agent kit
+It installs no software. WezTerm, Starship, Herdr, the Nerd Font and the agent
+CLIs must already be present; the installer points those tools at the configs
+kept in this repo. On Windows it redirects environment variables rather than
+symlinking; `install.sh` symlinks.
 
-`@lif/sandcastle-kit` handles the agent loop, prompts, model routing, branch and
-PR mechanics, and provider authentication. A consuming repo supplies one config
-file and a Dockerfile.
+| Config | Windows | macOS / WSL |
+|---|---|---|
+| `local/wezterm/wezterm.lua` | `WEZTERM_CONFIG_FILE` env var | `$XDG_CONFIG_HOME/wezterm/wezterm.lua` |
+| `local/starship/starship.toml` | `STARSHIP_CONFIG` env var | `$XDG_CONFIG_HOME/starship.toml` |
+| `local/herdr/config.toml` | rendered to `%APPDATA%\herdr\config.toml` | rendered to `$XDG_CONFIG_HOME/herdr/config.toml` |
+| `local/pwsh/profile.ps1` | dot-sourced from `$PROFILE` | — |
+| `local/zsh/profile.zsh` | — | `~/.config/lif-shell.zsh`, sourced from `~/.zshrc` |
+
+Machine-specific values live in a named environment under
+`local/environments/`, applied through overlay files the configs read from fixed
+paths.
+
+Prerequisites, the values the installer must be given rather than guess, and the
+post-install verification steps are in
+[local/install/AGENTS.md](local/install/AGENTS.md). What each config file is and
+where it lands: [local/README.md](local/README.md).
+
+## Remote environments (Sandcastle)
+
+`@lif/sandcastle-kit` runs `.sandcastle/` agent pipelines: the agent loop,
+prompts, model routing, branch and PR mechanics, and provider authentication. A
+repo supplies a config file and a Dockerfile.
 
 The package is `@lif/sandcastle-kit`; the repository is `lif-agents`.
+
+### Install
 
 ```bash
 npm i -D github:alandy88/lif-agents#v0.2.4
@@ -40,20 +66,17 @@ npm i -D github:alandy88/lif-agents#v0.2.4
 Pin a tag, never `#main`. `#main` carries no built output, and unattended runs
 must not pick up kit changes without an explicit bump.
 
-Requirements on the machine that runs the pipeline: Node ≥ 22 and a Docker
-daemon. `@ai-hero/sandcastle` is the kit's own dependency; consumers never
-install or import it.
+The machine that runs the pipeline needs Node ≥ 22 and a Docker daemon.
 
-### Presets
+### Example configurations
 
-| preset | source of work | run shape |
-|---|---|---|
-| `presets/implement` | a GitHub issue with a `## Tasks` checklist | plan → one fresh agent session per task → review → PR |
-| `presets/task` | `PLAN.md` + a `STATE.md` ledger | next task → task session → fresh-context verify → PR → squash-merge, ×N |
+`.sandcastle/config.mts` is both the config and the CLI entrypoint. `toolchain`
+is the only required field; the supported values are `python`, `node` and
+`dotnet`.
 
-### Minimal `.sandcastle/config.mts`
-
-The config file is also the CLI entrypoint:
+Issue-driven (`presets/implement`) — work comes from a GitHub issue with a
+`## Tasks` checklist. Run it with
+`npx tsx .sandcastle/config.mts --issue 42`:
 
 ```ts
 import {
@@ -69,12 +92,32 @@ export default config;
 if (isEntrypoint(import.meta.url)) await runImplementLoop(config);
 ```
 
-`toolchain` is the only required field. Run it with
-`npx tsx .sandcastle/config.mts --issue 42`.
+Ledger-driven (`presets/task`) — work comes from `PLAN.md` with a `STATE.md`
+ledger. Run it with `npx tsx .sandcastle/config.mts --iterations 3`:
+
+```ts
+import { isEntrypoint, runTaskLoop, type TaskConfig } from "@lif/sandcastle-kit/presets/task";
+
+const config: TaskConfig = { toolchain: "dotnet" };
+
+export default config;
+
+if (isEntrypoint(import.meta.url)) await runTaskLoop(config);
+```
+
+To override the kit's prompts, point `templateDir` at a workspace-relative
+directory; any same-named file there wins over the kit's default:
+
+```ts
+const config: ImplementConfig = {
+  toolchain: "node",
+  templateDir: ".sandcastle/templates",
+};
+```
 
 ### Further reading
 
-- [remote/README.md](remote/README.md) — full config surface, Dockerfile,
+- [remote/README.md](remote/README.md) — full config surface, the Dockerfile,
   credentials, CI wiring, prompt overrides, composing a lifecycle from phases.
 - [remote/runner/README.md](remote/runner/README.md) — provisioning the
   self-hosted runner the reusable workflow targets.
