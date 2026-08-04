@@ -3,7 +3,7 @@
 // A separate project rather than an entry in tsconfig.json's `include`: that
 // project's `rootDir` is `remote/src`, and widening it to admit one script
 // would change every emitted path under remote/dist/. Tests are included here
-// (unlike the main project, which excludes them so they stay out of dist/) —
+// (unlike the main project, which excludes them so they stay out of remote/dist/) —
 // with `noEmit` there is no reason not to typecheck them.
 {
   "extends": "./tsconfig.json",

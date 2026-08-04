@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 // a single `createAgent?: (p) => AgentProvider` in the config interface drags
 // the whole dependency back into the consumer's typecheck.
 //
-// This reads dist/, which is the artifact consumers actually resolve. dist/
+// This reads remote/dist/, which is the artifact consumers actually resolve. remote/dist/
 // is gitignored on main (release tags carry it); it exists at test time
 // because ci.yml runs `npm run build` before `npm test` — and locally because
 // `npm ci`'s prepare script runs tsc.

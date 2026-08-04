@@ -12,7 +12,7 @@ name: release
 # model, and it is what keeps a bot from ever having to push to a protected
 # main. See AGENTS.md, "Releases".
 #
-# Release test: did `dist/` change? NOT: did a commit subject say `feat`. A
+# Release test: did `remote/dist/` change? NOT: did a commit subject say `feat`. A
 # subject is a claim about intent and `bb2f75a` proved it can be silent about a
 # change every consumer feels; the built output cannot. Commit types still pick
 # how big the bump is — see remote/scripts/next-version.mts.
@@ -43,11 +43,11 @@ jobs:
           fetch-depth: 0 # tags and full log — the version is derived from both
       - uses: actions/setup-node@v4
         with:
-          node-version: "24" # same floor as ci.yml (tests run off src/)
+          node-version: "24" # same floor as ci.yml (tests run off remote/src/)
 
       - run: npm ci
       - run: npm run typecheck
-      # Before the tests, not after: boundary.test.mts reads dist/*.d.mts. This
+      # Before the tests, not after: boundary.test.mts reads remote/dist/*.d.mts. This
       # is also the artifact the release decision below is made against.
       - run: npm run build
       - run: npm test

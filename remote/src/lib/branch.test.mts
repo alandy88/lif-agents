@@ -3,7 +3,7 @@
 // this module is a command string plus a `git` invocation, and a unit test that
 // asserts the argv it just read out of the source restates a constant; commit
 // e6ac8fe removed exactly that kind of test, and the integration tier
-// (tests/integration/) covers what real git does with these commands anyway.
+// (remote/tests/integration/) covers what real git does with these commands anyway.
 //
 // The decisions, all of them about what a failure means:
 //   • `push` converts a non-zero exit into a throw (the run stops),

@@ -1,5 +1,5 @@
 // Whether to release at all — the gate the release workflow runs before it
-// decides WHAT version to cut (scripts/next-version.mts answers that).
+// decides WHAT version to cut (remote/scripts/next-version.mts answers that).
 //
 // This lived as inline shell in .github/workflows/release.yml, where no test
 // could reach it: four rounds of review found seven bugs, every one in that
@@ -15,8 +15,8 @@
 import { appendFileSync, readFileSync } from "node:fs";
 import { hostGit } from "../src/lib/host-exec.mts";
 import { isEntrypoint } from "../src/lib/entrypoint.mts";
-// The kit's name for "host git, capture-shaped, injectable" (src/lib/branch.mts
-// declares it for the same reason). Type-only, so scripts/ takes on no runtime
+// The kit's name for "host git, capture-shaped, injectable" (remote/src/lib/branch.mts
+// declares it for the same reason). Type-only, so remote/scripts/ takes on no runtime
 // dependency on lib/ by borrowing it.
 import type { GitRunner } from "../src/lib/branch.mts";
 
@@ -315,7 +315,7 @@ async function main(): Promise<void> {
   const stale = await headIsStale();
 
   const lastTag = await lastReleaseTag();
-  // Skipped entirely when stale — staging dist/ and diffing it would only
+  // Skipped entirely when stale — staging remote/dist/ and diffing it would only
   // produce an answer about superseded code.
   const changed = !stale && (lastTag === null || (await payloadChanged(lastTag)));
 

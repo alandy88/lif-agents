@@ -1,6 +1,6 @@
 // The release gate's payload comparison, against real repos built the way
 // release.yml builds one. Every case here is a thing git decides, not a thing
-// our code decides: whether a gitignored dist/ is diffable at all, what a
+// our code decides: whether a gitignored remote/dist/ is diffable at all, what a
 // pathspec does when the directory it names has been deleted, and what the
 // index carries for a tracked path versus an ignored one. That is precisely the
 // class of question the shell version of this gate kept getting wrong, and a
@@ -48,8 +48,8 @@ function build(repo: string): void {
 }
 
 /**
- * A repo mid-release-run: one release tag carrying dist/ and a stamped version,
- * main sitting one commit back with the placeholder, and a rebuilt dist/ in the
+ * A repo mid-release-run: one release tag carrying remote/dist/ and a stamped version,
+ * main sitting one commit back with the placeholder, and a rebuilt remote/dist/ in the
  * worktree. The tag is an unmerged child of main, exactly as release.yml cuts it.
  */
 async function releasedRepo(
@@ -81,7 +81,7 @@ async function releasedRepo(
   await must(git, ["commit", "-m", "release v0.1.0: stamp version, build remote/dist/"]);
   await must(git, ["tag", TAG]);
   await must(git, ["reset", "--hard", mainTip]); // main never carries the release commit
-  build(repo); // the reset removed dist/; CI arrives with a fresh build instead
+  build(repo); // the reset removed remote/dist/; CI arrives with a fresh build instead
   return repo;
 }
 
@@ -96,7 +96,7 @@ test("a rebuilt but identical payload is unchanged — the stamp is not a diff",
 });
 
 test("a dist/ change is seen even though dist/ is gitignored", async () => {
-  // Nothing about dist/ is in the index until the gate force-stages it, and an
+  // Nothing about remote/dist/ is in the index until the gate force-stages it, and an
   // unstaged ignored path is invisible to `git diff --cached`. This is the whole
   // reason the gate writes to the index before it reads a diff.
   const repo = await releasedRepo("dist-changed");

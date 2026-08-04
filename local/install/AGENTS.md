@@ -4,8 +4,8 @@
 install it.** This file is the entrypoint for that. It covers the terminal
 setup: WezTerm, Starship, Herdr, and the shell profile.
 
-**Do not run `npm i -D github:alandy88/lif-agents`.** The README's `Install`
-heading belongs to `@lif/sandcastle-kit`, a JavaScript package other repos
+**Do not run `npm i -D github:alandy88/lif-agents`.** The README's kit section
+belongs to `@lif/sandcastle-kit`, a JavaScript package other repos
 depend on. It has nothing to do with this machine's terminal, and installing it
 here does nothing the captain asked for.
 
