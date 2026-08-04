@@ -28,15 +28,15 @@ The installer is idempotent — re-run it after a `git pull`.
 ### What it installs
 
 It installs no software. WezTerm, Starship, Herdr, the Nerd Font and the agent
-CLIs must already be present; the installer points those tools at the configs
-kept in this repo. On Windows it redirects environment variables rather than
+CLIs must already be present. The configurations use the destinations below.
+On Windows, `install.ps1` redirects environment variables rather than
 symlinking; `install.sh` symlinks.
 
 | Config | Windows | macOS / WSL |
 |---|---|---|
 | `local/wezterm/wezterm.lua` | `WEZTERM_CONFIG_FILE` env var | `$XDG_CONFIG_HOME/wezterm/wezterm.lua` |
 | `local/starship/starship.toml` | `STARSHIP_CONFIG` env var | `$XDG_CONFIG_HOME/starship.toml` |
-| `local/herdr/config.toml` | rendered to `%APPDATA%\herdr\config.toml` | rendered to `$XDG_CONFIG_HOME/herdr/config.toml` |
+| `local/herdr/config.toml` | [manual setup](local/environments/windows-5090/README.md#herdr), rendered to `%APPDATA%\herdr\config.toml` | rendered to `$XDG_CONFIG_HOME/herdr/config.toml` |
 | `local/pwsh/profile.ps1` | dot-sourced from `$PROFILE` | — |
 | `local/zsh/profile.zsh` | — | `~/.config/lif-shell.zsh`, sourced from `~/.zshrc` |
 
