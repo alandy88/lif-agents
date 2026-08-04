@@ -34,7 +34,7 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   See `/home/peter/firstmate/data/agentcfg-monorepo-v1/report.md`.
 - The design rationale for holding both halves in one repo, and the kit's full consumer
   reference, are in `/home/peter/firstmate/data/agentcfg-monorepo-v1/report.md` and
-  [remote/docs/kit-reference.md](remote/docs/kit-reference.md).
+  [remote/README.md](remote/README.md).
 
 ## Releases
 
@@ -47,7 +47,7 @@ describes. To find the current version, read the tags.
 Releases are cut automatically: every push to `main` builds, and a new tag follows if
 the installable payload differs from the last tag's
 (`remote/scripts/release-gate.mts`). **The gate compares built output, not the commit
-subject** — so a commit that touches only `local/`, `remote/runner/` or `remote/docs/`
+subject** — so a commit that touches only `local/`, `remote/runner/` or `remote/README.md`
 never tags a release, and one that quietly changes a resolved model id does. Commit type
 only picks the bump size: `feat` or `!` takes the minor, anything else the patch (below
 1.0.0 a breaking change is a minor). A `workflow_dispatch` with an explicit `version`
