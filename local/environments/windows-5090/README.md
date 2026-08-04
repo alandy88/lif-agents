@@ -14,8 +14,8 @@ of the repo. They live at:
 ```
 
 and are hand-placed from `local/hosts/lif-host.{lua,ps1}.example` — see
-"Environment overlay" in [local/README.md](../../local/README.md).
-`install/install.ps1` does not touch them; `install/install.sh` is not used on
+"Environment overlay" in [local/README.md](../../README.md).
+`local/install/install.ps1` does not touch them; `local/install/install.sh` is not used on
 this machine.
 
 `host.sh` has no meaning here: the unix profile is not installed on Windows.
@@ -28,7 +28,7 @@ it (run from the directory holding the checkout):
 
 ```powershell
 New-Item -ItemType Directory -Force "$env:APPDATA\herdr" | Out-Null
-(Get-Content .\lif-sandcastle\local\herdr\config.toml -Raw).Replace(
+(Get-Content .\lif-agents\local\herdr\config.toml -Raw).Replace(
     '@LIF_HERDR_DEFAULT_SHELL@', 'C:/Program Files/PowerShell/7/pwsh.exe'
 ) | Set-Content "$env:APPDATA\herdr\config.toml"
 herdr config check

@@ -6,26 +6,26 @@
   "license": "UNLICENSED",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/alandy88/lif-sandcastle.git"
+    "url": "git+https://github.com/alandy88/lif-agents.git"
   },
   "files": [
-    "dist",
-    "templates"
+    "remote/dist",
+    "remote/templates"
   ],
   "exports": {
-    ".": "./dist/index.mjs",
-    "./lib/*": "./dist/lib/*.mjs",
-    "./phases/*": "./dist/phases/*.mjs",
-    "./presets/task": "./dist/presets/task/index.mjs",
-    "./presets/*": "./dist/presets/*.mjs",
-    "./templates/": "./templates/"
+    ".": "./remote/dist/index.mjs",
+    "./lib/*": "./remote/dist/lib/*.mjs",
+    "./phases/*": "./remote/dist/phases/*.mjs",
+    "./presets/task": "./remote/dist/presets/task/index.mjs",
+    "./presets/*": "./remote/dist/presets/*.mjs",
+    "./templates/*": "./remote/templates/*"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "prepare": "npm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.scripts.json",
-    "test": "node --experimental-strip-types --test \"src/**/*.test.mts\" \"scripts/**/*.test.mts\"",
-    "test:integration": "node --experimental-strip-types --test \"tests/integration/**/*.test.mts\""
+    "test": "node --experimental-strip-types --test \"remote/src/**/*.test.mts\" \"remote/scripts/**/*.test.mts\" \"local/install/*.test.mts\"",
+    "test:integration": "node --experimental-strip-types --test \"remote/tests/integration/**/*.test.mts\""
   },
   "dependencies": {
     "@ai-hero/sandcastle": "^0.12.0"

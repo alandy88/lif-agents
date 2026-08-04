@@ -1,12 +1,12 @@
 // The release gate's payload comparison, against real repos built the way
 // release.yml builds one. Every case here is a thing git decides, not a thing
-// our code decides: whether a gitignored dist/ is diffable at all, what a
+// our code decides: whether a gitignored remote/dist/ is diffable at all, what a
 // pathspec does when the directory it names has been deleted, and what the
 // index carries for a tracked path versus an ignored one. That is precisely the
 // class of question the shell version of this gate kept getting wrong, and a
 // mocked `git` would have agreed with every one of those wrong answers.
 //
-// Each test gets its own repo: `payloadChanged` stages dist/, so it mutates the
+// Each test gets its own repo: `payloadChanged` stages remote/dist/, so it mutates the
 // index it reads.
 
 import { test, after } from "node:test";
@@ -28,7 +28,7 @@ const manifest = (version: string, extra: Record<string, unknown> = {}) =>
     {
       name: "@lif/sandcastle-kit",
       version,
-      files: ["dist", "templates"],
+      files: ["remote/dist", "remote/templates"],
       scripts: { build: "tsc -p tsconfig.json" },
       ...extra,
     },
@@ -42,14 +42,14 @@ function write(repo: string, path: string, body: string): void {
   writeFileSync(full, body);
 }
 
-/** dist/ as a fresh `npm run build` would leave it — same bytes every time. */
+/** remote/dist/ as a fresh `npm run build` would leave it — same bytes every time. */
 function build(repo: string): void {
-  write(repo, "dist/index.mjs", "export const kit = 1;\n");
+  write(repo, "remote/dist/index.mjs", "export const kit = 1;\n");
 }
 
 /**
- * A repo mid-release-run: one release tag carrying dist/ and a stamped version,
- * main sitting one commit back with the placeholder, and a rebuilt dist/ in the
+ * A repo mid-release-run: one release tag carrying remote/dist/ and a stamped version,
+ * main sitting one commit back with the placeholder, and a rebuilt remote/dist/ in the
  * worktree. The tag is an unmerged child of main, exactly as release.yml cuts it.
  */
 async function releasedRepo(
@@ -61,12 +61,12 @@ async function releasedRepo(
   await must(gitIn(root), ["init", "-b", "main", repo]);
   const git = gitIn(repo);
 
-  write(repo, ".gitignore", "dist/\n");
+  write(repo, ".gitignore", "remote/dist/\n");
   write(repo, "package.json", manifest(PLACEHOLDER, extra));
   // Files a single test needs to exist BEFORE the tag, so that test can edit
   // one and be asking about an edit rather than about an addition.
   for (const [path, body] of Object.entries(seed)) write(repo, path, body);
-  write(repo, "templates/agent.md", "# agent\n");
+  write(repo, "remote/templates/agent.md", "# agent\n");
   // Outside `files`, but npm packs it anyway — see shippedPaths().
   write(repo, "README.md", "# kit\n");
   // Outside `files`, but consumers pin it directly by tag — see shippedPaths().
@@ -77,11 +77,11 @@ async function releasedRepo(
   const mainTip = (await must(git, ["rev-parse", "HEAD"])).stdout.trim();
   build(repo);
   write(repo, "package.json", manifest("0.1.0", extra));
-  await must(git, ["add", "-f", "dist", "package.json"]);
-  await must(git, ["commit", "-m", "release v0.1.0: stamp version, build dist/"]);
+  await must(git, ["add", "-f", "remote/dist", "package.json"]);
+  await must(git, ["commit", "-m", "release v0.1.0: stamp version, build remote/dist/"]);
   await must(git, ["tag", TAG]);
   await must(git, ["reset", "--hard", mainTip]); // main never carries the release commit
-  build(repo); // the reset removed dist/; CI arrives with a fresh build instead
+  build(repo); // the reset removed remote/dist/; CI arrives with a fresh build instead
   return repo;
 }
 
@@ -96,11 +96,11 @@ test("a rebuilt but identical payload is unchanged — the stamp is not a diff",
 });
 
 test("a dist/ change is seen even though dist/ is gitignored", async () => {
-  // Nothing about dist/ is in the index until the gate force-stages it, and an
+  // Nothing about remote/dist/ is in the index until the gate force-stages it, and an
   // unstaged ignored path is invisible to `git diff --cached`. This is the whole
   // reason the gate writes to the index before it reads a diff.
   const repo = await releasedRepo("dist-changed");
-  write(repo, "dist/index.mjs", "export const kit = 2;\n");
+  write(repo, "remote/dist/index.mjs", "export const kit = 2;\n");
   assert.equal(await changed(repo), true);
 });
 
@@ -109,18 +109,18 @@ test("a templates/ change is seen with no dist/ diff at all", async () => {
   // edit reaches consumers without the built output moving a byte. A gate that
   // only watched dist/ would ship nothing for it.
   const repo = await releasedRepo("templates-changed");
-  write(repo, "templates/agent.md", "# agent, revised\n");
+  write(repo, "remote/templates/agent.md", "# agent, revised\n");
   await must(gitIn(repo), ["add", "-A"]);
   assert.equal(await changed(repo), true);
 });
 
 test("deleting templates/ outright reads as changed, and does not abort the gate", async () => {
-  // The failure this guards: naming `templates` in the `git add` aborts with
-  // "pathspec 'templates' did not match any files" on exactly this change, so
+  // The failure this guards: naming `remote/templates` in the `git add` aborts with
+  // "pathspec 'remote/templates' did not match any files" on exactly this change, so
   // the one commit that removes a whole shipped directory would fail the gate
   // instead of releasing. It is tracked, so the index already has the deletion.
   const repo = await releasedRepo("templates-deleted");
-  await must(gitIn(repo), ["rm", "-r", "templates"]);
+  await must(gitIn(repo), ["rm", "-r", "remote/templates"]);
   assert.equal(await changed(repo), true);
 });
 
@@ -207,5 +207,5 @@ test("a payload the gate cannot stage throws instead of reading as unchanged", a
   // there would silently strand every later release.
   const repo = await releasedRepo("unstageable");
   rmSync(join(repo, ".git"), { recursive: true, force: true, maxRetries: 5 });
-  await assert.rejects(() => changed(repo), /staging dist\//);
+  await assert.rejects(() => changed(repo), /staging remote\/dist\//);
 });

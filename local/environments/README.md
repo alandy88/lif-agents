@@ -26,7 +26,7 @@ PowerShell overlays do too. `host.sh` is sourced as shell code and must be
 syntactically valid. Templates with the full key list:
 `local/hosts/lif-host.{lua,sh,ps1}.example`.
 
-Select an environment with `install/install.sh --env <name>`. The installer
+Select an environment with `local/install/install.sh --env <name>`. The installer
 records the name in `$XDG_CONFIG_HOME/lif-env`, so later runs on that machine
 need no `--env`; failing that it detects `wsl` under WSL. It deliberately does
 not guess on macOS -- no OS check can tell two Macs apart, and a wrong guess
@@ -79,7 +79,7 @@ the installer always writes a concrete value.
 Overlay files may name a secret's *location*, never its value. The BWS project
 id and the BWS access token stay out of git:
 
-- The root `.gitignore` ignores `environments/*/host.{lua,sh,ps1}`, so a
+- The root `.gitignore` ignores `local/environments/*/host.{lua,sh,ps1}`, so a
   populated environment overlay cannot be committed by accident.
 - The access token is never in an overlay at all. macOS reads it from the
   Keychain, Linux/WSL from `~/.bws/token` (mode 0600), Windows from a DPAPI
@@ -99,4 +99,4 @@ installed on yet has no README to write, so it holds only a `.gitkeep`.
 | `macmini` | the Mac mini (`peter-macmini`) | authored on the machine; sets `LIF_STUDIO_DIR` only, see its README |
 | `wsl` | the WSL box | empty slot; the installing agent authors it on the machine |
 
-To set up a machine, follow [install/AGENTS.md](../install/AGENTS.md).
+To set up a machine, follow [local/install/AGENTS.md](../install/AGENTS.md).

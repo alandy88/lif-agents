@@ -3,7 +3,7 @@
 // an assumption about git's ref rules rather than about our own code.
 //
 // The shape: a release commit is a CHILD of the main commit it was cut from,
-// carrying dist/ and the stamped version, and only its tag ref is pushed. From
+// carrying remote/dist/ and the stamped version, and only its tag ref is pushed. From
 // a later main commit that tag is a sibling, not an ancestor. `git describe`
 // walks ancestry, so it cannot see it — the first test asserts that directly,
 // so the reason `lastReleaseTag` enumerates instead stays visible if someone

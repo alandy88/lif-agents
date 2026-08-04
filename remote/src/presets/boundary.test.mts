@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 // a single `createAgent?: (p) => AgentProvider` in the config interface drags
 // the whole dependency back into the consumer's typecheck.
 //
-// This reads dist/, which is the artifact consumers actually resolve. dist/
+// This reads remote/dist/, which is the artifact consumers actually resolve. remote/dist/
 // is gitignored on main (release tags carry it); it exists at test time
 // because ci.yml runs `npm run build` before `npm test` — and locally because
 // `npm ci`'s prepare script runs tsc.
@@ -53,7 +53,8 @@ test("@ai-hero/sandcastle is a dependency, not a peer", () => {
   // A peer range is a demand on the consumer's package.json — the same leak one
   // level up from an import. The kit owns the version; consumers pin the kit.
   const manifest = JSON.parse(
-    readFileSync(fileURLToPath(new URL("../../package.json", import.meta.url)), "utf8"),
+    // ../../.. — the manifest stays at the repo root, one level above remote/.
+    readFileSync(fileURLToPath(new URL("../../../package.json", import.meta.url)), "utf8"),
   ) as { dependencies?: Record<string, string>; peerDependencies?: Record<string, string> };
 
   assert.ok(manifest.dependencies?.["@ai-hero/sandcastle"], "must be a real dependency");

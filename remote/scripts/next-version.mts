@@ -116,7 +116,7 @@ const git = (args: string[]) => execFileSync("git", args, { encoding: "utf8" });
 
 async function main(): Promise<void> {
   // The workflow resolves the baseline first (it needs the same one to diff
-  // dist/ against) and passes it down, so the two cannot disagree mid-run if a
+  // remote/dist/ against) and passes it down, so the two cannot disagree mid-run if a
   // tag lands between the steps. Falls back for a standalone invocation.
   const lastTag = process.env.LAST_TAG?.trim() || (await lastReleaseTag());
 

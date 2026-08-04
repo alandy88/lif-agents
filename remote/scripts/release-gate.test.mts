@@ -1,7 +1,7 @@
 // Only the decisions a reader cannot see from the git commands being run, and
 // only the ones that need no repo — what the gate does when git or the manifest
-// fails it. Everything the gate decides WITH git (ignored dist/, the templates
-// pathspec, the excluded version key) is in tests/integration/, against real
+// fails it. Everything the gate decides WITH git (ignored remote/dist/, the templates
+// pathspec, the excluded version key) is in remote/tests/integration/, against real
 // repos, because a fake `git` here would just agree with whatever the source
 // already says.
 
@@ -48,7 +48,7 @@ test("the watched set follows `files`, so a newly shipped path needs no edit her
   // returned array: pinning the always-packed tail restates the constant beside
   // it, so it breaks whenever that set is corrected and proves nothing when it
   // passes. What those entries actually MATCH is a question about git pathspecs,
-  // answered in tests/integration/ against real repos.
+  // answered in remote/tests/integration/ against real repos.
   assert.ok(shippedPaths({ files: ["dist", "templates", "assets"] }).includes("assets"));
 });
 

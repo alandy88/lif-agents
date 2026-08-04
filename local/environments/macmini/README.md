@@ -4,15 +4,15 @@ macOS 26.5.2, arm64 (Apple Silicon), Homebrew at `/opt/homebrew/bin/brew`.
 
 This machine was installed before the `mac` → `macbookpro-work` rename, when
 `mac` was its name; see "A machine installed before the rename" in
-[install/AGENTS.md](../../install/AGENTS.md) for the one-time move that finishes
+[local/install/AGENTS.md](../../install/AGENTS.md) for the one-time move that finishes
 that rename on the machine itself. Until that move is done, `install.sh` there
 exits 2 rather than installing.
 
 **Its overlay files are deliberately not committed** — `host.lua` and `host.sh`
 hold the captain's real paths and are gitignored, see
 [../README.md](../README.md#secrets). After the move they live at
-`environments/macmini/host.{lua,sh}` on the machine, symlinked to
-`~/.config/lif-host.{lua,sh}` by `install/install.sh --env macmini`. This file
+`local/environments/macmini/host.{lua,sh}` on the machine, symlinked to
+`~/.config/lif-host.{lua,sh}` by `local/install/install.sh --env macmini`. This file
 records what the machine owes and what has already been settled on it, so the
 next agent does not re-derive it.
 
@@ -32,7 +32,7 @@ exists here.
 | `LIF_NOTES_DIR` | absent — omit the key |
 | `LIF_IMAGEHUB_DIR` | absent — omit the key |
 | `LIF_GITHUB_DIR` | absent — omit the key |
-| `LIF_BWS_PROJECT_ID` | unused; this machine does not use BWS, so skip `install/AGENTS.md` §6 entirely |
+| `LIF_BWS_PROJECT_ID` | unused; this machine does not use BWS, so skip `local/install/AGENTS.md` §6 entirely |
 | `LIF_FIRSTMATE_DIR` | absent — there is no firstmate checkout here |
 | `LIF_HERDR_PATH` | absent — there is no `fm-herdr` launcher here |
 | `LIF_HERDR_DEFAULT_SHELL` | leave unset; `install.sh` resolves `/bin/zsh` from PATH |

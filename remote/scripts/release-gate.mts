@@ -1,5 +1,5 @@
 // Whether to release at all — the gate the release workflow runs before it
-// decides WHAT version to cut (scripts/next-version.mts answers that).
+// decides WHAT version to cut (remote/scripts/next-version.mts answers that).
 //
 // This lived as inline shell in .github/workflows/release.yml, where no test
 // could reach it: four rounds of review found seven bugs, every one in that
@@ -10,13 +10,13 @@
 // orchestration: the git writes, the tag push, the `gh release` calls.
 //
 // The seam is host `git`, capture-shaped and injectable, the same shape
-// `tests/integration/helpers.mts`'s `gitIn(dir)` returns.
+// `remote/tests/integration/helpers.mts`'s `gitIn(dir)` returns.
 
 import { appendFileSync, readFileSync } from "node:fs";
 import { hostGit } from "../src/lib/host-exec.mts";
 import { isEntrypoint } from "../src/lib/entrypoint.mts";
-// The kit's name for "host git, capture-shaped, injectable" (src/lib/branch.mts
-// declares it for the same reason). Type-only, so scripts/ takes on no runtime
+// The kit's name for "host git, capture-shaped, injectable" (remote/src/lib/branch.mts
+// declares it for the same reason). Type-only, so remote/scripts/ takes on no runtime
 // dependency on lib/ by borrowing it.
 import type { GitRunner } from "../src/lib/branch.mts";
 
@@ -170,7 +170,7 @@ const readWorkingPackageJson: ReadPackageJson = () => readFileSync("package.json
  *   (verified — the case-sensitive glob returns no match on both). A pathspec
  *   that silently matches nothing is precisely the never-ships failure below.
  * - `.github/workflows/agent.yml` is `on: workflow_call` and consumers pin it
- *   directly (`uses: alandy88/lif-sandcastle/.github/workflows/agent.yml@vX.Y.Z`),
+ *   directly (`uses: alandy88/lif-agents/.github/workflows/agent.yml@vX.Y.Z`),
  *   reaching them over a path npm never touches. Deriving this one too would mean
  *   regex-sniffing `workflow_call` out of YAML — a worse trade than one named
  *   entry. `ci.yml` and `release.yml` stay out on purpose: they run here, not
@@ -224,6 +224,13 @@ export function shippedPaths(manifest: {
   ];
 }
 
+/**
+ * The one shipped path that is gitignored on main, so the gate has to stage it
+ * before it can be diffed. `tsconfig.json`'s `outDir` and `package.json`'s
+ * `files` both name it too; if it moves, all three move together.
+ */
+export const BUILD_OUTPUT = "remote/dist";
+
 /** A manifest with `version` removed, as a comparable string. */
 function comparable(json: Record<string, unknown>): string {
   const { version: _version, ...rest } = json;
@@ -242,7 +249,7 @@ function comparable(json: Record<string, unknown>): string {
  * npm runs its scripts when installing a git dependency and so nearly every
  * field can reach a consumer.
  *
- * Only `dist` is staged, and only because it is gitignored on main — that also
+ * Only `remote/dist` is staged, and only because it is gitignored on main — that also
  * leaves it staged for the release commit the workflow makes next. Everything
  * else shipped is tracked, so the index already carries whatever the
  * merge did to it, INCLUDING deleting a path outright; naming those in the
@@ -274,12 +281,12 @@ export async function payloadChanged(
   }
   const paths = shippedPaths(manifest);
 
-  const staged = await git(["add", "-f", "dist"]);
+  const staged = await git(["add", "-f", BUILD_OUTPUT]);
   // Throws rather than resolving false: a gate that cannot read the payload has
   // not found it unchanged. The shell got this from `bash -e`.
   if (staged.exitCode !== 0) {
     throw new Error(
-      `staging dist/ for the release gate exited ${staged.exitCode}: ${staged.stderr}`,
+      `staging ${BUILD_OUTPUT}/ for the release gate exited ${staged.exitCode}: ${staged.stderr}`,
     );
   }
 
@@ -308,7 +315,7 @@ async function main(): Promise<void> {
   const stale = await headIsStale();
 
   const lastTag = await lastReleaseTag();
-  // Skipped entirely when stale — staging dist/ and diffing it would only
+  // Skipped entirely when stale — staging remote/dist/ and diffing it would only
   // produce an answer about superseded code.
   const changed = !stale && (lastTag === null || (await payloadChanged(lastTag)));
 

@@ -12,16 +12,16 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
-          # 24, not 22: `npm test` runs off src/ under --experimental-strip-types,
+          # 24, not 22: `npm test` runs off remote/src/ under --experimental-strip-types,
           # which strips types without downleveling, so the `await using` in
           # presets/implement reaches V8 as-is and Node 22 cannot parse it. This
-          # is a dev-only floor — tsc downlevels it for dist/, which is what
+          # is a dev-only floor — tsc downlevels it for remote/dist/, which is what
           # consumers import, and package.json engines stays >=22.
           node-version: "24"
       - run: npm ci
       - run: npm run typecheck
-      # Before the tests, not after: boundary.test.mts reads dist/*.d.mts, and
-      # dist/ is not committed on main (release tags carry it — see release.yml).
+      # Before the tests, not after: boundary.test.mts reads remote/dist/*.d.mts,
+      # which is not committed on main (release tags carry it — see release.yml).
       # Building explicitly here keeps the tests independent of `npm ci` having
       # happened to trigger the prepare script.
       - run: npm run build

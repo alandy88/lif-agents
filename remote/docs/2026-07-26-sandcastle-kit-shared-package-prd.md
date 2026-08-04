@@ -1,6 +1,6 @@
 # Sandcastle Kit — Shared Agent-Orchestration Package
 
-**Status:** Accepted (2026-07-26). D1–D3 settled. This repo is public and CI green. **P-pre done** (2026-07-26, in `lif-studio`). **P1 done** (2026-07-26) — the core is extracted here with its tests; no consumer has cut over. **`presets/implement` done** (2026-07-26), ported from `comfyui-lif-nodes` — see below. **Architecture section accepted** (2026-07-26) and implemented: the phase layer (`src/phases/`) exists, both presets are compositions, and **`presets/task` is done** (98 tests green) — P2 is no longer blocked. Packaging revised the same day: `dist/` ships in release tags, not on `main`. **P3 (`comfyui-lif-nodes`) is next**, with P0 runnable in parallel; P2 (`Morrow`) follows. No release tag has been cut through the new workflow yet — that precedes any consumer cutover. **`deliver` reclassified as a `lib/` adapter, not a phase** (2026-07-26) — see Architecture.
+**Status:** Accepted (2026-07-26). D1–D3 settled. This repo is public and CI green. **P-pre done** (2026-07-26, in `lif-studio`). **P1 done** (2026-07-26) — the core is extracted here with its tests; no consumer has cut over. **`presets/implement` done** (2026-07-26), ported from `comfyui-lif-nodes` — see below. **Architecture section accepted** (2026-07-26) and implemented: the phase layer (`remote/src/phases/`) exists, both presets are compositions, and **`presets/task` is done** (98 tests green) — P2 is no longer blocked. Packaging revised the same day: `remote/dist/` ships in release tags, not on `main`. **P3 (`comfyui-lif-nodes`) is next**, with P0 runnable in parallel; P2 (`Morrow`) follows. No release tag has been cut through the new workflow yet — that precedes any consumer cutover. **`deliver` reclassified as a `lib/` adapter, not a phase** (2026-07-26) — see Architecture.
 
 **Owner:** Peter Yu
 
@@ -58,13 +58,14 @@ The kit's core is derived from **`comfyui-lif-nodes`**, not `lif-studio`: the ch
 ### Package shape
 
 ```
-lif-sandcastle/
+lif-agents/
   package.json          "@lif/sandcastle-kit", "type": "module"
-  src/lib/*.mts         host-exec, task-list, task-loop, profiles, github-issue, github-pr, …
-  src/phases/*.mts      modular stages: plan, task, review, verify (see Architecture)
-  src/presets/*.mts     implement (GitHub issues), task (local state) — compositions of phases
-  templates/*.md        default prompts
-  dist/                 tsc output — .mjs + .d.mts (in release tags only; see below)
+  remote/
+    src/lib/*.mts       host-exec, task-list, task-loop, profiles, github-issue, github-pr, …
+    src/phases/*.mts    modular stages: plan, task, review, verify (see Architecture)
+    src/presets/*.mts   implement (GitHub issues), task (local state) — compositions of phases
+    templates/*.md      default prompts
+    dist/               tsc output — .mjs + .d.mts (in release tags only; see below)
   .github/workflows/agent.yml   on: workflow_call
 ```
 
@@ -72,26 +73,22 @@ lif-sandcastle/
 
 Version skew (problem 3) is not reintroduced: the kit owns the version, and a sandcastle major bump is still a kit release plus N consumer tag bumps. `lif-studio` keeps its own direct sandcastle dependency through P4 because its repo-local swarm lifecycle calls the API directly (`Output`, `StructuredOutputError`, `docker`, `OutputDefinition`); npm hoists the two to one copy while the ranges overlap. If that repo ever adopts a preset, the kit re-exports that surface rather than letting a second pin exist.
 
-**Build to `dist/`; do not ship raw `.mts`.** All three consumers run TypeScript directly today (tsx or bun), which makes shipping sources tempting — but `.mts` inside `node_modules` is exactly where tsx/bun dependency-transpilation behaviour is inconsistent. `tsc` with declarations is cheap now that the repos are on TS 7.
+**Build to `remote/dist/`; do not ship raw `.mts`.** All three consumers run TypeScript directly today (tsx or bun), which makes shipping sources tempting — but `.mts` inside `node_modules` is exactly where tsx/bun dependency-transpilation behaviour is inconsistent. `tsc` with declarations is cheap now that the repos are on TS 7.
 
 Two details the scaffold settled:
 
 - **Output is `.mjs`, not `.js`.** `.mts` sources under `module: nodenext` emit `.mjs`. Sources stay `.mts` so P1 modules move over unchanged, and the exports map follows the emit rather than the other way round.
-- **`dist/` ships in release tags, not on `main`.** **Revised 2026-07-26** — originally `dist/` was committed on `main` (with CI running `git diff --exit-code -- dist` against staleness), because git-URL consumers install without a registry and the runners' `bun install` `prepare`-on-git-dep handling is not something an unattended pipeline should rest on. The premise holds — built output must be in the git tree consumers install — but it never needed to be in `main`'s history: consumers pin tags, never `#main`. So `dist/` is now gitignored on `main`, and `.github/workflows/release.yml` builds, tests, and cuts each `vX.Y.Z` tag from a commit that force-adds `dist/` (a child of `main` HEAD living only behind the tag ref). Both installers still see identical built output; `main` loses the build-artifact diff noise; and `#main` becomes uninstallable, which converts the tag-pinning rule from policy into packaging. (Also noted for P1: TS 7 does not auto-include `@types/*` — `"types": ["node"]` is required for node builtins.)
+- **`remote/dist/` ships in release tags, not on `main`.** **Revised 2026-07-26** — originally `dist/` was committed on `main` (with CI running `git diff --exit-code -- dist` against staleness), because git-URL consumers install without a registry and the runners' `bun install` `prepare`-on-git-dep handling is not something an unattended pipeline should rest on. The premise holds — built output must be in the git tree consumers install — but it never needed to be in `main`'s history: consumers pin tags, never `#main`. The output now lives at `remote/dist/`, which is gitignored on `main`, and `.github/workflows/release.yml` builds, tests, and cuts each `vX.Y.Z` tag from a commit that force-adds it (a child of `main` HEAD living only behind the tag ref). Both installers still see identical built output; `main` loses the build-artifact diff noise; and `#main` becomes uninstallable, which converts the tag-pinning rule from policy into packaging. (Also noted for P1: TS 7 does not auto-include `@types/*` — `"types": ["node"]` is required for node builtins.)
 
-```json
-"exports": {
-  ".":            "./dist/index.mjs",
-  "./lib/*":      "./dist/lib/*.mjs",
-  "./presets/*":  "./dist/presets/*.mjs",
-  "./templates/": "./templates/"
-}
-```
+The root [package manifest](../../package.json) owns the exact export map. It
+exports compiled APIs from `remote/dist/`; template files use the supported
+`./templates/*` wildcard mapping into `remote/templates/*`, rather than Node's
+removed trailing-slash folder mapping.
 
 ### Consumer contract
 
 ```bash
-npm i -D github:alandy88/lif-sandcastle#v0.1.0
+npm i -D github:alandy88/lif-agents#v0.1.0
 ```
 
 ```ts
@@ -119,7 +116,7 @@ The kit repo also ships `.github/workflows/agent.yml` with `on: workflow_call`. 
 
 ### Template resolution
 
-Sandcastle's `promptFile` is a path relative to the sandbox workspace (today `.sandcastle/templates/implement/task-prompt.md`). Once defaults live in `node_modules/@lif/sandcastle-kit/templates/`, that path only resolves if `node_modules` sits inside the mounted workspace *and* install has already run. Per D1 the kit resolves them in place:
+Sandcastle's `promptFile` is a path relative to the sandbox workspace (today `.sandcastle/templates/implement/task-prompt.md`). The defaults live under the installed package's `remote/templates/`; that path only resolves if `node_modules` sits inside the mounted workspace *and* install has already run. Per D1 the kit resolves them in place:
 
 ```ts
 import { templatePath } from "@lif/sandcastle-kit";
@@ -133,7 +130,7 @@ const promptFile = templatePath("implement/task-prompt.md", {
 
 **Added 2026-07-26.** Settled in review with the owner after the P1/`presets/implement` landings, before P2/P3. This section is the target the phasing builds toward; nothing in it reorders the phasing.
 
-**Amended 2026-07-26.** `deliver` moved from `src/phases/` to `src/lib/github-pr.mts`: it has no template and no `PhaseContext`, so it failed this section's own three-part definition of a phase — it is a host adapter beside `github-issue`, not a lifecycle stage.
+**Amended 2026-07-26.** `deliver` moved from `remote/src/phases/` to `remote/src/lib/github-pr.mts`: it has no template and no `PhaseContext`, so it failed this section's own three-part definition of a phase — it is a host adapter beside `github-issue`, not a lifecycle stage.
 
 ### Two contracts, different rigidity
 
@@ -146,13 +143,13 @@ The kit's job splits into two contracts, and they deliberately differ in how neg
 
 ```
 Layer 0  @ai-hero/sandcastle       kit-internal dependency; never consumer-visible
-Layer 1  src/lib/                  primitives = the practice layer
+Layer 1  remote/src/lib/           primitives = the practice layer
                                    (host-exec, defang, toolchains, profiles,
                                     provider-setup, templates, task-list, task-loop,
                                     github-issue, github-pr)
-Layer 2  src/phases/               modular stages: plan · task · review · verify
+Layer 2  remote/src/phases/        modular stages: plan · task · review · verify
                                    each = runner fn + default template + typed inputs/outputs
-Layer 3  src/presets/              standard compositions
+Layer 3  remote/src/presets/       standard compositions
                                    implement = github-issue → plan? → loop(task) → review → PR
                                    task      = ledger      →          loop(task) → verify → squash-merge
 Layer 4  consumer config.mts       pick a preset, override its templates,
@@ -213,16 +210,16 @@ Migration first, on current behaviour: the phase decomposition rides P2 (writing
 
 **P1 — Extract the identical core. ✅ Done 2026-07-26.** Move `host-exec`, `task-list`, `task-loop`, `profiles`, `github-issue` into the kit with their tests, plus `defangShellExpansion` extracted out of `workflows/implement/main.mts` into a kit module with its regression test. Behaviour-preserving; no consumer changes yet.
 
-> **Landed** in `src/lib/` (from `comfyui-lif-nodes`, per the base-implementation decision), re-exported from `src/index.mts`, built to `dist/`. Suite is 46 tests green: `profiles`, `task-list`, `task-loop`, and `templates` as migrated, plus `host-exec` and `defang` tests taken from `lif-studio` (`comfyui-lif-nodes` had none for either — its defang tests lived inside `workflows/implement/main.test.mts`).
+> **Landed** in `remote/src/lib/` (from `comfyui-lif-nodes`, per the base-implementation decision), re-exported from `remote/src/index.mts`, built to `remote/dist/`. Suite is 46 tests green: `profiles`, `task-list`, `task-loop`, and `templates` as migrated, plus `host-exec` and `defang` tests taken from `lif-studio` (`comfyui-lif-nodes` had none for either — its defang tests lived inside `workflows/implement/main.test.mts`).
 >
 > Two things the move corrected, both worth carrying into the consumer cutovers:
 >
 > - **`host-exec` was *not* three copies of one file.** Problem statement 1 is right that `Morrow` and `comfyui-lif-nodes` are byte-identical, but `lif-studio`'s `capture` also *buffers* stderr and returns it (`{ stdout, stderr, exitCode }`) — `green-check` puts it in the failure detail. The kit ships **`lif-studio`'s superset**; had the kit taken the byte-identical pair at face value, P4 would have silently dropped that failure detail. The `GitRunner`/`GhRunner` type annotations on `hostGit`/`ghCapture` stay repo-local, so the wrappers keep the plain signatures. The extra `stderr` field is additive for the other two consumers.
-> - **Import specifiers.** Sources import `./x.mts` (unchanged from the donors — and the only form `node --experimental-strip-types` resolves when tests run off `src/`); `rewriteRelativeImportExtensions` rewrites them to `.mjs` in the JS emit. Declaration files keep `.mts`, which TS 7 resolves to the sibling `.d.mts` — verified by typechecking a scratch consumer against the built `dist/`, including that a deliberate mismatch still errors (types are real, not `any`).
+> - **Import specifiers.** Sources import `./x.mts` (unchanged from the donors — and the only form `node --experimental-strip-types` resolves when tests run off `remote/src/`); `rewriteRelativeImportExtensions` rewrites them to `.mjs` in the JS emit. Declaration files keep `.mts`, which TS 7 resolves to the sibling `.d.mts` — verified by typechecking a scratch consumer against the built `remote/dist/`, including that a deliberate mismatch still errors (types are real, not `any`).
 
 **`presets/implement` — the issue-driven lifecycle. ✅ Done 2026-07-26.** The target-design table already placed `workflows/implement` in the kit as an opt-in preset; this builds it, from `comfyui-lif-nodes` per the base-implementation decision. Behaviour-preserving: the guards, trailer resume, plan-when-absent, checklist ralph loop, artifact strip, and PR create/refresh are unchanged.
 
-> **Landed** as `src/presets/implement.mts` + `templates/implement/{plan,task,review}-prompt.md`. Suite is 61 tests green (was 46). Three things the port had to settle:
+> **Landed** as `remote/src/presets/implement.mts` + `remote/templates/implement/{plan,task,review}-prompt.md`. Suite is 61 tests green (was 46). Three things the port had to settle:
 >
 > - **The config seam.** The donor read `createAgent`, `createSandboxProvider`, and `preflightCommands` from its own `.sandcastle/config.mts` by relative import, and the first cut of this preset mechanically preserved that split as `ImplementConfig`. That was wrong: the donor's seam existed because `config.mts` was a *sibling file*, not a package boundary. Carrying it across the boundary pushed provider knowledge — `sandcastle.claudeCode` vs `sandcastle.codex`, and a `~/.codex/auth.json` heredoc — into every consumer's config. Corrected: `ImplementConfig` is now `conventions`, `verify`, and an optional `preflight`, with `createAgent`/`createSandboxProvider`/`templateDir` as optional escape hatches. `runImplementLoop(config)` is the consumer entrypoint; `main(options, deps)` keeps the donor's signature so the guard tests moved unchanged.
 >
@@ -232,7 +229,7 @@ Migration first, on current behaviour: the phase decomposition rides P2 (writing
 >
 > Not addressed: the base branch is still hardcoded `main` (`origin/main..`, `--base main`, and `main..HEAD` inside the review template). All three consumers use `main`, so this is deliberate rather than overlooked — but it is repo knowledge sitting in the kit, and a fourth consumer on `master` or `trunk` is the trigger to lift it into `ImplementConfig`.
 
-**P2 — Cut `Morrow` over.** ~450 lines, no GitHub issue source, lowest blast radius. Blocked on `presets/task`, which does not exist; P3 now runs first. Writing `presets/task` is also the forcing function for the phase decomposition (see Architecture): `presets/implement` breaks into `src/phases/` and both presets become compositions, behaviour-preserving.
+**P2 — Cut `Morrow` over.** ~450 lines, no GitHub issue source, lowest blast radius. The `presets/task` prerequisite now exists; P3 still runs first. Writing that preset was the forcing function for the phase decomposition (see Architecture): `presets/implement` now uses `remote/src/phases/`, and both presets are behaviour-preserving compositions.
 
 **P3 — Cut `comfyui-lif-nodes` over.** Its `config.mts` is already 36 lines of purely repo-specific configuration, so this is close to a straight deletion of `lib/`.
 
@@ -249,7 +246,7 @@ Migration first, on current behaviour: the phase decomposition rides P2 (writing
 
 ## Acceptance criteria
 
-1. `lif-sandcastle` builds to `dist/` with declarations and passes the migrated unit tests (`profiles`, `task-list`, `task-loop`, `host-exec`, preset entrypoints).
+1. `lif-agents` builds to `remote/dist/` with declarations and passes the migrated unit tests (`profiles`, `task-list`, `task-loop`, `host-exec`, preset entrypoints).
 2. `Morrow/.sandcastle/` contains only `config.mts`, `Dockerfile`, `.env.example`, and any overridden templates; `lib/host-exec.mts` is deleted, and `npm run sandcastle-agent` completes a real run.
 3. The same holds for `comfyui-lif-nodes`, including a green label-triggered AFK run end to end.
 4. `lif-studio`'s `package.json` `typecheck` and `test:sandcastle-lib` scripts shrink to the modules that remain repo-local.
@@ -261,11 +258,11 @@ Migration first, on current behaviour: the phase decomposition rides P2 (writing
 
 **D1 — Template distribution. Settled: (b) resolve via `templatePath()`.** The kit exports `templatePath(name, { workspaceRoot, overrideDir })`, returning a workspace-relative path into `node_modules`; a repo override under `overrideDir` wins when the same-named file exists. The rejected alternative was (a) *materialise* — a `sandcastle-kit sync` command copying defaults into `.sandcastle/templates/`. (b) wins on machinery: no CLI, no gitignored generated tree, no extra workflow step to forget. The accepted cost is that two things become load-bearing — `node_modules` must sit **inside** the mounted sandbox workspace, and install must run before the first template read. `templatePath` throws rather than returning an escaping path when the first does not hold, so the failure is loud at run start instead of a confusing `promptFile` miss mid-run.
 
-**D2 — Repo location and visibility. Settled: standalone public [`alandy88/lif-sandcastle`](https://github.com/alandy88/lif-sandcastle).** Keeps `Morrow` free of a monorepo dependency, and public is what gives it *both* the reusable workflow and credential-free `npm i` (see the cross-owner caveat above) — standalone-private or in-monorepo would mean Morrow needs an `alandy88` token in its secrets and keeps its own workflow file. The `lif-datafiles` git-URL precedent (ADR-0024/0033/0034) still governs *how* it is consumed; only the location differs.
+**D2 — Repo location and visibility. Settled: standalone public [`alandy88/lif-agents`](https://github.com/alandy88/lif-agents).** Keeps `Morrow` free of a monorepo dependency, and public is what gives it *both* the reusable workflow and credential-free `npm i` (see the cross-owner caveat above) — standalone-private or in-monorepo would mean Morrow needs an `alandy88` token in its secrets and keeps its own workflow file. The `lif-datafiles` git-URL precedent (ADR-0024/0033/0034) still governs *how* it is consumed; only the location differs.
 
 **D3 — First-cut scope. Settled: identical modules plus defang, nothing else.** The junk-drawer rule already answers this — run logging, usage tracking, and deadlines each have exactly one consumer today and stay in `lif-studio` until a second repo asks (see P4).
 
 ## Decision log hooks
 
-- **ADR still owed, in this repo.** D1 and D2 are settled, so the ADR recording the module boundary rule and the tag-pinning requirement — the two constraints that keep the kit from re-accumulating repo-specific code — is now due. It binds all consumers, so it belongs here (`docs/adr/`), not in any one of them. Not yet written.
-- ~~`AGENTS.md` gains `lif-sandcastle` under "Related repos (external, cloned separately)" if D2 lands standalone.~~ Done — D2 landed standalone.
+- **ADR still owed, in this repo.** D1 and D2 are settled, so the ADR recording the module boundary rule and the tag-pinning requirement — the two constraints that keep the kit from re-accumulating repo-specific code — is now due. It binds all consumers, so it belongs here (`remote/docs/adr/`), not in any one of them. Not yet written.
+- ~~`AGENTS.md` gains `lif-agents` under "Related repos (external, cloned separately)" if D2 lands standalone.~~ Done — D2 landed standalone.

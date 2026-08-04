@@ -1,13 +1,13 @@
 node_modules/
 *.tsbuildinfo
 
-# Build output lives only in release tags, never on main — see README
-# ("Why dist/ ships in release tags"). The release workflow force-adds it.
-dist/
+# Build output lives only in release tags, never on main — see AGENTS.md
+# ("Releases"). The release workflow force-adds it.
+remote/dist/
 
 # Populated environment overlays carry the captain's real paths and the BWS
-# project id -- see environments/README.md. Only the .example templates under
-# local/hosts/ and each environment's README are tracked.
-environments/*/host.lua
-environments/*/host.sh
-environments/*/host.ps1
+# project id -- see local/environments/README.md. Only the .example templates
+# under local/hosts/ and each environment's README are tracked.
+local/environments/*/host.lua
+local/environments/*/host.sh
+local/environments/*/host.ps1

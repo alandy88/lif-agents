@@ -18,8 +18,8 @@
 param()
 
 $ErrorActionPreference = 'Stop'
-# This script lives in install/; the configs live under local/.
-$repo = Split-Path $PSScriptRoot -Parent
+# This script lives in local/install/; the configs live beside it under local/.
+$localRoot = Split-Path $PSScriptRoot -Parent
 
 function Set-UserEnv {
     param([string]$Name, [string]$Value)
@@ -37,11 +37,11 @@ function Set-UserEnv {
 }
 
 Write-Host "Environment variables" -ForegroundColor Cyan
-Set-UserEnv WEZTERM_CONFIG_FILE (Join-Path $repo 'local\wezterm\wezterm.lua')
-Set-UserEnv STARSHIP_CONFIG     (Join-Path $repo 'local\starship\starship.toml')
+Set-UserEnv WEZTERM_CONFIG_FILE (Join-Path $localRoot 'wezterm\wezterm.lua')
+Set-UserEnv STARSHIP_CONFIG     (Join-Path $localRoot 'starship\starship.toml')
 
 Write-Host "PowerShell profile" -ForegroundColor Cyan
-$profileScript = Join-Path $repo 'local\pwsh\profile.ps1'
+$profileScript = Join-Path $localRoot 'pwsh\profile.ps1'
 $escapedProfileScript = $profileScript.Replace("'", "''")
 $stub = ". '$escapedProfileScript'"
 if ((Test-Path $PROFILE) -and (Get-Content $PROFILE -Raw).Trim() -eq $stub) {
