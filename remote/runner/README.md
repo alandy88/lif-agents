@@ -30,7 +30,7 @@ a runner missing `agent` is never picked and the job queues indefinitely.
 `on: workflow_call` and takes them as the required `runs-on` input. The label
 array lives in the **consumer** repos' `sandcastle-agent.yml`, which call this
 workflow by tag; the template for that caller is in the
-[kit reference, "CI wiring"](../docs/kit-reference.md#4-ci-wiring-issue-driven-preset).
+[kit reference, "CI wiring"](../README.md#4-ci-wiring-issue-driven-preset).
 
 This repo's own workflows never touch the host: `ci.yml` and `release.yml` both
 run on `ubuntu-latest`.

@@ -1,10 +1,8 @@
 # `@lif/sandcastle-kit` reference
 
-Everything a consumer might need after the README's Quick start: the full
-config surface, what each preset expects of a repo, prompt customization, and
-composing your own lifecycle out of the phases.
-
-Design and phasing: [2026-07-26-sandcastle-kit-shared-package-prd.md](2026-07-26-sandcastle-kit-shared-package-prd.md).
+Everything a consumer might need beyond the root [README](../README.md): the
+full config surface, what each preset expects of a repo, prompt customization,
+and composing your own lifecycle out of the phases.
 
 ## Adopting it in an existing repo
 
@@ -238,7 +236,7 @@ const config: ImplementConfig = {
 .sandcastle/templates/implement/task-prompt.md   # overrides just this one
 ```
 
-Defaults live in [../templates/](../templates/) and are read directly from
+Defaults live in [templates/](templates/) and are read directly from
 `node_modules`, never copied into your repo.
 
 | template | phase | placeholders available |
