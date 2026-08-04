@@ -138,7 +138,10 @@ It:
 
 - symlinks `wezterm.lua` and `starship.toml` into `$XDG_CONFIG_HOME`
 - symlinks the environment's `host.lua` / `host.sh` / `host.ps1` to
-  `~/.config/lif-host.*`
+  `~/.config/lif-host.*`. A machine installed before `environments/` moved under
+  `local/` has these pointing at the old repo-root path; a rerun repairs them,
+  including when the old path is gone and the link is dangling. A `lif-host.*`
+  symlink pointing anywhere else is treated as the captain's own and kept
 - symlinks the zsh profile to `~/.config/lif-shell.zsh` and appends one marked
   block to `~/.zshrc` that sources it (`--skip-shell-rc` opts out). It never
   rewrites an existing `~/.zshrc` — the captain curates that file

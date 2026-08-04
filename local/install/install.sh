@@ -29,6 +29,10 @@ set -euo pipefail
 # This script lives in local/install/; everything it installs lives beside it
 # under local/ -- the configs, the hosts/ templates, and environments/.
 local_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
+# environments/ and hosts/ used to sit at the repo root, one level further up.
+# A machine installed before that move has ~/.config/lif-host.* pointing there,
+# so those paths stay recognized as ours -- see is_repo_overlay_link.
+pre_move_root=$(cd -- "$local_root/.." && pwd -P)
 config_home=${XDG_CONFIG_HOME:-$HOME/.config}
 dry_run=0
 skip_rc=0
@@ -152,17 +156,28 @@ resolve_link_target() {
     (cd "$target_dir" 2>/dev/null && printf '%s/%s\n' "$(pwd -P)" "$(basename "$target")")
 }
 
+# Is this link one we placed -- including one placed by a version of this
+# installer that predates the local/ move?
+#
+# The pre-move targets are migration inputs, not foreign symlinks. Read as
+# foreign, link_overlay keeps them, and an already-installed machine silently
+# stops picking up overlay edits: the link still points at the old location,
+# and once that directory is gone it is dangling and every rerun refuses to
+# repair it. The textual match on `readlink` matters for exactly that dangling
+# case, because resolve_link_target cannot resolve a target that no longer exists.
 is_repo_overlay_link() {
     local link=$1 target resolved
 
     target=$(readlink "$link") || return 1
     case "$target" in
         "$local_root/environments/"*|"$local_root/hosts/"*) return 0 ;;
+        "$pre_move_root/environments/"*|"$pre_move_root/hosts/"*) return 0 ;;
     esac
 
     resolved=$(resolve_link_target "$link" 2>/dev/null || true)
     case "$resolved" in
         "$local_root/environments/"*|"$local_root/hosts/"*) return 0 ;;
+        "$pre_move_root/environments/"*|"$pre_move_root/hosts/"*) return 0 ;;
         *) return 1 ;;
     esac
 }
