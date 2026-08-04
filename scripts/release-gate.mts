@@ -170,7 +170,7 @@ const readWorkingPackageJson: ReadPackageJson = () => readFileSync("package.json
  *   (verified — the case-sensitive glob returns no match on both). A pathspec
  *   that silently matches nothing is precisely the never-ships failure below.
  * - `.github/workflows/agent.yml` is `on: workflow_call` and consumers pin it
- *   directly (`uses: alandy88/lif-sandcastle/.github/workflows/agent.yml@vX.Y.Z`),
+ *   directly (`uses: alandy88/lif-agents/.github/workflows/agent.yml@vX.Y.Z`),
  *   reaching them over a path npm never touches. Deriving this one too would mean
  *   regex-sniffing `workflow_call` out of YAML — a worse trade than one named
  *   entry. `ci.yml` and `release.yml` stay out on purpose: they run here, not

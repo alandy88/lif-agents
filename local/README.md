@@ -5,7 +5,7 @@ Windows, zsh on macOS and WSL. Every environment uses all four; only the shell
 profile differs. On Windows the firstmate helpers bridge into WSL, on macOS and
 WSL they run locally.
 
-Absorbed into `lif-sandcastle` with history; the installers now live one level
+Absorbed into `lif-agents` with history; the installers now live one level
 up in `install/`, and the per-machine overlays in `environments/`. Paths below
 are relative to this directory unless stated otherwise.
 
@@ -41,8 +41,8 @@ platform-specific update commands are in the
 ## Install
 
 ```powershell
-git clone https://github.com/alandy88/lif-sandcastle   # anywhere you keep checkouts
-.\lif-sandcastle\install\install.ps1                  # -WhatIf to preview
+git clone https://github.com/alandy88/lif-agents   # anywhere you keep checkouts
+.\lif-agents\install\install.ps1                   # -WhatIf to preview
 ```
 
 On macOS or WSL, run `install/install.sh` instead. It reuses the environment
@@ -77,8 +77,8 @@ fill in the placeholders:
 
 ```powershell
 New-Item -ItemType Directory -Force "$env:USERPROFILE\.config" | Out-Null
-Copy-Item .\lif-sandcastle\local\hosts\lif-host.lua.example "$env:USERPROFILE\.config\lif-host.lua"
-Copy-Item .\lif-sandcastle\local\hosts\lif-host.ps1.example "$env:USERPROFILE\.config\lif-host.ps1"
+Copy-Item .\lif-agents\local\hosts\lif-host.lua.example "$env:USERPROFILE\.config\lif-host.lua"
+Copy-Item .\lif-agents\local\hosts\lif-host.ps1.example "$env:USERPROFILE\.config\lif-host.ps1"
 ```
 
 On macOS and WSL, `install.sh` symlinks them from `environments/<env>/` instead.

@@ -58,7 +58,7 @@ The kit's core is derived from **`comfyui-lif-nodes`**, not `lif-studio`: the ch
 ### Package shape
 
 ```
-lif-sandcastle/
+lif-agents/
   package.json          "@lif/sandcastle-kit", "type": "module"
   src/lib/*.mts         host-exec, task-list, task-loop, profiles, github-issue, github-pr, …
   src/phases/*.mts      modular stages: plan, task, review, verify (see Architecture)
@@ -91,7 +91,7 @@ Two details the scaffold settled:
 ### Consumer contract
 
 ```bash
-npm i -D github:alandy88/lif-sandcastle#v0.1.0
+npm i -D github:alandy88/lif-agents#v0.1.0
 ```
 
 ```ts
@@ -249,7 +249,7 @@ Migration first, on current behaviour: the phase decomposition rides P2 (writing
 
 ## Acceptance criteria
 
-1. `lif-sandcastle` builds to `dist/` with declarations and passes the migrated unit tests (`profiles`, `task-list`, `task-loop`, `host-exec`, preset entrypoints).
+1. `lif-agents` builds to `dist/` with declarations and passes the migrated unit tests (`profiles`, `task-list`, `task-loop`, `host-exec`, preset entrypoints).
 2. `Morrow/.sandcastle/` contains only `config.mts`, `Dockerfile`, `.env.example`, and any overridden templates; `lib/host-exec.mts` is deleted, and `npm run sandcastle-agent` completes a real run.
 3. The same holds for `comfyui-lif-nodes`, including a green label-triggered AFK run end to end.
 4. `lif-studio`'s `package.json` `typecheck` and `test:sandcastle-lib` scripts shrink to the modules that remain repo-local.
@@ -261,11 +261,11 @@ Migration first, on current behaviour: the phase decomposition rides P2 (writing
 
 **D1 — Template distribution. Settled: (b) resolve via `templatePath()`.** The kit exports `templatePath(name, { workspaceRoot, overrideDir })`, returning a workspace-relative path into `node_modules`; a repo override under `overrideDir` wins when the same-named file exists. The rejected alternative was (a) *materialise* — a `sandcastle-kit sync` command copying defaults into `.sandcastle/templates/`. (b) wins on machinery: no CLI, no gitignored generated tree, no extra workflow step to forget. The accepted cost is that two things become load-bearing — `node_modules` must sit **inside** the mounted sandbox workspace, and install must run before the first template read. `templatePath` throws rather than returning an escaping path when the first does not hold, so the failure is loud at run start instead of a confusing `promptFile` miss mid-run.
 
-**D2 — Repo location and visibility. Settled: standalone public [`alandy88/lif-sandcastle`](https://github.com/alandy88/lif-sandcastle).** Keeps `Morrow` free of a monorepo dependency, and public is what gives it *both* the reusable workflow and credential-free `npm i` (see the cross-owner caveat above) — standalone-private or in-monorepo would mean Morrow needs an `alandy88` token in its secrets and keeps its own workflow file. The `lif-datafiles` git-URL precedent (ADR-0024/0033/0034) still governs *how* it is consumed; only the location differs.
+**D2 — Repo location and visibility. Settled: standalone public [`alandy88/lif-agents`](https://github.com/alandy88/lif-agents).** Keeps `Morrow` free of a monorepo dependency, and public is what gives it *both* the reusable workflow and credential-free `npm i` (see the cross-owner caveat above) — standalone-private or in-monorepo would mean Morrow needs an `alandy88` token in its secrets and keeps its own workflow file. The `lif-datafiles` git-URL precedent (ADR-0024/0033/0034) still governs *how* it is consumed; only the location differs.
 
 **D3 — First-cut scope. Settled: identical modules plus defang, nothing else.** The junk-drawer rule already answers this — run logging, usage tracking, and deadlines each have exactly one consumer today and stay in `lif-studio` until a second repo asks (see P4).
 
 ## Decision log hooks
 
 - **ADR still owed, in this repo.** D1 and D2 are settled, so the ADR recording the module boundary rule and the tag-pinning requirement — the two constraints that keep the kit from re-accumulating repo-specific code — is now due. It binds all consumers, so it belongs here (`docs/adr/`), not in any one of them. Not yet written.
-- ~~`AGENTS.md` gains `lif-sandcastle` under "Related repos (external, cloned separately)" if D2 lands standalone.~~ Done — D2 landed standalone.
+- ~~`AGENTS.md` gains `lif-agents` under "Related repos (external, cloned separately)" if D2 lands standalone.~~ Done — D2 landed standalone.

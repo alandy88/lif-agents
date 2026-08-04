@@ -6,7 +6,7 @@
   "license": "UNLICENSED",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/alandy88/lif-sandcastle.git"
+    "url": "git+https://github.com/alandy88/lif-agents.git"
   },
   "files": [
     "dist",

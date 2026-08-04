@@ -28,7 +28,7 @@ it (run from the directory holding the checkout):
 
 ```powershell
 New-Item -ItemType Directory -Force "$env:APPDATA\herdr" | Out-Null
-(Get-Content .\lif-sandcastle\local\herdr\config.toml -Raw).Replace(
+(Get-Content .\lif-agents\local\herdr\config.toml -Raw).Replace(
     '@LIF_HERDR_DEFAULT_SHELL@', 'C:/Program Files/PowerShell/7/pwsh.exe'
 ) | Set-Content "$env:APPDATA\herdr\config.toml"
 herdr config check

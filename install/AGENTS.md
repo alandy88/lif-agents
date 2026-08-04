@@ -4,7 +4,7 @@
 install it.** This file is the entrypoint for that. It covers the terminal
 setup: WezTerm, Starship, Herdr, and the shell profile.
 
-**Do not run `npm i -D github:alandy88/lif-sandcastle`.** The README's `Install`
+**Do not run `npm i -D github:alandy88/lif-agents`.** The README's `Install`
 heading belongs to `@lif/sandcastle-kit`, a JavaScript package other repos
 depend on. It has nothing to do with this machine's terminal, and installing it
 here does nothing the captain asked for.
@@ -46,7 +46,7 @@ On the Mac mini, once, after this branch has merged and that machine has
 pulled — the files are **untracked**, so plain `mv`, not `git mv`:
 
 ```bash
-cd ~/repos/lif-sandcastle && git pull
+cd ~/repos/lif-agents && git pull
 mkdir -p environments/macmini
 mv environments/mac/host.lua environments/mac/host.sh environments/macmini/
 rmdir environments/mac

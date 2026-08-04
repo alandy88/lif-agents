@@ -1,4 +1,4 @@
-# lif-sandcastle
+# lif-agents
 
 `@lif/sandcastle-kit` is the repo-agnostic engine behind `.sandcastle/` agent
 pipelines. A repo adopts an autonomous agent lifecycle by writing one config
@@ -23,7 +23,7 @@ Design and phasing: [docs/2026-07-26-sandcastle-kit-shared-package-prd.md](docs/
 > part in it — go to [install/AGENTS.md](install/AGENTS.md).
 
 ```bash
-npm i -D github:alandy88/lif-sandcastle#v0.2.4
+npm i -D github:alandy88/lif-agents#v0.2.4
 ```
 
 **Pin a tag, never `#main`.** Unattended runs must not pick up kit changes
@@ -133,7 +133,7 @@ on:
 jobs:
   agent:
     if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'ready-for-agent'
-    uses: alandy88/lif-sandcastle/.github/workflows/agent.yml@v0.2.4
+    uses: alandy88/lif-agents/.github/workflows/agent.yml@v0.2.4
     with:
       issue: ${{ inputs.issue || github.event.issue.number }}
       runs-on: '["self-hosted","peter-3090-u","agent"]'

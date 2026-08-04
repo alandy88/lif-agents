@@ -1,7 +1,7 @@
 name: release
 
 # Cuts a version tag whose commit carries both the built dist/ and the stamped
-# version. Consumers pin these tags (`npm i -D github:alandy88/lif-sandcastle#vX.Y.Z`),
+# version. Consumers pin these tags (`npm i -D github:alandy88/lif-agents#vX.Y.Z`),
 # so the tag — not main — is the installable artifact. The release commit is a
 # child of main HEAD that exists only behind the tag ref; main itself stays
 # clean and is deliberately NOT installable.
