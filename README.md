@@ -1,8 +1,10 @@
 # lif-agents
 
-The captain's agent configurations, in two sets:
+Configurations for using AI Coding Agents
 
-1. **`local/`** — configuration for the captain's own personal machines, Mac or
+Two sets:
+
+1. **`local/`** — configuration for personal machines, Mac or
    Windows PCs.
 2. **`remote/`** — configuration for remote environments: cloud VMs and build
    agents, running under the Sandcastle framework

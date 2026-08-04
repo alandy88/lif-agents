@@ -2,7 +2,7 @@
 
 This file is the project's committed home for project-intrinsic agent knowledge: build, test, release, architecture, and sharp-edge notes that should travel with the code.
 
-- **Two halves, one root.** `local/` is the captain's machine setup; `remote/` is the kit,
+- **Two halves, one root.** `local/` is the personal-machine setup; `remote/` is the kit,
   the package other repos install. They share nothing but the repository.
 - **Asked to "install this" on a machine? Read
   [local/install/AGENTS.md](local/install/AGENTS.md) — not the README's kit section.**
