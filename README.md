@@ -12,7 +12,7 @@ The kit ships two lifecycles:
 | `presets/implement` | a GitHub issue with a `## Tasks` checklist | plan → one fresh agent session per task → review → PR |
 | `presets/task` | `PLAN.md` + a `STATE.md` ledger | next task → task session → fresh-context verify → PR → squash-merge, ×N |
 
-Design and phasing: [docs/2026-07-26-sandcastle-kit-shared-package-prd.md](docs/2026-07-26-sandcastle-kit-shared-package-prd.md).
+Design and phasing: [remote/docs/2026-07-26-sandcastle-kit-shared-package-prd.md](remote/docs/2026-07-26-sandcastle-kit-shared-package-prd.md).
 
 ---
 
@@ -20,7 +20,7 @@ Design and phasing: [docs/2026-07-26-sandcastle-kit-shared-package-prd.md](docs/
 
 > Looking to set up a machine's **terminal** (WezTerm, Starship, Herdr, shell
 > profile) from this repo? That is a different thing entirely and `npm` plays no
-> part in it — go to [install/AGENTS.md](install/AGENTS.md).
+> part in it — go to [local/install/AGENTS.md](local/install/AGENTS.md).
 
 ```bash
 npm i -D github:alandy88/lif-agents#v0.2.4
@@ -267,7 +267,7 @@ const config: ImplementConfig = {
 .sandcastle/templates/implement/task-prompt.md   # overrides just this one
 ```
 
-Defaults live in [templates/](templates/) and are read directly from
+Defaults live in [remote/templates/](remote/templates/) and are read directly from
 `node_modules`, never copied into your repo.
 
 | template | phase | placeholders available |
@@ -345,15 +345,15 @@ nothing enters the kit until a second repo actually needs it.
 
 ## Releases
 
-`dist/` is gitignored on `main` and force-added onto each `vX.Y.Z` tag commit.
+`remote/dist/` is gitignored on `main` and force-added onto each `vX.Y.Z` tag commit.
 Git-URL installs get built output whether the runner uses `npm` or `bun`, and
 `main` stays clean. `package.json` on `main` reads `0.0.0-development` and is
 never bumped — only the release commit carries a real version, stamped next to
-the `dist/` it describes. To find the current version, read the tags.
+the `remote/dist/` it describes. To find the current version, read the tags.
 
 Releases are cut automatically: every push to `main` builds, and a new tag
 follows if the installable payload differs from the last tag's
-(`scripts/release-gate.mts`). The gate compares built output, not the commit
+(`remote/scripts/release-gate.mts`). The gate compares built output, not the commit
 subject. Commit type only picks the bump size: `feat` or `!` takes the minor,
 anything else the patch (below 1.0.0 a breaking change is a minor). A
 `workflow_dispatch` with an explicit `version` overrides both.
@@ -361,7 +361,7 @@ anything else the patch (below 1.0.0 a breaking change is a minor). A
 Raw `.mts` is not shipped — tsx/bun transpilation of `.mts` inside
 `node_modules` is inconsistent. The JS emit rewrites `.mts` imports to `.mjs`;
 declarations keep `.mts` and resolve to the sibling `.d.mts`, so a consumer
-typechecking against `dist/` sees real types.
+typechecking against `remote/dist/` sees real types.
 
 ## Also in this repo
 
@@ -372,18 +372,18 @@ is the same person's environment, and one repo beats four.
 | Directory | What it holds |
 |---|---|
 | `local/` | terminal config: WezTerm, Starship, Herdr, the pwsh 7 profile, the zsh profile. Absorbed from `lif-terminal` with its history. See [local/README.md](local/README.md). |
-| `environments/` | one directory per named machine, holding every machine-specific value and declaring which values an environment owes. See [environments/README.md](environments/README.md). |
-| `install/` | `install.ps1` (Windows, env-var redirection) and `install.sh` (macOS/WSL, symlinks + the zsh and Herdr wiring). Both are idempotent. Agents installing this on a machine start at [install/AGENTS.md](install/AGENTS.md). |
+| `local/environments/` | one directory per named machine, holding every machine-specific value and declaring which values an environment owes. See [local/environments/README.md](local/environments/README.md). |
+| `local/install/` | `install.ps1` (Windows, env-var redirection) and `install.sh` (macOS/WSL, symlinks + the zsh and Herdr wiring). Both are idempotent. Agents installing this on a machine start at [local/install/AGENTS.md](local/install/AGENTS.md). |
 | `remote/` | provisioning for the self-hosted runner the reusable workflow targets. See [remote/runner/README.md](remote/runner/README.md). |
 
 ```bash
-install/install.sh --env <name> --dry-run # preview a first install
-install/install.sh --env <name>           # install and remember the environment
-install/install.sh                        # later runs reuse the remembered name
+local/install/install.sh --env <name> --dry-run # preview a first install
+local/install/install.sh --env <name>           # install and remember the environment
+local/install/install.sh                        # later runs reuse the remembered name
 ```
 
 The installer places config and installs no software; the prerequisites and the
-values it cannot invent are in [install/AGENTS.md](install/AGENTS.md).
+values it cannot invent are in [local/install/AGENTS.md](local/install/AGENTS.md).
 
 Bun installs this repo by tag and copies the whole tree into `node_modules`,
 ignoring `package.json`'s `files` — so keep large binaries out of `local/` and
@@ -392,7 +392,7 @@ ignoring `package.json`'s `files` — so keep large binaries out of `local/` and
 ## Developing the kit
 
 ```bash
-npm test           # unit tests, node --experimental-strip-types off src/
+npm test           # unit tests, node --experimental-strip-types off remote/src/
 npm run typecheck
 npm run build
 ```

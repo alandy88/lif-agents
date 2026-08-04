@@ -1,6 +1,6 @@
 name: release
 
-# Cuts a version tag whose commit carries both the built dist/ and the stamped
+# Cuts a version tag whose commit carries both the built remote/dist/ and the stamped
 # version. Consumers pin these tags (`npm i -D github:alandy88/lif-agents#vX.Y.Z`),
 # so the tag — not main — is the installable artifact. The release commit is a
 # child of main HEAD that exists only behind the tag ref; main itself stays
@@ -15,7 +15,7 @@ name: release
 # Release test: did `dist/` change? NOT: did a commit subject say `feat`. A
 # subject is a claim about intent and `bb2f75a` proved it can be silent about a
 # change every consumer feels; the built output cannot. Commit types still pick
-# how big the bump is — see scripts/next-version.mts.
+# how big the bump is — see remote/scripts/next-version.mts.
 
 on:
   push:
@@ -58,11 +58,11 @@ jobs:
       # in the script, not here: they are about what real git does with real
       # refs and real pathspecs, and four rounds of review found seven bugs in
       # this step while it was shell no test could reach. The reasoning behind
-      # each is in scripts/release-gate.mts; the integration tier drives them
+      # each is in remote/scripts/release-gate.mts; the integration tier drives them
       # against real temp repos.
       - name: is there anything to release?
         id: check
-        run: node --experimental-strip-types scripts/release-gate.mts
+        run: node --experimental-strip-types remote/scripts/release-gate.mts
 
       # A stale run must not tag superseded code, but an operator who named a
       # version must not be silently ignored either — a dispatch that "succeeds"
@@ -94,7 +94,7 @@ jobs:
         env:
           EXPLICIT: ${{ inputs.version }}
           LAST_TAG: ${{ steps.check.outputs.last }}
-        run: node --experimental-strip-types scripts/next-version.mts
+        run: node --experimental-strip-types remote/scripts/next-version.mts
 
       - name: stamp and tag
         if: steps.version.outputs.version != ''
@@ -107,8 +107,8 @@ jobs:
           # and touches git not at all. The commit below is this workflow's, and
           # it is never pushed to main — only the tag ref leaves this runner.
           npm version --no-git-tag-version "$VERSION"
-          git add -f dist package.json package-lock.json
-          git commit -m "release v$VERSION: stamp version, build dist/"
+          git add -f remote/dist package.json package-lock.json
+          git commit -m "release v$VERSION: stamp version, build remote/dist/"
           git tag "v$VERSION"
           git push origin "refs/tags/v$VERSION"
           echo "Tagged [v$VERSION](https://github.com/${GITHUB_REPOSITORY}/releases/tag/v$VERSION)." >> "$GITHUB_STEP_SUMMARY"
@@ -134,7 +134,7 @@ jobs:
         run: |
           # `--tags` so what counts as a release tag stays defined in exactly one
           # place, and so the tag this run just created is included.
-          TAGS=$(node --experimental-strip-types scripts/release-gate.mts --tags)
+          TAGS=$(node --experimental-strip-types remote/scripts/release-gate.mts --tags)
           if [ -z "$TAGS" ]; then
             echo "No tags yet — nothing to publish."
             exit 0

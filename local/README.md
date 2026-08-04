@@ -5,9 +5,10 @@ Windows, zsh on macOS and WSL. Every environment uses all four; only the shell
 profile differs. On Windows the firstmate helpers bridge into WSL, on macOS and
 WSL they run locally.
 
-Absorbed into `lif-agents` with history; the installers now live one level
-up in `install/`, and the per-machine overlays in `environments/`. Paths below
-are relative to this directory unless stated otherwise.
+Absorbed into `lif-agents` with history. This directory is the whole local
+half of that repo: the configs below, the installers in `install/`, and the
+per-machine overlays in `environments/`. Paths below are relative to this
+directory unless stated otherwise.
 
 ## Layout
 
@@ -27,29 +28,29 @@ Developer Mode or admin, and junctions only work on directories — which
 `herdr/config.toml` here is a **template**, not a drop-in copy: its
 `default_shell` is environment-owned and substituted at install time.
 `install.sh` does that automatically; the Windows copy step is in
-[environments/windows-5090/README.md](../environments/windows-5090/README.md).
+[environments/windows-5090/README.md](environments/windows-5090/README.md).
 Platform-specific config discovery and overrides are documented in the
-[installation instructions](../install/AGENTS.md).
+[installation instructions](install/AGENTS.md).
 
 ## Prerequisites
 
 Nothing here installs software. Herdr, WezTerm, Starship, the Nerd Font and the
 agent CLIs must already be present. The full prerequisite list and
 platform-specific update commands are in the
-[installation instructions](../install/AGENTS.md).
+[installation instructions](install/AGENTS.md).
 
 ## Install
 
 ```powershell
 git clone https://github.com/alandy88/lif-agents   # anywhere you keep checkouts
-.\lif-agents\install\install.ps1                   # -WhatIf to preview
+.\lif-agents\local\install\install.ps1             # -WhatIf to preview
 ```
 
-On macOS or WSL, run `install/install.sh` instead. It reuses the environment
+On macOS or WSL, run `local/install/install.sh` instead. It reuses the environment
 recorded by the last run on that machine, detects `wsl` under WSL, and never
 guesses on macOS -- so a first install there needs `--env <name>`. Agents
 installing this on a machine should follow
-[install/AGENTS.md](../install/AGENTS.md), which covers the prerequisites and
+[install/AGENTS.md](install/AGENTS.md), which covers the prerequisites and
 the values that must be asked for rather than guessed.
 
 Idempotent — re-run after a `git pull`. See the installing-agent instructions
@@ -58,7 +59,7 @@ above for the Unix installer's backup behavior.
 ## Environment overlay
 
 Machine-specific values belong to a named environment, one directory per machine
-under `environments/` — see [environments/README.md](../environments/README.md)
+under `environments/` — see [environments/README.md](environments/README.md)
 for the concept and for the exact list of values an environment owes. Two things
 under `local/` still carry a machine-specific value, and both are placeholders
 resolved at install time, not literals: `herdr/config.toml`'s `default_shell`,

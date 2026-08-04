@@ -44,7 +44,7 @@ What `agent.yml` assumes is already installed on the host, outside the job:
 | `bun` | the `install-command` (`bun install`) and `runtime` (`bun`) input defaults; the input description says outright "the runner image ships bun, not npm" | those input defaults, and the `Run sandcastle-agent` step's `"$RUNTIME" "$ENTRYPOINT"` |
 | `git` | checkout, plus the bot identity set with `git config` | `Configure bot git identity` step |
 | `gh` (GitHub CLI) | the failure backstop comments on the issue with `gh issue comment` | `Failure backstop` step |
-| `docker` | not used by the workflow directly, but the kit's default sandbox is `docker()`, and every agent session runs in a container built from the consumer's `.sandcastle/Dockerfile` | [`src/lib/provider-setup.mts`](../../src/lib/provider-setup.mts), `createSandboxProvider` |
+| `docker` | not used by the workflow directly, but the kit's default sandbox is `docker()`, and every agent session runs in a container built from the consumer's `.sandcastle/Dockerfile` | [`src/lib/provider-setup.mts`](../src/lib/provider-setup.mts), `createSandboxProvider` |
 
 Node is *not* required — `bun` is both package manager and runtime. The provider
 CLIs (`claude`, `codex`) are not host requirements either: they live inside the
@@ -71,7 +71,7 @@ host, and no value ever belongs in this repo.
 | `CODEX_AUTH_JSON` | alternative to `OPENAI_API_KEY` | Contents of `~/.codex/auth.json` from `codex login`; the kit materialises it back to that path inside the sandbox. |
 
 Which of these a run actually needs follows from the resolved profile:
-`forwardedEnvKeys()` in [`src/lib/profiles.mts`](../../src/lib/profiles.mts)
+`forwardedEnvKeys()` in [`src/lib/profiles.mts`](../src/lib/profiles.mts)
 forwards only the providers the run touches, and the default `mixed` profile
 touches both.
 

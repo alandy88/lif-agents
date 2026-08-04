@@ -7,26 +7,28 @@
 # Developer Mode or admin, so install.ps1 redirects with env vars instead;
 # WSL and macOS symlink into $XDG_CONFIG_HOME (defaulting to ~/.config).
 #
-# It installs no software -- see install/AGENTS.md for the prerequisites and
-# for the environment values it cannot invent.
+# It installs no software -- see local/install/AGENTS.md for the prerequisites
+# and for the environment values it cannot invent.
 #
 # Idempotent: safe to re-run after a `git pull`. Anything it would replace is
 # backed up to <name>.pre-lif-terminal.bak first -- the same suffix install.ps1
 # uses -- with a numbered suffix if needed, and never silently overwritten.
 #
-# Usage: install/install.sh [--env <name>] [--dry-run] [--skip-shell-rc]
+# Usage: local/install/install.sh [--env <name>] [--dry-run] [--skip-shell-rc]
 #
-#   --env     select from environments/ and link its overlays to ~/.config.
+#   --env     select from local/environments/ and link its overlays to ~/.config.
 #             Without it: reuse $XDG_CONFIG_HOME/lif-env, else detect WSL.
 #             A first macOS install must pass --env; --host is an alias.
 #   --dry-run print what would change without touching anything.
 #   --skip-shell-rc  do not append the profile source line to ~/.zshrc.
 #
-# Environment names and overlay requirements: install/AGENTS.md.
+# Environment names and overlay requirements: local/install/AGENTS.md.
 
 set -euo pipefail
 
-repo=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
+# This script lives in local/install/; everything it installs lives beside it
+# under local/ -- the configs, the hosts/ templates, and environments/.
+local_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
 config_home=${XDG_CONFIG_HOME:-$HOME/.config}
 dry_run=0
 skip_rc=0
@@ -72,17 +74,17 @@ fi
 [ -n "$host" ] || host=$(detect_host)
 if [ -z "$host" ]; then
     echo "could not determine an environment; pass --env <name> once and it will" >&2
-    echo "be remembered in $env_memo (see $repo/environments/)" >&2
+    echo "be remembered in $env_memo (see $local_root/environments/)" >&2
     printf 'available: ' >&2
-    for d in "$repo"/environments/*/; do [ -d "$d" ] && printf '%s ' "$(basename "$d")"; done >&2 || true
+    for d in "$local_root"/environments/*/; do [ -d "$d" ] && printf '%s ' "$(basename "$d")"; done >&2 || true
     echo >&2
     exit 2
 fi
-if [ ! -d "$repo/environments/$host" ]; then
+if [ ! -d "$local_root/environments/$host" ]; then
     echo "no such environment: environments/$host" >&2
     printf 'available: ' >&2
     # Portable listing: find -printf and ls -d are GNU-isms macOS does not have.
-    for d in "$repo"/environments/*/; do [ -d "$d" ] && printf '%s ' "$(basename "$d")"; done >&2 || true
+    for d in "$local_root"/environments/*/; do [ -d "$d" ] && printf '%s ' "$(basename "$d")"; done >&2 || true
     echo >&2
     exit 2
 fi
@@ -155,12 +157,12 @@ is_repo_overlay_link() {
 
     target=$(readlink "$link") || return 1
     case "$target" in
-        "$repo/environments/"*|"$repo/hosts/"*) return 0 ;;
+        "$local_root/environments/"*|"$local_root/hosts/"*) return 0 ;;
     esac
 
     resolved=$(resolve_link_target "$link" 2>/dev/null || true)
     case "$resolved" in
-        "$repo/environments/"*|"$repo/hosts/"*) return 0 ;;
+        "$local_root/environments/"*|"$local_root/hosts/"*) return 0 ;;
         *) return 1 ;;
     esac
 }
@@ -259,8 +261,8 @@ wire_rc() {
 }
 
 echo "Configs"
-link "$repo/local/wezterm/wezterm.lua" "$config_home/wezterm/wezterm.lua"
-link "$repo/local/starship/starship.toml" "$config_home/starship.toml"
+link "$local_root/wezterm/wezterm.lua" "$config_home/wezterm/wezterm.lua"
+link "$local_root/starship/starship.toml" "$config_home/starship.toml"
 
 echo "Environment overlay ($host)"
 # wezterm.lua reads ~/.config/lif-host.lua by an absolute path built from
@@ -270,7 +272,7 @@ echo "Environment overlay ($host)"
 for pair in "host.lua:$HOME/.config/lif-host.lua" \
             "host.sh:$HOME/.config/lif-host.sh" \
             "host.ps1:$HOME/.config/lif-host.ps1"; do
-    src=$repo/environments/$host/${pair%%:*}
+    src=$local_root/environments/$host/${pair%%:*}
     if [ -f "$src" ]; then
         link_overlay "$src" "${pair#*:}"
     else
@@ -282,7 +284,7 @@ done
 echo "Shell profile"
 # The profile is linked at a fixed path and sourced from there, so ~/.zshrc
 # never has to name the checkout.
-link "$repo/local/zsh/profile.zsh" "$HOME/.config/lif-shell.zsh"
+link "$local_root/zsh/profile.zsh" "$HOME/.config/lif-shell.zsh"
 if [ $skip_rc -eq 1 ]; then
     echo "  skip ~/.zshrc (--skip-shell-rc)"
 else
@@ -305,7 +307,7 @@ fi
 # Herdr resolves its config from $XDG_CONFIG_HOME/herdr (falling back to
 # ~/.config) on unix; HERDR_CONFIG_PATH overrides it.
 write_file "$config_home/herdr/config.toml" \
-    "$(sed "s|@LIF_HERDR_DEFAULT_SHELL@|$herdr_shell|" "$repo/local/herdr/config.toml")"
+    "$(sed "s|@LIF_HERDR_DEFAULT_SHELL@|$herdr_shell|" "$local_root/herdr/config.toml")"
 
 # Remember the environment so later runs need no --env. Written last, so a run
 # that failed partway does not record a name it never finished installing.

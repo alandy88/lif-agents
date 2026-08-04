@@ -1,8 +1,8 @@
-// Release plumbing under scripts/ — typechecked, never emitted.
+// Release plumbing under remote/scripts/ — typechecked, never emitted.
 //
 // A separate project rather than an entry in tsconfig.json's `include`: that
-// project's `rootDir` is `src`, and widening it to the repo root to admit one
-// script would change every emitted path under dist/. Tests are included here
+// project's `rootDir` is `remote/src`, and widening it to admit one script
+// would change every emitted path under remote/dist/. Tests are included here
 // (unlike the main project, which excludes them so they stay out of dist/) —
 // with `noEmit` there is no reason not to typecheck them.
 {
@@ -11,6 +11,6 @@
     "rootDir": ".",
     "noEmit": true
   },
-  "include": ["scripts/**/*.mts"],
+  "include": ["remote/scripts/**/*.mts"],
   "exclude": []
 }

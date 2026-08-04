@@ -18,20 +18,20 @@ credentials or preferences — see "Stop and ask".
 ## 1. Work out which environment this is
 
 An *environment* is a named machine identity that owns every machine-specific
-value: see [environments/README.md](../environments/README.md), which lists
+value: see [local/environments/README.md](../environments/README.md), which lists
 exactly what an environment owes. An environment names a **machine**, not a
 platform. Existing names: `macbookpro-work`, `macmini`, `wsl`, `windows-5090`.
 
-- Already installed on this machine → `install/install.sh` reads the name it
+- Already installed on this machine → `local/install/install.sh` reads the name it
   recorded in `$XDG_CONFIG_HOME/lif-env`; no `--env` needed.
-- WSL → `install/install.sh` detects `wsl`.
+- WSL → `local/install/install.sh` detects `wsl`.
 - macOS → **there is nothing to detect.** Do not assume this is an existing
   Mac environment because the OS matches; ask the captain which machine this
   is, then pass `--env <name>`.
-- Windows → use `install/install.ps1` instead (see
-  [local/README.md](../local/README.md)); the rest of this file does not apply.
+- Windows → use `local/install/install.ps1` instead (see
+  [local/README.md](../README.md)); the rest of this file does not apply.
 - A machine with no environment yet → ask the captain for a name, create
-  `environments/<name>/`, and pass `--env <name>`.
+  `local/environments/<name>/`, and pass `--env <name>`.
 
 ### A machine installed before the `mac` → `macbookpro-work` rename
 
@@ -47,15 +47,15 @@ pulled — the files are **untracked**, so plain `mv`, not `git mv`:
 
 ```bash
 cd ~/repos/lif-agents && git pull
-mkdir -p environments/macmini
-mv environments/mac/host.lua environments/mac/host.sh environments/macmini/
-rmdir environments/mac
-install/install.sh --env macmini    # relinks lif-host.* and writes the memo
+mkdir -p local/environments/macmini
+mv local/environments/mac/host.lua local/environments/mac/host.sh local/environments/macmini/
+rmdir local/environments/mac
+local/install/install.sh --env macmini    # relinks lif-host.* and writes the memo
 ```
 
 The final `install.sh --env macmini` is what makes every later run
-argument-free. **Never run `install/install.sh --env macbookpro-work` on the
-Mac mini.** `environments/macbookpro-work/` ships no overlay files, so the
+argument-free. **Never run `local/install/install.sh --env macbookpro-work` on the
+Mac mini.** `local/environments/macbookpro-work/` ships no overlay files, so the
 installer takes its stale-overlay branch, *deletes* both `lif-host.*` symlinks
 (`lif` stops working) and permanently records the machine as the wrong one.
 
@@ -112,7 +112,7 @@ still installs and the affected functions simply fail when called.
 
 ## 4. Author the environment overlay
 
-Create `environments/<env>/host.lua` and `environments/<env>/host.sh` from
+Create `local/environments/<env>/host.lua` and `local/environments/<env>/host.sh` from
 `local/hosts/lif-host.lua.example` and `local/hosts/lif-host.sh.example`, filled
 in with the answers from step 2. Write paths in this machine's own notation —
 POSIX on macOS and WSL. Do not copy `windows-5090`'s drive paths.
@@ -124,8 +124,8 @@ the BWS project id). Leave them untracked; do not commit them, and do not
 ## 5. Run the installer
 
 ```bash
-install/install.sh --env <name> --dry-run    # preview
-install/install.sh --env <name>
+local/install/install.sh --env <name> --dry-run    # preview
+local/install/install.sh --env <name>
 ```
 
 `--env` is required on a macOS machine that has never been installed on, and
