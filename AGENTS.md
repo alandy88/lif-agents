@@ -32,11 +32,31 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   left to `git subtree pull` from, and edits go straight into this repo. Only a real
   merge commit (not a squash merge) keeps lif-terminal's history reachable from `main`.
   See `/home/peter/firstmate/data/agentcfg-monorepo-v1/report.md`.
-- The design rationale for holding both halves in one repo is in
-  `/home/peter/firstmate/data/agentcfg-monorepo-v1/report.md`.
-- Releases are cut from the built payload's diff, not from commit subjects — see README
-  "Releases". A commit that touches only `local/`, `remote/runner/`, or `remote/docs/`
-  never tags a release.
+- The design rationale for holding both halves in one repo, and the kit's full consumer
+  reference, are in `/home/peter/firstmate/data/agentcfg-monorepo-v1/report.md` and
+  [remote/docs/kit-reference.md](remote/docs/kit-reference.md).
+
+## Releases
+
+`remote/dist/` is gitignored on `main` and force-added onto each `vX.Y.Z` tag commit.
+Git-URL installs get built output whether the runner uses `npm` or `bun`, and `main`
+stays clean. `package.json` on `main` reads `0.0.0-development` and is never bumped —
+only the release commit carries a real version, stamped next to the `remote/dist/` it
+describes. To find the current version, read the tags.
+
+Releases are cut automatically: every push to `main` builds, and a new tag follows if
+the installable payload differs from the last tag's
+(`remote/scripts/release-gate.mts`). **The gate compares built output, not the commit
+subject** — so a commit that touches only `local/`, `remote/runner/` or `remote/docs/`
+never tags a release, and one that quietly changes a resolved model id does. Commit type
+only picks the bump size: `feat` or `!` takes the minor, anything else the patch (below
+1.0.0 a breaking change is a minor). A `workflow_dispatch` with an explicit `version`
+overrides both.
+
+Raw `.mts` is not shipped — tsx/bun transpilation of `.mts` inside `node_modules` is
+inconsistent. The JS emit rewrites `.mts` imports to `.mjs`; declarations keep `.mts` and
+resolve to the sibling `.d.mts`, so a consumer typechecking against `remote/dist/` sees
+real types.
 
 ## Maintaining this file
 

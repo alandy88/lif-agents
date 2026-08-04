@@ -10,7 +10,7 @@ name: release
 # reads `0.0.0-development` and is never bumped by a PR or by this workflow —
 # only the release commit carries a real version. That is semantic-release's
 # model, and it is what keeps a bot from ever having to push to a protected
-# main. See README, "Why `dist/` ships in release tags".
+# main. See AGENTS.md, "Releases".
 #
 # Release test: did `dist/` change? NOT: did a commit subject say `feat`. A
 # subject is a claim about intent and `bb2f75a` proved it can be silent about a
