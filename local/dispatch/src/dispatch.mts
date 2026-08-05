@@ -180,13 +180,17 @@ export async function runDispatch(
     createdAt: now().toISOString(),
   };
 
+  // The brief rides as a one-line POINTER, not inline: herdr refuses to encode
+  // multi-line text as an agent argument ("cannot be encoded safely for the
+  // target shell", verified live 2026-08-05). The file is already on disk.
+  const briefPointer = `Read the file ${briefPath} and follow it exactly; it is your complete task brief.`;
+
   try {
     await agentStart(ctx, {
       paneId: tab.paneId,
       name: agentName(id),
       kind: adapter.kind,
-      // The brief rides positionally as the final native arg.
-      args: [...launchArgs(adapter, { model: options.model, effort }), briefText],
+      args: [...launchArgs(adapter, { model: options.model, effort }), briefPointer],
     });
   } catch (cause) {
     // The worktree and the tab exist now. Dropping the record here is exactly

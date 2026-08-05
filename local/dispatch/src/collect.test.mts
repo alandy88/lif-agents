@@ -288,6 +288,7 @@ test("abandon refuses a dirty worktree without --discard, and forces with it", a
   const routes: Record<string, Route> = {
     "status --porcelain": " M src/a.mts",
     "log main..HEAD": "",
+    "--is-inside-work-tree": "true",
     "worktree remove": "",
     "worktree prune": "",
     "branch -D": "",
@@ -308,10 +309,13 @@ test("abandon refuses a dirty worktree without --discard, and forces with it", a
   assert.equal(forced.ok, true);
   assert.ok(fx.log.some((line) => line.includes("worktree remove") && line.includes("--force")));
   assert.ok(fx.log.some((line) => line.includes("worktree prune")));
-  // The tab is a husk only after Git state has been read; never before.
+  // The tab is a husk only after Git state has been read; never before. But it
+  // must close before `worktree remove`: on Windows the pane's shell sits in
+  // the worktree and holds a directory lock until the pane is gone.
   const readAt = fx.log.findIndex((line) => line.includes("status --porcelain"));
   const closeAt = fx.log.findIndex((line) => line.includes("tab close"));
-  assert.ok(readAt >= 0 && closeAt > readAt);
+  const removeAt = fx.log.findIndex((line) => line.includes("worktree remove"));
+  assert.ok(readAt >= 0 && closeAt > readAt && removeAt > closeAt);
   assert.equal(getTask(fx.task.id, fx.dir).state, "abandoned");
 });
 
@@ -320,6 +324,7 @@ test("abandon refuses unlanded commits, and allows them once the task is landed"
   const routes: Record<string, Route> = {
     "status --porcelain": "",
     "log main..HEAD": "abc1234 feat: x",
+    "--is-inside-work-tree": "true",
     "worktree remove": "",
     "worktree prune": "",
     "branch -d": "",
@@ -360,4 +365,38 @@ test("abandon cleans up a missing worktree and tolerates a failed branch delete"
   assert.match(report.warnings.join("\n"), /not fully merged/);
   assert.match(report.warnings.join("\n"), /tab t1 not closed/);
   assert.equal(getTask(fx.task.id, fx.dir).state, "abandoned");
+});
+
+// A half-finished `worktree remove` (Windows dir lock) leaves the directory on
+// disk with no .git: `git status` fails there, so truth is unreadable.
+test("abandon handles a broken worktree: empty dir is deleted, contents need --discard", async () => {
+  const broken = { stderr: "fatal: not a git repository", code: 128 };
+  const routes = {
+    "status --porcelain": broken,
+    "--is-inside-work-tree": broken,
+    "worktree prune": "",
+    "branch -d": "",
+    "branch -D": "",
+  };
+
+  // Contents present: refuse without --discard, delete with it.
+  const fxFull = setup();
+  fs.writeFileSync(path.join(fxFull.worktree, "leftover.txt"), "x", "utf8");
+  const refused = await abandon(fxFull.task.id, { discard: false }, deps(fxFull, routes, { "tab close": TAB_CLOSED }));
+  assert.equal(refused.ok, false);
+  assert.match(refused.reasons.join("\n"), /broken worktree/);
+  assert.ok(fs.existsSync(fxFull.worktree), "nothing deleted on refusal");
+
+  const forced = await abandon(fxFull.task.id, { discard: true }, deps(fxFull, routes, { "tab close": TAB_CLOSED }));
+  assert.equal(forced.ok, true);
+  assert.ok(!fs.existsSync(fxFull.worktree));
+  assert.ok(!fxFull.log.some((line) => line.includes("worktree remove")), "no git remove on a broken worktree");
+  assert.equal(getTask(fxFull.task.id, fxFull.dir).state, "abandoned");
+
+  // Empty dir: safe without --discard.
+  const fxEmpty = setup();
+  const ok = await abandon(fxEmpty.task.id, { discard: false }, deps(fxEmpty, routes, { "tab close": TAB_CLOSED }));
+  assert.equal(ok.ok, true);
+  assert.ok(!fs.existsSync(fxEmpty.worktree));
+  assert.equal(getTask(fxEmpty.task.id, fxEmpty.dir).state, "abandoned");
 });

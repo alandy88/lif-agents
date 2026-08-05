@@ -14,7 +14,7 @@ import type { DispatchTask } from "./types.mts";
 export interface StatusLine {
   task: DispatchTask;
   agent: AgentState | "gone";
-  worktree: "missing" | "dirty" | "clean";
+  worktree: "missing" | "broken" | "dirty" | "clean";
   unlanded: number;
 }
 
@@ -45,7 +45,7 @@ export async function sweep(deps: CollectDeps): Promise<StatusLine[]> {
     lines.push({
       task,
       agent,
-      worktree: truth.missing ? "missing" : truth.dirty ? "dirty" : "clean",
+      worktree: truth.missing ? "missing" : truth.broken ? "broken" : truth.dirty ? "dirty" : "clean",
       unlanded: task.state === "landed" ? 0 : truth.commits.length,
     });
   }

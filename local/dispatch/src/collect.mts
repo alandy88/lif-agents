@@ -75,11 +75,16 @@ export function baseBranchFor(task: DispatchTask, dir: string): string {
 
 export interface GitTruth {
   missing: boolean;
+  /** Exists on disk but is not a git worktree — e.g. a half-finished
+   *  `worktree remove` that deleted .git but lost the directory to a lock. */
+  broken: boolean;
   dirty: boolean;
   status: string;
   commits: string[];
   diffstat: string;
 }
+
+const NO_TRUTH = { dirty: false, status: "", commits: [], diffstat: "" };
 
 export async function gitTruth(
   task: DispatchTask,
@@ -88,15 +93,21 @@ export async function gitTruth(
   withDiffstat = true,
 ): Promise<GitTruth> {
   if (!fs.existsSync(task.worktree)) {
-    return { missing: true, dirty: false, status: "", commits: [], diffstat: "" };
+    return { missing: true, broken: false, ...NO_TRUTH };
   }
-  const status = await git(["status", "--porcelain"], task.worktree, exec);
+  let status: string;
+  try {
+    status = await git(["status", "--porcelain"], task.worktree, exec);
+  } catch {
+    return { missing: false, broken: true, ...NO_TRUTH };
+  }
   const log = await git(["log", `${base}..HEAD`, "--oneline"], task.worktree, exec);
   const diffstat = withDiffstat
     ? await git(["diff", "--stat", `${base}..HEAD`], task.worktree, exec)
     : "";
   return {
     missing: false,
+    broken: false,
     dirty: status.trim().length > 0,
     status,
     commits: log.split("\n").filter((line) => line.trim().length > 0),
@@ -137,6 +148,11 @@ export async function collect(taskId: string, deps: CollectDeps): Promise<Collec
     say(`worktree ${task.worktree} no longer exists on disk`);
     say(`run: collect.mts abandon ${task.id}   (to clear the branch, tab and record)`);
     return { ok: false, agentState, truth, paneTail: undefined, verdict: "worktree missing" };
+  }
+  if (truth.broken) {
+    say(`worktree ${task.worktree} exists but is not a git worktree (half-removed?)`);
+    say(`run: collect.mts abandon ${task.id}   (to clear the leftover directory, branch, tab and record)`);
+    return { ok: false, agentState, truth, paneTail: undefined, verdict: "worktree broken" };
   }
 
   // 3. Pane tail — evidence only, and shown before any label is applied.
@@ -250,9 +266,9 @@ export async function land(taskId: string, deps: CollectDeps): Promise<LandRepor
   const say = deps.out;
 
   const truth = await gitTruth(task, base, deps.gitExec);
-  if (truth.missing) {
-    say(`worktree ${task.worktree} no longer exists — nothing to land.`);
-    return { ok: false, reasons: ["worktree missing"], pushed: false };
+  if (truth.missing || truth.broken) {
+    say(`worktree ${task.worktree} is ${truth.missing ? "gone" : "not a git worktree"} — nothing to land.`);
+    return { ok: false, reasons: [truth.missing ? "worktree missing" : "worktree broken"], pushed: false };
   }
 
   if (task.mode === "local") {
@@ -308,6 +324,17 @@ export async function land(taskId: string, deps: CollectDeps): Promise<LandRepor
   return { ok: true, reasons: [], pushed: true, ...(prUrl ? { prUrl } : {}) };
 }
 
+async function withRetries<T>(fn: () => Promise<T> | T, attempts: number, delayMs: number): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (attempt >= attempts) throw error;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+}
+
 export interface AbandonReport {
   ok: boolean;
   reasons: string[];
@@ -339,15 +366,60 @@ export async function abandon(
     return { ok: false, reasons, warnings };
   }
 
+  // A broken worktree (exists, not a git repo — a half-finished removal) has no
+  // readable dirty/unlanded state. An empty leftover directory is safe to
+  // delete; anything with content needs --discard, because we cannot prove it
+  // holds no work.
+  if (truth.broken) {
+    const leftovers = fs.readdirSync(task.worktree);
+    if (leftovers.length > 0 && !opts.discard) {
+      say(`refusing to abandon ${task.id}: ${task.worktree} is not a git worktree but still holds ${leftovers.length} entr(ies).`);
+      say("Inspect it by hand, or re-run with --discard to delete it.");
+      return { ok: false, reasons: ["broken worktree with contents"], warnings };
+    }
+  }
+
   if (!project) {
     say(`no project entry for ${task.project}; cannot run worktree removal from the primary checkout.`);
     return { ok: false, reasons: ["unknown project"], warnings };
   }
 
+  // Tab first, worktree second — but both only after Git state was read above.
+  // The tab's shell has its cwd inside the worktree, and on Windows an open
+  // shell locks the directory: `worktree remove` returns Permission denied
+  // until the pane is gone (verified live 2026-08-05).
+  try {
+    await tabClose(ctxFor(task, deps), task.herdr.tabId);
+    say(`closed herdr tab ${task.herdr.tabId}`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    warnings.push(`tab ${task.herdr.tabId} not closed: ${message}`);
+    say(`warning: ${warnings[warnings.length - 1]}`);
+  }
+
+  // `tab close` returns before the pane's shell process has exited, and on
+  // Windows the dying process holds the worktree directory lock for a beat
+  // longer — the first remove attempt reliably hits Permission denied. Worse,
+  // that failed attempt is not atomic: git may have already deleted `.git`, so
+  // the retry faces a plain directory, not a worktree. Each attempt therefore
+  // re-probes what is actually on disk (all verified live 2026-08-05).
   if (!truth.missing) {
-    const args = ["-C", project.path, "worktree", "remove", task.worktree];
-    if (opts.discard) args.push("--force");
-    await git(args, undefined, deps.gitExec);
+    await withRetries(
+      async () => {
+        if (!fs.existsSync(task.worktree)) return;
+        const probe = await deps.gitExec(["-C", task.worktree, "rev-parse", "--is-inside-work-tree"]);
+        if (probe.code === 0) {
+          const args = ["-C", project.path, "worktree", "remove", task.worktree];
+          if (opts.discard) args.push("--force");
+          await git(args, undefined, deps.gitExec);
+        } else {
+          // The refusal gates above already settled that these contents may go.
+          fs.rmSync(task.worktree, { recursive: true, force: true });
+        }
+      },
+      8,
+      500,
+    );
     say(`removed worktree ${task.worktree}`);
   } else {
     say(`worktree ${task.worktree} already gone; pruning metadata only.`);
@@ -367,15 +439,6 @@ export async function abandon(
     // record is closing either way.
     const message = error instanceof Error ? error.message : String(error);
     warnings.push(`branch ${task.branch} not deleted: ${message}`);
-    say(`warning: ${warnings[warnings.length - 1]}`);
-  }
-
-  try {
-    await tabClose(ctxFor(task, deps), task.herdr.tabId);
-    say(`closed herdr tab ${task.herdr.tabId}`);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    warnings.push(`tab ${task.herdr.tabId} not closed: ${message}`);
     say(`warning: ${warnings[warnings.length - 1]}`);
   }
 

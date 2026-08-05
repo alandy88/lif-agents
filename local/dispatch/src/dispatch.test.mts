@@ -262,7 +262,11 @@ test("the happy path records a task that round-trips and delivers the brief last
 
   const start = s.herdrCalls.find((c) => c.includes("agent") && c.includes("start"));
   assert.ok(start);
-  assert.equal(start.at(-1), briefText, "the brief is the final positional native arg");
+  const pointer = start.at(-1);
+  assert.ok(
+    pointer !== undefined && pointer.includes(stored.briefPath) && !pointer.includes("\n"),
+    "the final positional native arg is a one-line pointer to the brief file",
+  );
   assert.ok(start.includes("--dangerously-skip-permissions"));
   assert.deepEqual(start.slice(start.indexOf("--") + 1, -1), [
     "--dangerously-skip-permissions",

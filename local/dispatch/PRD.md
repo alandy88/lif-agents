@@ -145,7 +145,13 @@ interface HarnessAdapter {
 }
 ```
 
-Brief delivery is positional-only. The original draft included kimi with a
+Brief delivery is positional-only — and the positional payload is a **one-line
+pointer to the brief file on disk**, not the brief text. Herdr refuses multi-line
+agent arguments ("cannot be encoded safely for the target shell", verified live
+2026-08-05), and the brief is already written to
+`~/.config/lif-dispatch/briefs/<task-id>.md` before launch.
+
+The original draft included kimi with a
 `pointer-after-ready` delivery mode (kimi rejects positional prompts), but the review
 flagged the contradiction: injecting text into a live pane after readiness is exactly
 what Firstmate's ANSI composer exists to do safely, and §3 cuts the composer. Kimi is
@@ -280,6 +286,12 @@ This is the half that gets underspecified and then hurts. Designing it up front.
    unlanded commits**, unless given an explicit `--discard`. Never force. After a
    successful worktree removal, run `git worktree prune` and delete the task branch
    from the primary repo; abandoned branches must not accumulate.
+
+   Ordering, learned live on Windows: the herdr tab is closed **before**
+   `worktree remove` (still after Git state is read) — the pane's shell sits in the
+   worktree and holds a directory lock. And because `tab close` returns before the
+   pane process has exited, the removal is retried briefly rather than failed on
+   the first Permission denied.
 6. **Note.** Emit a note stub into `lif-notes` with task id, project, what changed,
    and the PR URL. Filing it is the main agent's job; `collect` produces the material.
 
@@ -299,6 +311,16 @@ This is the half that gets underspecified and then hurts. Designing it up front.
 - *`git worktree add` fails* — most commonly because the task branch is already
   checked out in another worktree, or stale worktree metadata is present. Surface the
   Git error verbatim and suggest `git worktree prune`; do not retry with `--force`.
+- *Broken worktree* — the directory exists but is not a git worktree, the residue of
+  a `worktree remove` that deleted `.git` and then lost the directory itself to a
+  Windows lock (seen live). Git truth is unreadable there. `collect`/`land` report it
+  and point at `abandon`; `abandon` deletes an empty leftover directly, and one with
+  contents only under `--discard` — it cannot prove the contents hold no work.
+- *Blocked on the folder-trust prompt* — every first launch in a fresh scratch
+  worktree hits the harness's "do you trust this folder" dialog. Herdr reports it as
+  `blocked` and `status` flags it; the answer is one
+  `herdr agent send-keys <pane> enter` from the human or main agent. Expected on
+  every dispatch, not an error. (M4's skill should encode this.)
 - *`local` mode endgame* — after the human merges the local branch, someone must
   still remove the worktree. `land` in `local` mode marks the task `landed` but keeps
   the worktree; a later `abandon` (which sees no unlanded work once the branch is
@@ -390,9 +412,15 @@ here).
 `local/environments/<machine>/` overlay per the repo's own rule. Which overlay file
 carries it — a new key in `lif-host.ps1`, or a `lif-dispatch` config of its own?
 
-**Q3 — Windows worktree paths.** Git worktrees on Windows plus agent CLIs that may
-resolve paths differently. Needs an empirical check on `windows-5090` before M1 is
-called done.
+**Q3 — RESOLVED: live end-to-end round trip on `windows-5090`, 2026-08-05.**
+Dispatch → trust-prompt approval → agent commit → collect → land (local) → abandon,
+twice. Paths resolved correctly end to end (scratch root `C:\Users\peter\.lif-worktrees`,
+claude verified `git rev-parse --show-toplevel` against the brief's path and proceeded).
+Three implementation facts came out of it, all folded in above: brief delivery is a
+one-line file pointer (§5.1), abandon closes the tab before removal and retries the
+removal (§5.6 step 5), and the broken-worktree + trust-prompt entries in §5.6's
+failure list. The `--session` flag position (leading) also verified against the live
+server.
 
 **Q4 — RESOLVED: nothing in `remote/` to reuse.** Read on 2026-08-05: `profiles.mts`
 is pure model/effort routing for CI phases (plan/task/review) across exactly two
