@@ -1,6 +1,6 @@
 // Everything typechecked but never emitted: the release plumbing under
-// remote/scripts/, and the installer test under local/install/ (which belongs
-// to no emitted project but should still be typechecked).
+// remote/scripts/, the installer test under local/install/, and the
+// lif-dispatch tool under local/dispatch/ (run via strip-types, never built).
 //
 // A separate project rather than an entry in tsconfig.json's `include`: that
 // project's `rootDir` is `remote/src`, and widening it to admit one script
@@ -13,6 +13,10 @@
     "rootDir": ".",
     "noEmit": true
   },
-  "include": ["remote/scripts/**/*.mts", "local/install/*.test.mts"],
+  "include": [
+    "remote/scripts/**/*.mts",
+    "local/install/*.test.mts",
+    "local/dispatch/src/**/*.mts"
+  ],
   "exclude": []
 }

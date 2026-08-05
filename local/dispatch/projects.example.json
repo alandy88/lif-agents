@@ -1,0 +1,11 @@
+{
+  "scratchRoot": "/absolute/path/for/scratch/worktrees",
+  "session": "default",
+  "projects": {
+    "example-project": {
+      "path": "/absolute/path/to/your/repo",
+      "harness": "claude",
+      "baseBranch": "main"
+    }
+  }
+}
