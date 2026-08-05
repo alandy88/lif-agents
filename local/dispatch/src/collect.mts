@@ -5,6 +5,7 @@
 //    Herdr degrades to a warning; a failure to reach Git stops the command.
 //  - Present, don't decide. `collect` never lands, never removes, never forces.
 
+import { execFile } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -31,12 +32,20 @@ export interface CollectDeps {
   now?: () => string;
 }
 
+const defaultGhExec: GitExec = (args, cwd) =>
+  new Promise((resolve) => {
+    execFile("gh", args, { cwd, windowsHide: true }, (error, stdout, stderr) => {
+      const code = error ? (typeof error.code === "number" ? error.code : 1) : 0;
+      resolve({ stdout: String(stdout), stderr: String(stderr), code });
+    });
+  });
+
 export function defaultDeps(overrides: Partial<CollectDeps> = {}): CollectDeps {
   return {
     dir: configDir(),
     gitExec: defaultGitExec,
     herdrExec: defaultHerdrExec,
-    ghExec: (args, cwd) => defaultGitExec(args, cwd),
+    ghExec: defaultGhExec,
     out: (line) => console.log(line),
     ...overrides,
   };
