@@ -31,10 +31,15 @@ export function projectsPath(dir: string = configDir()): string {
 }
 
 /** Temp-file-plus-rename in the same directory: rename is atomic there, so a
- *  dispatch and a collect running from two shells can never tear the file. */
+ *  dispatch and a collect running from two shells can never tear the file. The
+ *  temp name is per-process so two concurrent writers cannot clobber each
+ *  other's staging file either. What this deliberately does NOT solve is a
+ *  read-modify-write race between two simultaneous commands — last write wins.
+ *  Accepted: the writers are a human's own commands, seconds apart at N=1-3;
+ *  an interprocess lock is Firstmate-scale machinery this tool exists to cut. */
 function writeAtomic(file: string, text: string): void {
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  const tmp = `${file}.tmp`;
+  const tmp = `${file}.${process.pid}.${Math.random().toString(16).slice(2, 8)}.tmp`;
   fs.writeFileSync(tmp, text, "utf8");
   fs.renameSync(tmp, file);
 }

@@ -302,7 +302,7 @@ export async function land(taskId: string, deps: CollectDeps): Promise<LandRepor
 
   let prUrl: string | undefined;
   const pr = await deps.ghExec(
-    ["pr", "create", "--head", task.branch, "--title", task.id, "--fill-first"],
+    ["pr", "create", "--base", base, "--head", task.branch, "--title", task.id, "--fill-first"],
     task.worktree,
   );
   if (pr.code === 0) {
@@ -313,7 +313,7 @@ export async function land(taskId: string, deps: CollectDeps): Promise<LandRepor
     // stands; only the PR step is manual.
     say(`gh pr create failed: ${pr.stderr.trim() || pr.stdout.trim() || `exit ${pr.code}`}`);
     say(`branch ${task.branch} is pushed. Open the PR by hand:`);
-    say(`  gh pr create --head ${task.branch} --fill-first`);
+    say(`  gh pr create --base ${base} --head ${task.branch} --fill-first`);
   }
 
   updateTask(

@@ -191,6 +191,9 @@ test("--brief refuses when the contract line disagrees with --mode", async () =>
     /declares delivery contract mode=local.*--mode is pr/s,
   );
   assert.equal(s.herdrCalls.length, 0);
+  // A stale brief must refuse BEFORE `worktree add`: refusing after would leave
+  // an untracked worktree and branch no task record points at.
+  assert.equal(s.gitCalls.length, 0);
 
   fs.writeFileSync(brief, "# Task\n\nno contract here\n", "utf8");
   await assert.rejects(

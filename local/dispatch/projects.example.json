@@ -1,9 +1,9 @@
 {
-  "scratchRoot": "C:/Users/peter/.lif-worktrees",
+  "scratchRoot": "/absolute/path/for/scratch/worktrees",
   "session": "default",
   "projects": {
-    "lif-agents": {
-      "path": "D:/Git/lif-agents",
+    "example-project": {
+      "path": "/absolute/path/to/your/repo",
       "harness": "claude",
       "baseBranch": "main"
     }

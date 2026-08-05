@@ -98,6 +98,23 @@ export async function runDispatch(
   const effort = options.effort === undefined ? undefined : oneOf(options.effort, EFFORTS, "effort");
   const baseBranch = entry.baseBranch ?? "main";
 
+  // A hand-written brief is user input: read it and check its delivery contract
+  // HERE, before the worktree exists. Refusing after `worktree add` would leave
+  // an untracked worktree and branch that no task record points at.
+  let handBrief: { path: string; text: string } | undefined;
+  if (briefFile !== undefined) {
+    const resolved = path.resolve(briefFile);
+    const text = fs.readFileSync(resolved, "utf8");
+    const declared = parseContractMode(text);
+    if (declared !== mode) {
+      throw new Error(
+        `Refusing to dispatch: ${resolved} declares delivery contract mode=${declared ?? "(unreadable)"}, ` +
+          `but --mode is ${mode}. Make them agree.`,
+      );
+    }
+    handBrief = { path: resolved, text };
+  }
+
   // Step 2
   const slugSource = taskText ?? path.basename(briefFile ?? "", ".md");
   const id = newTaskId(options.project, slugSource);
@@ -130,24 +147,18 @@ export async function runDispatch(
     );
   }
 
-  // Step 5
+  // Step 5: the hand-written brief was read and checked before step 3; only a
+  // rendered brief is produced here (it needs the worktree path, and rendering
+  // repo-owned input cannot refuse).
   let briefText: string;
   let briefPath: string;
-  if (taskText !== undefined) {
-    briefText = renderBrief({ task: taskText, project: options.project, worktree, branch, mode, taskId: id });
+  if (handBrief) {
+    ({ path: briefPath, text: briefText } = handBrief);
+  } else {
+    briefText = renderBrief({ task: taskText ?? "", project: options.project, worktree, branch, mode, taskId: id });
     briefPath = path.join(dir, "briefs", `${id}.md`);
     fs.mkdirSync(path.dirname(briefPath), { recursive: true });
     fs.writeFileSync(briefPath, briefText, "utf8");
-  } else {
-    briefPath = path.resolve(briefFile ?? "");
-    briefText = fs.readFileSync(briefPath, "utf8");
-    const declared = parseContractMode(briefText);
-    if (declared !== mode) {
-      throw new Error(
-        `Refusing to dispatch: ${briefPath} declares delivery contract mode=${declared ?? "(unreadable)"}, ` +
-          `but --mode is ${mode}. Make them agree.`,
-      );
-    }
   }
 
   // Step 6
