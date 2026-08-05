@@ -51,6 +51,27 @@ post-install verification steps are in
 [local/install/AGENTS.md](local/install/AGENTS.md). What each config file is and
 where it lands: [local/README.md](local/README.md).
 
+### Agent dispatcher (lif-dispatch)
+
+`local/dispatch/` dispatches coding agents into disposable git worktrees inside
+Herdr tabs, with a human-in-the-loop harvest cycle. It runs straight from this
+checkout — no build:
+
+```bash
+node --experimental-strip-types local/dispatch/src/dispatch.mts <project> --task "..."
+```
+
+One-time setup: copy `local/dispatch/projects.example.json` to
+`~/.config/lif-dispatch/projects.json` and fill in the absolute paths. Design
+and failure modes: [local/dispatch/PRD.md](local/dispatch/PRD.md).
+
+So that agents know when and how to invoke the dispatcher, install the
+[skill](skills/lif-dispatch/SKILL.md):
+
+```bash
+npx skills add alandy88/lif-agents
+```
+
 ## Remote environments (Sandcastle)
 
 `@lif/sandcastle-kit` runs `.sandcastle/` agent pipelines: the agent loop,

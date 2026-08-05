@@ -373,9 +373,10 @@ worktree cleaned up, nothing orphaned, and `status` accounts for every open task
 **M3 — multi-harness.** Fill the adapter table for codex, grok, pi. Each entry gets a
 live verification pass and a dated note.
 
-**M4 — main-agent skill.** A `.claude/skills/` skill giving the agent-facing procedure:
-when to dispatch versus do it inline, how to write the `{TASK}` section, how to harvest
-and file the note into `lif-notes`.
+**M4 — main-agent skill.** DELIVERED 2026-08-05 as `skills/lif-dispatch/SKILL.md`
+(repo root, so `npx skills add alandy88/lif-agents` finds it): when to dispatch versus
+do it inline, how to write the `{TASK}` section, the trust-prompt unblock, and the
+harvest procedure. Note filing into `lif-notes` is still manual.
 
 ## 8. Open questions
 
