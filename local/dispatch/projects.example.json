@@ -1,0 +1,11 @@
+{
+  "scratchRoot": "C:/Users/peter/.lif-worktrees",
+  "session": "default",
+  "projects": {
+    "lif-agents": {
+      "path": "D:/Git/lif-agents",
+      "harness": "claude",
+      "baseBranch": "main"
+    }
+  }
+}
