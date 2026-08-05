@@ -114,15 +114,19 @@ tm() {
 # survives into the `bws run` child that the claude wrapper at the bottom
 # spawns. `claude` here is that wrapper, deliberately -- not `command claude`.
 #
-# The permission posture is environment-owned: set LIF_CLAUDE_PERMISSION_MODE in
-# the overlay to pass `--permission-mode <mode>` instead of the shared default of
-# `--dangerously-skip-permissions`. Read at call time, so it follows the overlay
-# even though the overlay is sourced before this function is defined.
+# The permission posture is environment-owned and per-launcher: cc resolves
+# LIF_CLAUDE_PERMISSION_MODE_STANDARD, ccp resolves LIF_CLAUDE_PERMISSION_MODE_PERSONAL,
+# each falling back to the shared LIF_CLAUDE_PERMISSION_MODE when its own key is
+# unset or empty, then to the shared default of `--dangerously-skip-permissions`.
+# A set mode passes `--permission-mode <mode>` instead. cc/ccp resolve their own
+# key and pass the result into _cc_run as an argument, read at call time, so it
+# follows the overlay even though the overlay is sourced before these functions
+# are defined.
 _cc_run() {
-    local dir=$1; shift
+    local dir=$1 posture=$2; shift 2
     local -a B
-    if [ -n "${LIF_CLAUDE_PERMISSION_MODE:-}" ]; then
-        B=(--permission-mode "$LIF_CLAUDE_PERMISSION_MODE")
+    if [ -n "$posture" ]; then
+        B=(--permission-mode "$posture")
     else
         B=(--dangerously-skip-permissions)
     fi
@@ -150,8 +154,8 @@ _cc_run() {
         esac
     )
 }
-cc()   { _cc_run "$HOME/.claude"   "$@"; }
-ccp()  { _cc_run "$HOME/.claude-p" "$@"; }
+cc()   { _cc_run "$HOME/.claude"   "${LIF_CLAUDE_PERMISSION_MODE_STANDARD:-${LIF_CLAUDE_PERMISSION_MODE:-}}" "$@"; }
+ccp()  { _cc_run "$HOME/.claude-p" "${LIF_CLAUDE_PERMISSION_MODE_PERSONAL:-${LIF_CLAUDE_PERMISSION_MODE:-}}" "$@"; }
 ccr()  { cc  resume "$@"; }
 ccpr() { ccp resume "$@"; }
 
