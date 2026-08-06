@@ -66,15 +66,19 @@ function tm {
 # afterwards, so it is deterministic even when the session already exports one.
 # `claude` here is the bws-wrapping function at the bottom, deliberately.
 #
-# The permission posture is environment-owned: set ClaudePermissionMode in the
-# overlay to pass `--permission-mode <mode>` instead of the shared default of
-# `--dangerously-skip-permissions`. Read at call time, so it follows the overlay
-# even though the overlay is loaded before this function is defined.
+# The permission posture is environment-owned and per-launcher: cc resolves
+# ClaudePermissionModeStandard, ccp resolves ClaudePermissionModePersonal, each
+# falling back to the shared ClaudePermissionMode when its own key is unset or
+# empty, then to the shared default of `--dangerously-skip-permissions`. A set
+# mode passes `--permission-mode <mode>` instead. cc/ccp resolve their own key
+# and pass the result into Invoke-LifClaude as an argument, read at call time,
+# so it follows the overlay even though the overlay is loaded before these
+# functions are defined.
 function Invoke-LifClaude {
-    param([string]$ConfigDir, [string[]]$Argv)
+    param([string]$ConfigDir, [string]$PermissionMode, [string[]]$Argv)
 
-    $base = @(if ($LifHost.ClaudePermissionMode) {
-        @('--permission-mode', $LifHost.ClaudePermissionMode)
+    $base = @(if ($PermissionMode) {
+        @('--permission-mode', $PermissionMode)
     } else {
         @('--dangerously-skip-permissions')
     })
@@ -108,8 +112,14 @@ function Invoke-LifClaude {
         else { Remove-Item Env:CLAUDE_CONFIG_DIR -ErrorAction SilentlyContinue }
     }
 }
-function cc   { Invoke-LifClaude (Join-Path $HOME '.claude')   $args }
-function ccp  { Invoke-LifClaude (Join-Path $HOME '.claude-p') $args }
+function cc {
+    $mode = if ($LifHost.ClaudePermissionModeStandard) { $LifHost.ClaudePermissionModeStandard } else { $LifHost.ClaudePermissionMode }
+    Invoke-LifClaude (Join-Path $HOME '.claude') $mode $args
+}
+function ccp {
+    $mode = if ($LifHost.ClaudePermissionModePersonal) { $LifHost.ClaudePermissionModePersonal } else { $LifHost.ClaudePermissionMode }
+    Invoke-LifClaude (Join-Path $HOME '.claude-p') $mode $args
+}
 function ccr  { cc  resume @args }
 function ccpr { ccp resume @args }
 
