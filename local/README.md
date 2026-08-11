@@ -2,8 +2,9 @@
 
 Terminal config: WezTerm + Herdr + Starship + a shell profile — pwsh 7 on
 Windows, zsh on macOS and WSL. Every environment uses all four; only the shell
-profile differs. On Windows the firstmate helpers bridge into WSL, on macOS and
-WSL they run locally.
+profile differs. Pi's status footer is managed alongside those four terminal
+components. On Windows the firstmate helpers bridge into WSL, on macOS and WSL
+they run locally.
 
 Absorbed into `lif-agents` with history. This directory is the whole local
 half of that repo: the configs below, the installers in `install/`, and the

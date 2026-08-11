@@ -41,6 +41,7 @@ symlinking; `install.sh` symlinks.
 | `local/herdr/config.toml` | [manual setup](local/environments/windows-5090/README.md#herdr), rendered to `%APPDATA%\herdr\config.toml` | rendered to `$XDG_CONFIG_HOME/herdr/config.toml` |
 | `local/pwsh/profile.ps1` | dot-sourced from `$PROFILE` | — |
 | `local/zsh/profile.zsh` | — | `~/.config/lif-shell.zsh`, sourced from `~/.zshrc` |
+| `local/pi/extensions/pi-status-footer.ts` | see [local/README.md](local/README.md#layout) | see [local/README.md](local/README.md#layout) |
 
 Machine-specific values live in a named environment under
 `local/environments/`, applied through overlay files the configs read from fixed
