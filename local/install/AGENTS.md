@@ -2,7 +2,8 @@
 
 **You are here because someone cloned this repo on a machine and asked you to
 install it.** This file is the entrypoint for that. It covers the terminal
-setup: WezTerm, Starship, Herdr, and the shell profile.
+setup: WezTerm, Starship, Herdr, the shell profile, and Pi's managed status
+footer.
 
 **Do not run `npm i -D github:alandy88/lif-agents`.** The README's kit section
 belongs to `@lif/sandcastle-kit`, a JavaScript package other repos
@@ -107,8 +108,9 @@ on the captain's Mac mini, where `brew install herdr` also removed
 | `claude`, `codex`, `opencode` | the agents the launch menu and `cc` invoke; install per their own docs | same |
 | `bws` (Bitwarden Secrets CLI) | only if this machine uses BWS | same |
 
-`claude`, `codex`, `opencode` and `bws` are optional: without them the config
-still installs and the affected functions simply fail when called.
+`claude`, `codex`, `opencode`, `bws`, and `quota-axi` are optional: without them
+the config still installs; affected functions simply fail when called, and the
+footer leaves quota data unavailable.
 
 ## 4. Author the environment overlay
 
@@ -134,7 +136,10 @@ optional afterwards -- the installer records the name in
 
 It is idempotent. Regular files and directories it replaces are backed up to
 `<name>.pre-lif-terminal.bak`; an existing symlink is replaced without a backup.
-It:
+The managed Pi footer is linked to the checkout on Unix and copied on Windows.
+A regular footer file is backed up before replacement; an unrelated symlink at
+that destination is kept. `--dry-run` / `-WhatIf` previews these changes without
+touching the destination. It:
 
 - symlinks `wezterm.lua` and `starship.toml` into `$XDG_CONFIG_HOME`
 - symlinks the environment's `host.lua` / `host.sh` / `host.ps1` to
@@ -151,6 +156,10 @@ It:
   from `XDG_CONFIG_HOME` with a `~/.config` fallback and carries no "Application
   Support" path. Confirm with `herdr config check`; if a future version
   disagrees, point Herdr at the file with `HERDR_CONFIG_PATH`
+- installs `local/pi/extensions/pi-status-footer.ts` at
+  `~/.pi/agent/extensions/pi-status-footer.ts`. The footer shows the model,
+  thinking effort, context usage, and applicable quota windows; quota refreshes
+  retain only the non-secret display snapshot.
 - records the environment name in `$XDG_CONFIG_HOME/lif-env`, last, so a run
   that failed partway does not record a name it never finished installing
 
@@ -175,6 +184,10 @@ There is no DPAPI off Windows, so the token lives in the OS keystore:
   rather than implying parity.
 
 ## 7. Verify, and report honestly
+
+Pi discovers global extensions at startup. After installing or reinstalling,
+restart Pi or use `/reload` in an existing session; a plain shell restart is not
+enough for an already-running Pi process.
 
 ```bash
 command -v wezterm >/dev/null || { echo 'wezterm not on PATH'; exit 1; }

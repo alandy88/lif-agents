@@ -19,6 +19,7 @@ directory unless stated otherwise.
 | `herdr/config.toml` | rendered to `%APPDATA%\herdr\config.toml` | rendered to `$XDG_CONFIG_HOME/herdr/config.toml` |
 | `pwsh/profile.ps1` | dot-sourced from `$PROFILE` | — |
 | `zsh/profile.zsh` | — | `~/.config/lif-shell.zsh`, sourced from `~/.zshrc` |
+| `pi/extensions/pi-status-footer.ts` | `%USERPROFILE%\.pi\agent\extensions\pi-status-footer.ts` | `~/.pi/agent/extensions/pi-status-footer.ts` |
 | `hosts/*.example` | templates for the environment overlay (see below) | same |
 
 Redirect env vars rather than symlinks on Windows: Windows symlinks need
@@ -35,9 +36,10 @@ Platform-specific config discovery and overrides are documented in the
 ## Prerequisites
 
 Nothing here installs software. Herdr, WezTerm, Starship, the Nerd Font and the
-agent CLIs must already be present. The full prerequisite list and
-platform-specific update commands are in the
-[installation instructions](install/AGENTS.md).
+agent CLIs must already be present. `quota-axi` is optional: without it, the
+footer still shows model, thinking, and context data while quota fields are
+unavailable. The full prerequisite list and platform-specific update commands
+are in the [installation instructions](install/AGENTS.md).
 
 ## Install
 
@@ -48,13 +50,19 @@ git clone https://github.com/alandy88/lif-agents   # anywhere you keep checkouts
 
 On macOS or WSL, run `local/install/install.sh` instead. It reuses the environment
 recorded by the last run on that machine, detects `wsl` under WSL, and never
-guesses on macOS -- so a first install there needs `--env <name>`. Agents
-installing this on a machine should follow
-[install/AGENTS.md](install/AGENTS.md), which covers the prerequisites and
+guesses on macOS -- so a first install there needs `--env <name>`. Both installers
+also manage the Pi status footer at Pi's global user extension path. Pi discovers
+it at startup; after an install or reinstall, restart Pi or run `/reload` in an
+existing session to activate the new footer. Agents installing this on a machine
+should follow [install/AGENTS.md](install/AGENTS.md), which covers the prerequisites and
 the values that must be asked for rather than guessed.
 
-Idempotent — re-run after a `git pull`. See the installing-agent instructions
-above for the Unix installer's backup behavior.
+Idempotent — re-run after a `git pull`. On Unix the footer is linked to the
+checkout; on Windows it is copied because the installer does not require
+symlink privileges. A regular footer file is backed up before replacement, and
+an unrelated symlink at the destination is kept. `--dry-run` / `-WhatIf` previews
+that work without touching the destination. See the installing-agent
+instructions above for the complete backup behavior.
 
 ## Environment overlay
 

@@ -8,7 +8,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { cpSync, mkdirSync, mkdtempSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readlinkSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,7 +38,15 @@ function scaffold(name: string): { root: string; repo: string; home: string } {
   const repo = join(root, "repo");
   const home = join(root, "home");
 
-  for (const dir of ["wezterm", "starship", "zsh", "herdr", `environments/${ENV_NAME}`, "install"]) {
+  for (const dir of [
+    "wezterm",
+    "starship",
+    "zsh",
+    "herdr",
+    "pi/extensions",
+    `environments/${ENV_NAME}`,
+    "install",
+  ]) {
     mkdirSync(join(repo, "local", dir), { recursive: true });
   }
   mkdirSync(join(home, ".config"), { recursive: true });
@@ -40,16 +58,24 @@ function scaffold(name: string): { root: string; repo: string; home: string } {
   writeFileSync(join(repo, `local/environments/${ENV_NAME}/host.lua`), "-- current overlay\n");
   writeFileSync(join(repo, `local/environments/${ENV_NAME}/host.sh`), "# current overlay\n");
   cpSync(join(INSTALL_DIR, "install.sh"), join(repo, "local/install/install.sh"));
+  cpSync(
+    join(INSTALL_DIR, "../pi/extensions/pi-status-footer.ts"),
+    join(repo, "local/pi/extensions/pi-status-footer.ts"),
+  );
 
   return { root, repo, home };
 }
 
-function install(repo: string, home: string): string {
+function install(repo: string, home: string, ...options: string[]): string {
   return execFileSync(
     "bash",
-    [join(repo, "local/install/install.sh"), "--env", ENV_NAME, "--skip-shell-rc"],
+    [join(repo, "local/install/install.sh"), "--env", ENV_NAME, ...options, "--skip-shell-rc"],
     { env: { ...process.env, HOME: home, XDG_CONFIG_HOME: join(home, ".config") }, encoding: "utf8" },
   );
+}
+
+function footerPath(home: string): string {
+  return join(home, ".pi/agent/extensions/pi-status-footer.ts");
 }
 
 /** An overlay link as a pre-move install left it: at the old repo-root path. */
@@ -109,5 +135,71 @@ test("still keeps a symlink that points outside the checkout", () => {
 
   assert.equal(readlinkSync(join(home, ".config/lif-host.lua")), foreign);
   assert.match(output, /keep .*lif-host\.lua \(symlink outside repo environments\/\)/);
+  rmSync(root, { recursive: true, force: true });
+});
+
+test("installs the Pi footer as a checkout link and is idempotent", () => {
+  const { root, repo, home } = scaffold("pi-footer-idempotent");
+  const destination = footerPath(home);
+  const source = join(repo, "local/pi/extensions/pi-status-footer.ts");
+
+  install(repo, home);
+  assert.equal(readlinkSync(destination), source);
+
+  const secondOutput = install(repo, home);
+  assert.match(secondOutput, /ok .*pi-status-footer\.ts/);
+  assert.equal(existsSync(`${destination}.pre-lif-terminal.bak`), false);
+  rmSync(root, { recursive: true, force: true });
+});
+
+test("backs up an existing Pi footer before replacing it", () => {
+  const { root, repo, home } = scaffold("pi-footer-backup");
+  const destination = footerPath(home);
+  mkdirSync(dirname(destination), { recursive: true });
+  writeFileSync(destination, "captain's previous footer\n");
+
+  install(repo, home);
+
+  assert.equal(readlinkSync(destination), join(repo, "local/pi/extensions/pi-status-footer.ts"));
+  assert.equal(readFileSync(`${destination}.pre-lif-terminal.bak`, "utf8"), "captain's previous footer\n");
+  rmSync(root, { recursive: true, force: true });
+});
+
+test("keeps an unrelated Pi extension symlink", () => {
+  const { root, repo, home } = scaffold("pi-footer-foreign");
+  const destination = footerPath(home);
+  const foreign = join(root, "captain/pi-status-footer.ts");
+  mkdirSync(dirname(foreign), { recursive: true });
+  writeFileSync(foreign, "captain-owned\n");
+  mkdirSync(dirname(destination), { recursive: true });
+  symlinkSync(foreign, destination);
+
+  const output = install(repo, home);
+
+  assert.equal(readlinkSync(destination), foreign);
+  assert.match(output, /keep .*pi-status-footer\.ts \(symlink outside this checkout\)/);
+  rmSync(root, { recursive: true, force: true });
+});
+
+test("previews Pi footer installation without touching the destination", () => {
+  const { root, repo, home } = scaffold("pi-footer-preview");
+  const output = install(repo, home, "--dry-run");
+
+  assert.match(output, /would link .*pi-status-footer\.ts/);
+  assert.equal(existsSync(footerPath(home)), false);
+  rmSync(root, { recursive: true, force: true });
+});
+
+test("preview reports the footer backup without creating it", () => {
+  const { root, repo, home } = scaffold("pi-footer-preview-existing");
+  const destination = footerPath(home);
+  mkdirSync(dirname(destination), { recursive: true });
+  writeFileSync(destination, "captain's previous footer\n");
+
+  const output = install(repo, home, "--dry-run");
+
+  assert.match(output, /would bak .*pi-status-footer\.ts\.pre-lif-terminal\.bak/);
+  assert.equal(readFileSync(destination, "utf8"), "captain's previous footer\n");
+  assert.equal(existsSync(`${destination}.pre-lif-terminal.bak`), false);
   rmSync(root, { recursive: true, force: true });
 });
