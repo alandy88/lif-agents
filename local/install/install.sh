@@ -248,6 +248,22 @@ write_file() {
     echo "  set  $path"
 }
 
+# A managed Pi extension follows the Unix link convention, but a symlink that
+# points outside this checkout is the captain's own and must not be adopted.
+link_managed() {
+    local target=$1 link=$2
+
+    if [ -L "$link" ]; then
+        if [ "$(readlink "$link")" = "$target" ]; then
+            echo "  ok   $link"
+        else
+            echo "  keep $link (symlink outside this checkout)"
+        fi
+        return
+    fi
+    link "$target" "$link"
+}
+
 # Append a marked source block to a shell rc file, once. The captain curates
 # their own rc: this only ever appends its own block, never rewrites the file.
 wire_rc() {
@@ -278,6 +294,9 @@ wire_rc() {
 echo "Configs"
 link "$local_root/wezterm/wezterm.lua" "$config_home/wezterm/wezterm.lua"
 link "$local_root/starship/starship.toml" "$config_home/starship.toml"
+
+echo "Pi extension"
+link_managed "$local_root/pi/extensions/pi-status-footer.ts" "$HOME/.pi/agent/extensions/pi-status-footer.ts"
 
 echo "Environment overlay ($host)"
 # wezterm.lua reads ~/.config/lif-host.lua by an absolute path built from

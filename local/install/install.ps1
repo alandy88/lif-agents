@@ -21,6 +21,56 @@ $ErrorActionPreference = 'Stop'
 # This script lives in local/install/; the configs live beside it under local/.
 $localRoot = Split-Path $PSScriptRoot -Parent
 
+function Get-BackupPath {
+    param([string]$Path)
+
+    $backup = "$Path.pre-lif-terminal.bak"
+    $backupIndex = 1
+    while (Test-Path -LiteralPath $backup) {
+        $backup = "$Path.pre-lif-terminal.$backupIndex.bak"
+        $backupIndex++
+    }
+    return $backup
+}
+
+function Set-ManagedFile {
+    param(
+        [string]$Source,
+        [string]$Destination
+    )
+
+    $destinationItem = Get-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
+    if ($destinationItem -and $destinationItem.PSObject.Properties.Name -contains 'LinkType' -and $destinationItem.LinkType) {
+        $resolved = Resolve-Path -LiteralPath $Destination -ErrorAction SilentlyContinue
+        $sourcePath = [IO.Path]::GetFullPath($Source)
+        if (-not $resolved -or [IO.Path]::GetFullPath($resolved.Path) -ne $sourcePath) {
+            Write-Host "  keep $Destination (symlink outside this checkout)" -ForegroundColor DarkGray
+            return
+        }
+    }
+
+    if ($destinationItem -and -not $destinationItem.PSIsContainer) {
+        $sourceText = Get-Content -LiteralPath $Source -Raw
+        $destinationText = Get-Content -LiteralPath $Destination -Raw
+        if ($sourceText -eq $destinationText) {
+            Write-Host "  ok   $Destination" -ForegroundColor DarkGray
+            return
+        }
+    }
+
+    $backup = if ($destinationItem) { Get-BackupPath $Destination } else { $null }
+    $operation = if ($backup) { "backup to $backup and copy managed file" } else { 'copy managed file' }
+    if ($PSCmdlet.ShouldProcess($Destination, $operation)) {
+        if ($backup) {
+            Copy-Item -LiteralPath $Destination -Destination $backup -Force
+            Write-Host "  bak  $backup" -ForegroundColor Yellow
+        }
+        New-Item (Split-Path $Destination) -ItemType Directory -Force | Out-Null
+        Copy-Item -LiteralPath $Source -Destination $Destination -Force
+        Write-Host "  set  $Destination" -ForegroundColor Green
+    }
+}
+
 function Set-UserEnv {
     param([string]$Name, [string]$Value)
 
@@ -39,6 +89,9 @@ function Set-UserEnv {
 Write-Host "Environment variables" -ForegroundColor Cyan
 Set-UserEnv WEZTERM_CONFIG_FILE (Join-Path $localRoot 'wezterm\wezterm.lua')
 Set-UserEnv STARSHIP_CONFIG     (Join-Path $localRoot 'starship\starship.toml')
+
+Write-Host "Pi extension" -ForegroundColor Cyan
+Set-ManagedFile (Join-Path $localRoot 'pi\extensions\pi-status-footer.ts') (Join-Path $HOME '.pi\agent\extensions\pi-status-footer.ts')
 
 Write-Host "PowerShell profile" -ForegroundColor Cyan
 $profileScript = Join-Path $localRoot 'pwsh\profile.ps1'
