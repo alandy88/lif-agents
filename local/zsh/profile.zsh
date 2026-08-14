@@ -163,6 +163,12 @@ ccpr() { ccp resume "$@"; }
 # The pwsh versions cross an ssh bridge because firstmate lives on another host.
 # Here it is local, so there is no bridge: run it, in a subshell so the caller's
 # cwd survives.
+#
+# There is deliberately no ssh path on this side. Only the firstmate host sets
+# LIF_FIRSTMATE_DIR, and it is the machine this profile runs on; a unix client
+# that is not that host leaves the key unset and _lif_need warns, which is the
+# documented outcome for a value the captain does not have. Add the bridge here
+# when a second unix machine actually needs to reach firstmate, not before.
 fm() {
     _lif_need LIF_FIRSTMATE_DIR || return 1
     ( cd "$LIF_FIRSTMATE_DIR" && claude --dangerously-skip-permissions "$@" )

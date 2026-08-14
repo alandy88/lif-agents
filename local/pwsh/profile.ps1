@@ -142,10 +142,13 @@ function fmsh {
 # Attach to Herdr on the firstmate host. -t is required: without a forced tty
 # ssh runs the command non-interactively and herdr has nothing to attach to.
 # HerdrPath is absolute because a non-login ssh command skips the shell rc that
-# puts it on PATH.
+# puts it on PATH. Args are quoted for the same reason as `fm` above -- ssh
+# joins them with plain spaces, so `fmw --session 'my work'` would otherwise
+# reach herdr as two arguments.
 function fmw {
     if (-not ($v = Get-LifHostValue FirstmateHost, HerdrPath)) { return }
-    ssh -t $v[0] $v[1] @args
+    $q = ($args | ForEach-Object { "'" + ("$_" -replace "'", "'\''") + "'" }) -join ' '
+    ssh -t $v[0] "exec '$($v[1])' $q"
 }
 
 # Directory shortcuts. `github` deliberately shadows GitHub Desktop's `github`

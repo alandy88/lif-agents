@@ -33,6 +33,20 @@ still there and still current, so the box is dormant rather than retired — but
 nothing points at it, and the `fm-herdr` workspace-bootstrap launcher it needed
 has no counterpart on the Mac mini, whose herdr server keeps its workspace.
 
+That move renamed keys in the overlay, which is hand-placed and uncommitted, so
+nothing in the repo migrates it. It has already been applied on this machine;
+redo it by hand if the overlay is ever rebuilt from the example:
+
+| Was | Now |
+|---|---|
+| `WslDistro = 'Ubuntu-24.04'` | dropped — nothing reads it |
+| `FirstmateDir = '/home/peter/firstmate'` | `/Users/peteryu/firstmate` |
+| `HerdrPath = '/home/peter/.local/bin/fm-herdr'` | `/opt/homebrew/bin/herdr` |
+| — | `FirstmateHost = 'peteryu@peter-macmini'` |
+
+Missing the new key is loud rather than silent: `Get-LifHostValue` warns naming
+`FirstmateHost` and the helper returns without running.
+
 ## Herdr
 
 `local/herdr/config.toml` ships `default_shell = "@LIF_HERDR_DEFAULT_SHELL@"`.
