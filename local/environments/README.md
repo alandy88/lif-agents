@@ -53,12 +53,12 @@ captain** — never invent a plausible-looking path.
 | `LIF_GITHUB_DIR` / `GithubDir` | `github` jumps here; the function shadows GitHub Desktop's `github` launcher | **ask** |
 | `LIF_BWS_PROJECT_ID` / `BwsProjectId` | Bitwarden Secrets project UUID | **ask**; secret-adjacent, see below |
 | `LIF_FIRSTMATE_DIR` / `FirstmateDir` | firstmate checkout; `fm`/`fmsh` use it | `~/firstmate` by convention — confirm |
-| `LIF_HERDR_PATH` / `HerdrPath` | launcher `fmw` runs | `~/.local/bin/fm-herdr` by convention — confirm |
+| `FirstmateHost` | ssh target the pwsh `fm`/`fmsh`/`fmw` reach; the firstmate host itself has no equivalent, since there they run locally | `windows-5090` only |
+| `LIF_HERDR_PATH` / `HerdrPath` | herdr binary `fmw` runs; absolute, because a non-login ssh command misses the shell rc that puts it on PATH | **ask** — install location differs per platform |
 | `LIF_HERDR_DEFAULT_SHELL` | shell Herdr opens panes with | defaults per platform, see below |
 | `LIF_CLAUDE_PERMISSION_MODE_STANDARD` / `ClaudePermissionModeStandard` | `claude --permission-mode` the `cc` launcher uses | optional; when unset or empty, falls back to the shared key below, then `--dangerously-skip-permissions` |
 | `LIF_CLAUDE_PERMISSION_MODE_PERSONAL` / `ClaudePermissionModePersonal` | `claude --permission-mode` the `ccp` launcher uses | optional; when unset or empty, falls back to the shared key below, then `--dangerously-skip-permissions` |
 | `LIF_CLAUDE_PERMISSION_MODE` / `ClaudePermissionMode` | shared `claude --permission-mode` fallback for `cc` and `ccp` when their own key is unset or empty | optional; omit or leave empty for `--dangerously-skip-permissions` |
-| `WslDistro` | distro the pwsh `fm*` bridges target | `windows-5090` only; no unix meaning |
 
 Eight values are captain-only: the three WezTerm cwds, the four directory
 shortcuts, and the BWS project id.
@@ -98,7 +98,7 @@ installed on yet has no README to write, so it holds only a `.gitkeep`.
 |---|---|---|
 | `windows-5090` | the Windows box | hand-placed in `%USERPROFILE%\.config\`, see its README |
 | `macbookpro-work` | the work MacBook Pro | authored on the machine; sets `font_size`, `LIF_NOTES_DIR`, `LIF_GITHUB_DIR` and the machine-local extras, the rest deliberately unset |
-| `macmini` | the Mac mini (`peter-macmini`) | authored on the machine; sets `LIF_STUDIO_DIR` only, see its README |
-| `wsl` | the WSL box | empty slot; the installing agent authors it on the machine |
+| `macmini` | the Mac mini (`peter-macmini`) | authored on the machine; the firstmate host, see its README |
+| `wsl` | the WSL box | empty slot; the installing agent authors it on the machine. Dormant: it hosted firstmate until that moved to `macmini`, and still carries a checkout at the same commit |
 
 To set up a machine, follow [local/install/AGENTS.md](../install/AGENTS.md).

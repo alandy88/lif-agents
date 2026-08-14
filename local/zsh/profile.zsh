@@ -11,8 +11,8 @@
 # -- belongs in the environment overlay instead. See environments/README.md.
 #
 # Where a mechanism in profile.ps1 is Windows-only, the equivalent here is
-# native rather than a literal port: `fm`/`fmsh`/`fmw` shell out to wsl.exe from
-# Windows, but on macOS and WSL the target is local, so they just run it. The
+# native rather than a literal port: `fm`/`fmsh`/`fmw` ssh to the firstmate host
+# from Windows, but this profile runs on that host, so they just run it. The
 # BWS token comes from the OS keystore instead of DPAPI (see the bottom).
 
 # --- Prompt ---
@@ -160,9 +160,9 @@ ccr()  { cc  resume "$@"; }
 ccpr() { ccp resume "$@"; }
 
 # --- firstmate ---
-# The pwsh versions cross a wsl.exe bridge because firstmate lives in WSL. Here
-# it is local, so there is no bridge: run it, in a subshell so the caller's cwd
-# survives.
+# The pwsh versions cross an ssh bridge because firstmate lives on another host.
+# Here it is local, so there is no bridge: run it, in a subshell so the caller's
+# cwd survives.
 fm() {
     _lif_need LIF_FIRSTMATE_DIR || return 1
     ( cd "$LIF_FIRSTMATE_DIR" && claude --dangerously-skip-permissions "$@" )
@@ -175,8 +175,9 @@ fmsh() {
     cd "$LIF_FIRSTMATE_DIR"
 }
 
-# Herdr with a Claude pane up in the firstmate directory. Same launcher script
-# the Windows `fmw` reaches through wsl.exe, run directly.
+# Herdr on the firstmate host. The workspace persists in the server's session
+# state, so this attaches rather than building anything; the Windows `fmw` runs
+# this same binary over ssh.
 fmw() {
     _lif_need LIF_HERDR_PATH || return 1
     "$LIF_HERDR_PATH" "$@"

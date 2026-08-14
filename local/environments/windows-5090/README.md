@@ -20,6 +20,19 @@ this machine.
 
 `host.sh` has no meaning here: the unix profile is not installed on Windows.
 
+## firstmate
+
+firstmate does not live on this machine, so `fm`, `fmsh` and `fmw` are remote:
+they ssh to `FirstmateHost` (`peteryu@peter-macmini`) using `FirstmateDir` and
+`HerdrPath` as paths *on that host*, not here. `fmw` forces a tty with `ssh -t`,
+without which herdr has no terminal to attach to, and `HerdrPath` is absolute
+because a non-login ssh command never sources the rc that would put it on PATH.
+
+They bridged into WSL until firstmate moved to the Mac mini. The WSL checkout is
+still there and still current, so the box is dormant rather than retired — but
+nothing points at it, and the `fm-herdr` workspace-bootstrap launcher it needed
+has no counterpart on the Mac mini, whose herdr server keeps its workspace.
+
 ## Herdr
 
 `local/herdr/config.toml` ships `default_shell = "@LIF_HERDR_DEFAULT_SHELL@"`.

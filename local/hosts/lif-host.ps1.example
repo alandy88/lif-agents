@@ -6,9 +6,9 @@
 # environments/README.md for the full key list.
 
 $LifHost = @{
-    WslDistro    = 'REPLACE_ME'       # distro the fm/fmsh/fmw bridges target
-    FirstmateDir = '/home/YOUR-USER/firstmate'
-    HerdrPath    = '/home/YOUR-USER/.local/bin/fm-herdr'
+    FirstmateHost = 'REPLACE_ME'      # ssh target the fm/fmsh/fmw bridges use
+    FirstmateDir = '/Users/YOUR-USER/firstmate'
+    HerdrPath    = '/opt/homebrew/bin/herdr'
     StudioDir    = 'REPLACE_ME'
     NotesDir     = 'REPLACE_ME'
     ImageHubDir  = 'REPLACE_ME'
