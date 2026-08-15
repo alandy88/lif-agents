@@ -77,9 +77,10 @@ the wrong directory, and `lif`/`notes`/`imagehub`/`github` fail confusingly.
 | general checkout root | `host.sh` `LIF_GITHUB_DIR` |
 | Bitwarden Secrets project id (UUID) | `host.sh` `LIF_BWS_PROJECT_ID` |
 
-Also worth confirming rather than assuming: `LIF_FIRSTMATE_DIR`
-(`~/firstmate` by convention), `LIF_HERDR_PATH` (`~/.local/bin/fm-herdr`), and
-whether this machine uses BWS at all.
+Also worth confirming rather than assuming: whether this machine hosts firstmate
+at all — only the host that does sets `LIF_FIRSTMATE_DIR` (`~/firstmate` by
+convention) and `LIF_HERDR_PATH` (the herdr binary, absolute) — and whether this
+machine uses BWS.
 
 Ask for all of them in one message, then continue. Every key is optional at
 runtime — an environment with none of them still installs and still gives a
@@ -103,7 +104,7 @@ on the captain's Mac mini, where `brew install herdr` also removed
 | WezTerm | `brew install --cask wezterm` | installed on the **Windows** side; WSL only supplies the shell |
 | Starship | `brew install starship` | `curl -sS https://starship.rs/install.sh \| sh` |
 | JetBrainsMono Nerd Font | `brew install --cask font-jetbrains-mono-nerd-font` | install on the Windows side, where WezTerm renders |
-| Herdr | `brew install herdr`; update later with `brew upgrade herdr`. Do **not** use `herdr update` here — 0.7.5 answers `self-update is disabled for Homebrew installs` and exits 0, so it silently does nothing. *Verified on macOS 26.5.2*: herdr 0.7.5 is in homebrew-core | already present on the captain's WSL box; `herdr update` self-updates |
+| Herdr | `brew install herdr`; update later with `brew upgrade herdr`. Do **not** use `herdr update` here — it answers `self-update is disabled for Homebrew installs` and exits 0, so it silently does nothing. *Verified on macOS 26.5.2*: herdr 0.8.0 is in homebrew-core | already present on the captain's WSL box; `herdr update` self-updates |
 | zsh | ships with macOS | `sudo apt install zsh` (WSL defaults to bash) |
 | `claude`, `codex`, `opencode` | the agents the launch menu and `cc` invoke; install per their own docs | same |
 | `bws` (Bitwarden Secrets CLI) | only if this machine uses BWS | same |

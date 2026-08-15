@@ -123,31 +123,32 @@ function ccp {
 function ccr  { cc  resume @args }
 function ccpr { ccp resume @args }
 
-# --- firstmate (WSL) ---
-# Launches Claude Code inside the overlay's WSL distro at its firstmate dir.
-# `bash -lc` is required:
-# nvm's PATH lives in ~/.profile, and firstmate's non-interactive bin/*.sh need node.
-# wsl.exe drops trailing positional args before bash sees them, so args are
-# single-quoted and spliced into the command string instead of passed through.
+# --- firstmate (remote host) ---
+# Launches Claude Code on the firstmate host at its firstmate dir. ssh joins its
+# trailing args with plain spaces before the remote shell sees them, so args are
+# single-quoted and spliced into one command string instead of passed through.
 function fm {
-    if (-not ($v = Get-LifHostValue WslDistro, FirstmateDir)) { return }
+    if (-not ($v = Get-LifHostValue FirstmateHost, FirstmateDir)) { return }
     $q = ($args | ForEach-Object { "'" + ("$_" -replace "'", "'\''") + "'" }) -join ' '
-    wsl.exe -d $v[0] --cd $v[1] -- bash -lc "claude --dangerously-skip-permissions $q"
+    ssh -t $v[0] "cd '$($v[1])' && exec ~/.local/bin/claude --dangerously-skip-permissions $q"
 }
 
 # Shell in the firstmate home, for bin/ scripts, bootstrap, herdr, treehouse.
 function fmsh {
-    if (-not ($v = Get-LifHostValue WslDistro, FirstmateDir)) { return }
-    wsl.exe -d $v[0] --cd $v[1] -- bash -l
+    if (-not ($v = Get-LifHostValue FirstmateHost, FirstmateDir)) { return }
+    ssh -t $v[0] "cd '$($v[1])' && exec zsh -l"
 }
 
-# Herdr in WSL, with a Claude pane already up in the firstmate directory. The
-# logic lives in the Linux script because PowerShell's native-arg handling
-# eats $(...) and embedded double quotes, and herdr sizes new panes from the
-# attached client.
+# Attach to Herdr on the firstmate host. -t is required: without a forced tty
+# ssh runs the command non-interactively and herdr has nothing to attach to.
+# HerdrPath is absolute because a non-login ssh command skips the shell rc that
+# puts it on PATH. Args are quoted for the same reason as `fm` above -- ssh
+# joins them with plain spaces, so `fmw --session 'my work'` would otherwise
+# reach herdr as two arguments.
 function fmw {
-    if (-not ($v = Get-LifHostValue WslDistro, HerdrPath)) { return }
-    wsl.exe -d $v[0] -- $v[1]
+    if (-not ($v = Get-LifHostValue FirstmateHost, HerdrPath)) { return }
+    $q = ($args | ForEach-Object { "'" + ("$_" -replace "'", "'\''") + "'" }) -join ' '
+    ssh -t $v[0] "exec '$($v[1])' $q"
 }
 
 # Directory shortcuts. `github` deliberately shadows GitHub Desktop's `github`
