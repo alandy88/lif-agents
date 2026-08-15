@@ -117,19 +117,22 @@ configured PowerShell session (it is never run by install or CI):
 & <lif-agents-checkout>\local\install\probe-bws-windows.ps1 -ProjectId $LifHost.BwsProjectId
 ```
 
-It invokes the installed `bws.exe` and its authenticated `run` path with a
-temporary no-op `claude.exe`. The probe never reads or reports secret values;
-it reports only the BWS version, feature booleans, token-absence booleans, and
-whether a harmless parent marker survives. All temporary executables/results
-are removed on success or failure, and no profile or BWS configuration is
-changed.
+It invokes the installed `bws.exe` and authenticated `run` path twice with
+temporary shell and no-op `claude.exe` executables: a baseline preserving the
+parent environment, then the launcher's actual `--no-inherit-env` path. Both
+start the configured PowerShell normally (not `-NoProfile`). The probe never
+reads or reports secret values; it reports only the BWS version and booleans for
+token absence, harmless parent-marker survival, PATH/SystemRoot availability,
+and no-op launch success. All temporary executables/results are removed on
+success or failure, and no profile or BWS configuration is changed.
 
-Safe expected output is one JSON object: `run_supported`, `shell_supported`,
-`authenticated_run_succeeded`, both `token_absent_*`, both
-`harmless_parent_survived_*`, and `noop_claude_launched` should be `true`.
-`bws_version` is a version string and `no_inherit_supported` is informational.
-A false value or `probe_failed=true` means stop and report the output; it
-contains no credential material.
+Safe output is one JSON object with separate `baseline_*` and `actual_*`
+outcomes. Token-absence, PATH/SystemRoot, authenticated-run, and no-op-launch
+booleans must be `true`. Parent-survival is the compatibility decision under
+test: baseline must be `true`, and `actual_parent_survived_* = false` proves
+`--no-inherit-env` breaks launcher inputs. `bws_version` is a version string.
+A false required value or `probe_failed=true` means stop and report the output;
+it contains no credential material.
 
 Consequently a populated environment directory is **not** committed: what a
 committed environment directory carries is a `README.md` describing the machine,

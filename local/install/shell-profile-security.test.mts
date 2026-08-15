@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 const LOCAL = join(dirname(fileURLToPath(import.meta.url)), "..");
 const zshProfile = join(LOCAL, "zsh/profile.zsh");
 const pwsh = readFileSync(join(LOCAL, "pwsh/profile.ps1"), "utf8");
+const windowsProbe = readFileSync(join(LOCAL, "install/probe-bws-windows.ps1"), "utf8");
 
 function runProfile(commands: string, shell = "bash"): string {
   const root = mkdtempSync(join(tmpdir(), "lif-profile-"));
@@ -62,6 +63,17 @@ test("zsh Claude defaults restricted, supports explicit bypass, and injects broa
   assert.match(output, /args=--permission-mode bypassPermissions/);
   assert.match(output, /claude-token= broad= args=/);
   assert.match(output, /claude-token= broad=injected args=--version/);
+});
+
+test("Windows probe executes baseline and actual startup paths without bypassing profiles", () => {
+  assert.match(windowsProbe, /bws run --shell \$baselineShell/);
+  assert.match(windowsProbe, /bws run --no-inherit-env --shell \$actualShell/);
+  assert.doesNotMatch(windowsProbe, /ProcessStartInfo\(Pwsh, "[^"]*-NoProfile/);
+  assert.match(windowsProbe, /actual_token_absent_before_profile/);
+  assert.match(windowsProbe, /actual_parent_survived_before_profile/);
+  assert.match(windowsProbe, /actual_path_available_before_profile/);
+  assert.match(windowsProbe, /actual_systemroot_available_before_profile/);
+  assert.match(windowsProbe, /actual_noop_claude_launched/);
 });
 
 test("PowerShell broad injection clears inheritance before the child profile starts", () => {
