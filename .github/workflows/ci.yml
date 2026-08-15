@@ -18,6 +18,9 @@ jobs:
           # is a dev-only floor — tsc downlevels it for remote/dist/, which is what
           # consumers import, and package.json engines stays >=22.
           node-version: "24"
+      # The local shell security suite executes profile.zsh under native zsh;
+      # ubuntu-latest does not include it by default.
+      - run: sudo apt-get update && sudo apt-get install -y zsh
       - run: npm ci
       - run: npm run typecheck
       # Before the tests, not after: boundary.test.mts reads remote/dist/*.d.mts,

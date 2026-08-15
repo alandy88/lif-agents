@@ -45,6 +45,9 @@ jobs:
         with:
           node-version: "24" # same floor as ci.yml (tests run off remote/src/)
 
+      # npm test executes the local profile security suite under native zsh;
+      # ubuntu-latest does not include it by default.
+      - run: sudo apt-get update && sudo apt-get install -y zsh
       - run: npm ci
       - run: npm run typecheck
       # Before the tests, not after: boundary.test.mts reads remote/dist/*.d.mts. This

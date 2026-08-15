@@ -58,7 +58,7 @@ captain** — never invent a plausible-looking path.
 | `LIF_HERDR_DEFAULT_SHELL` | shell Herdr opens panes with | defaults per platform, see below |
 | `LIF_CLAUDE_PERMISSION_MODE_STANDARD` / `ClaudePermissionModeStandard` | `claude --permission-mode` the `cc` launcher uses | optional; when unset or empty, falls back to the shared key below, then `--dangerously-skip-permissions` |
 | `LIF_CLAUDE_PERMISSION_MODE_PERSONAL` / `ClaudePermissionModePersonal` | `claude --permission-mode` the `ccp` launcher uses | optional; when unset or empty, falls back to the shared key below, then `--dangerously-skip-permissions` |
-| `LIF_CLAUDE_PERMISSION_MODE` / `ClaudePermissionMode` | shared `claude --permission-mode` fallback for `cc` and `ccp` when their own key is unset or empty | optional; omit or leave empty for `--dangerously-skip-permissions` |
+| `LIF_CLAUDE_PERMISSION_MODE` / `ClaudePermissionMode` | shared `claude --permission-mode` fallback for `cc` and `ccp` | optional; omit or leave empty for `--dangerously-skip-permissions` |
 
 Eight values are captain-only: the three WezTerm cwds, the four directory
 shortcuts, and the BWS project id.
@@ -83,9 +83,34 @@ id and the BWS access token stay out of git:
 
 - The root `.gitignore` ignores `local/environments/*/host.{lua,sh,ps1}`, so a
   populated environment overlay cannot be committed by accident.
-- The access token is never in an overlay at all. macOS reads it from the
-  Keychain, Linux/WSL from `~/.bws/token` (mode 0600), Windows from a DPAPI
-  blob — see `local/README.md`.
+- The access token is never in an overlay or long-lived shell environment.
+  The `bws` compatibility function reads Keychain, `~/.bws/token` (mode 0600),
+  or DPAPI only for one CLI invocation. Ordinary `bws get`, `bws list`, and
+  `bws run` calls remain unchanged; commands started by `bws run` have the
+  access token removed before they start. See `local/README.md`.
+
+## Claude and BWS migration
+
+`cc`, `ccp`, bare `claude`, and `fm` keep their previous permission behavior but
+no longer receive the entire BWS project automatically. `claude-bws [args...]`
+is the explicit legacy whole-project injection path; use it only for a trusted
+task that needs every project secret. Prefer a narrower direct `bws run`
+selection when the installed CLI supports one.
+
+Interactive `bws` commands use the shell compatibility function. Noninteractive
+callers must use the installed profile-independent wrapper: `lif-bws ...` on
+Unix or `lif-bws.cmd ...` on Windows. The Windows `.cmd` entrypoint uses
+`pwsh -NoProfile` to invoke its sibling `lif-bws.ps1`, so cmd, Git hooks, and
+native children do not depend on loading the interactive profile. Repository
+inventory found no noninteractive BWS callsites beyond the profile launchers,
+which use the compatibility function. Machine-local scripts are outside this
+repository and must be checked for direct `bws`/`bws.exe` calls and migrated to
+these wrappers. On the configured Windows host, BWS 2.1.0 empirically removed
+`BWS_ACCESS_TOKEN` from `run` children with and without `--no-inherit-env`;
+ordinary `run` preserved a harmless parent variable while `--no-inherit-env`
+dropped it. The wrappers therefore use ordinary `run` and do not modify command
+text with shell-specific syntax. This evidence does not claim behavior for
+other BWS versions.
 
 Consequently a populated environment directory is **not** committed: what a
 committed environment directory carries is a `README.md` describing the machine,

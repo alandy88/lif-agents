@@ -64,7 +64,7 @@ function tm {
 # haiku) or an action (resume|remote|w|bare|print|designer); anything else is
 # passed straight through. CLAUDE_CONFIG_DIR is set for the call and restored
 # afterwards, so it is deterministic even when the session already exports one.
-# `claude` here is the bws-wrapping function at the bottom, deliberately.
+# `claude` here is the direct, secret-free function at the bottom.
 #
 # The permission posture is environment-owned and per-launcher: cc resolves
 # ClaudePermissionModeStandard, ccp resolves ClaudePermissionModePersonal, each
@@ -161,32 +161,50 @@ function github { if ($v = Get-LifHostValue GithubDir) { Set-Location $v } }
 # Multiplexing lives in `tm` near the top of this file. The previous `z`
 # function existed only to force Zellij's shell, which it dropped on Windows.
 
-# --- BWS access token (DPAPI-decrypted at session start) ---
-$__bws = "$env:USERPROFILE\.bws\token.dpapi"
-if (Test-Path $__bws) {
-    $sec = Get-Content $__bws | ConvertTo-SecureString
-    $env:BWS_ACCESS_TOKEN       = [System.Net.NetworkCredential]::new('', $sec).Password
-    if ($LifHost.BwsProjectId) { $env:LIF_STUDIO_BWS_PROJECT = $LifHost.BwsProjectId }
-    Remove-Variable sec
+# --- BWS access token ---
+# DPAPI is read only inside each `bws` invocation. Shell startup deliberately
+# removes an inherited token, and `bws run` removes it before its command starts.
+Remove-Item Env:BWS_ACCESS_TOKEN -ErrorAction SilentlyContinue
+if ($LifHost.BwsProjectId) { $env:LIF_STUDIO_BWS_PROJECT = $LifHost.BwsProjectId }
+function Get-LifBwsToken {
+    $path = Join-Path $env:USERPROFILE '.bws\token.dpapi'
+    if (-not (Test-Path $path)) { return $null }
+    $secure = Get-Content $path | ConvertTo-SecureString
+    try { [System.Net.NetworkCredential]::new('', $secure).Password }
+    finally { Remove-Variable secure -ErrorAction SilentlyContinue }
 }
-Remove-Variable __bws -ErrorAction SilentlyContinue
+function bws {
+    $exe = (Get-Command bws.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1).Source
+    if (-not $exe) { Write-Error 'bws.exe not found on PATH'; return }
+    $token = Get-LifBwsToken
+    if (-not $token) { Write-Error 'lif: BWS access token is not configured'; return }
+    $had = Test-Path Env:BWS_ACCESS_TOKEN
+    $previous = if ($had) { $env:BWS_ACCESS_TOKEN } else { $null }
+    try {
+        $env:BWS_ACCESS_TOKEN = $token
+        # BWS 2.1 removes its authentication token from `run` children before
+        # starting any selected shell. Do not prepend PowerShell syntax to an
+        # arbitrary --shell command.
+        & $exe @args
+    } finally {
+        if ($had) { $env:BWS_ACCESS_TOKEN = $previous }
+        else { Remove-Item Env:BWS_ACCESS_TOKEN -ErrorAction SilentlyContinue }
+        Remove-Variable token -ErrorAction SilentlyContinue
+    }
+}
 
-# --- ADR-0020: launch Claude Code wrapped in `bws run` (memory-only secrets) ---
-# Shadows claude.exe so every launch path (cc, bare `claude`) gets process-scoped
-# secrets. Guard skips re-wrapping when secrets are already injected (child of a
-# wrapped process). bws run loses arg quoting, so args are re-quoted manually.
+# Claude is direct and secret-free by default. This explicitly named legacy
+# path injects the configured whole BWS project for tasks that truly need it.
+# Prefer a narrower direct `bws run` selection when the installed CLI offers it.
 function claude {
     $exe = (Get-Command claude.exe -CommandType Application -ErrorAction SilentlyContinue).Source
     if (-not $exe) { Write-Error 'claude.exe not found on PATH'; return }
-    if ($env:BWS_ACCESS_TOKEN -and $env:LIF_STUDIO_BWS_PROJECT -and -not $env:GH_TOKEN) {
-        # Strip CLAUDE_CODE_OAUTH_TOKEN: it's for the headless .sandcastle agent;
-        # if present it overrides Claude Code's interactive claude.ai login
-        # (breaks Remote Control / model access). Other secrets stay injected.
-        $cmd = @('$env:CLAUDE_CODE_OAUTH_TOKEN = $null;', "& '$exe'") + ($args | ForEach-Object { "'" + ("$_" -replace "'", "''") + "'" })
-        # --shell pwsh: default shell is Windows PowerShell 5.1, whose Restricted
-        # execution policy fails dot-sourcing its profile on this box
-        bws run --shell pwsh --project-id $env:LIF_STUDIO_BWS_PROJECT -- ($cmd -join ' ')
-    } else {
-        & $exe @args
-    }
+    & $exe @args
+}
+function claude-bws {
+    if (-not $LifHost.BwsProjectId) { Write-Error 'lif-host overlay does not define BwsProjectId'; return }
+    $exe = (Get-Command claude.exe -CommandType Application -ErrorAction SilentlyContinue).Source
+    if (-not $exe) { Write-Error 'claude.exe not found on PATH'; return }
+    $cmd = @('$env:BWS_ACCESS_TOKEN = $null; $env:CLAUDE_CODE_OAUTH_TOKEN = $null;', "& '$exe'") + ($args | ForEach-Object { "'" + ("$_" -replace "'", "''") + "'" })
+    bws run --shell pwsh --project-id $LifHost.BwsProjectId -- ($cmd -join ' ')
 }

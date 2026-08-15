@@ -93,6 +93,10 @@ Set-UserEnv STARSHIP_CONFIG     (Join-Path $localRoot 'starship\starship.toml')
 Write-Host "Pi extension" -ForegroundColor Cyan
 Set-ManagedFile (Join-Path $localRoot 'pi\extensions\pi-status-footer.ts') (Join-Path $HOME '.pi\agent\extensions\pi-status-footer.ts')
 
+Write-Host "Noninteractive BWS wrapper" -ForegroundColor Cyan
+Set-ManagedFile (Join-Path $localRoot 'bin\lif-bws.ps1') (Join-Path $HOME '.local\bin\lif-bws.ps1')
+Set-ManagedFile (Join-Path $localRoot 'bin\lif-bws.cmd') (Join-Path $HOME '.local\bin\lif-bws.cmd')
+
 Write-Host "PowerShell profile" -ForegroundColor Cyan
 $profileScript = Join-Path $localRoot 'pwsh\profile.ps1'
 $escapedProfileScript = $profileScript.Replace("'", "''")
