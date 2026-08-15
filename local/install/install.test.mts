@@ -44,6 +44,7 @@ function scaffold(name: string): { root: string; repo: string; home: string } {
     "zsh",
     "herdr",
     "pi/extensions",
+    "bin",
     `environments/${ENV_NAME}`,
     "install",
   ]) {
@@ -54,6 +55,7 @@ function scaffold(name: string): { root: string; repo: string; home: string } {
   writeFileSync(join(repo, "local/wezterm/wezterm.lua"), "-- wezterm\n");
   writeFileSync(join(repo, "local/starship/starship.toml"), "# starship\n");
   writeFileSync(join(repo, "local/zsh/profile.zsh"), "# zsh\n");
+  writeFileSync(join(repo, "local/bin/lif-bws"), "#!/bin/sh\n");
   writeFileSync(join(repo, "local/herdr/config.toml"), "default_shell = '@LIF_HERDR_DEFAULT_SHELL@'\n");
   writeFileSync(join(repo, `local/environments/${ENV_NAME}/host.lua`), "-- current overlay\n");
   writeFileSync(join(repo, `local/environments/${ENV_NAME}/host.sh`), "# current overlay\n");

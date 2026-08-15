@@ -20,13 +20,11 @@ LIF_HERDR_PATH='REPLACE_ME'                  # `fmw`; e.g. /opt/homebrew/bin/her
 # macOS reads it from the Keychain, Linux/WSL from ~/.bws/token (mode 0600).
 LIF_BWS_PROJECT_ID='REPLACE_ME'
 
-# Permission posture for Claude launchers. Unset means restricted `default`.
-# Set `bypassPermissions` only as an explicit unrestricted opt-in. Each launcher
-# checks its own key, then the shared key, then the restricted default.
-# LIF_CLAUDE_PERMISSION_MODE_STANDARD=auto    # cc only
-# LIF_CLAUDE_PERMISSION_MODE_PERSONAL=auto    # ccp only
-# LIF_CLAUDE_PERMISSION_MODE_FIRSTMATE=auto   # fm only
-# LIF_CLAUDE_PERMISSION_MODE=auto             # shared fallback
+# Permission posture the `cc`/`ccp` launchers use. Each checks its own key,
+# then the shared key; unset defaults to --dangerously-skip-permissions.
+# LIF_CLAUDE_PERMISSION_MODE_STANDARD=auto   # cc only
+# LIF_CLAUDE_PERMISSION_MODE_PERSONAL=auto   # ccp only
+# LIF_CLAUDE_PERMISSION_MODE=auto            # shared fallback
 
 # Shell Herdr opens panes with. install.sh writes this into the installed
 # herdr config.toml; leave unset to take whichever zsh is on PATH (or the login

@@ -56,10 +56,9 @@ captain** — never invent a plausible-looking path.
 | `FirstmateHost` | ssh target the pwsh `fm`/`fmsh`/`fmw` reach; the firstmate host itself has no equivalent, since there they run locally | `windows-5090` only |
 | `LIF_HERDR_PATH` / `HerdrPath` | herdr binary `fmw` runs; absolute, because a non-login ssh command misses the shell rc that puts it on PATH | **ask** — install location differs per platform |
 | `LIF_HERDR_DEFAULT_SHELL` | shell Herdr opens panes with | defaults per platform, see below |
-| `LIF_CLAUDE_PERMISSION_MODE_STANDARD` / `ClaudePermissionModeStandard` | `claude --permission-mode` the `cc` launcher uses | optional; falls back to the shared key, then restricted `default` |
-| `LIF_CLAUDE_PERMISSION_MODE_PERSONAL` / `ClaudePermissionModePersonal` | `claude --permission-mode` the `ccp` launcher uses | optional; falls back to the shared key, then restricted `default` |
-| `LIF_CLAUDE_PERMISSION_MODE_FIRSTMATE` / `ClaudePermissionModeFirstmate` | `claude --permission-mode` the local/remote `fm` launcher uses | optional; falls back to the shared key, then restricted `default` |
-| `LIF_CLAUDE_PERMISSION_MODE` / `ClaudePermissionMode` | shared `claude --permission-mode` fallback | optional; omit for restricted `default`; set `bypassPermissions` only as an explicit unrestricted opt-in |
+| `LIF_CLAUDE_PERMISSION_MODE_STANDARD` / `ClaudePermissionModeStandard` | `claude --permission-mode` the `cc` launcher uses | optional; when unset or empty, falls back to the shared key below, then `--dangerously-skip-permissions` |
+| `LIF_CLAUDE_PERMISSION_MODE_PERSONAL` / `ClaudePermissionModePersonal` | `claude --permission-mode` the `ccp` launcher uses | optional; when unset or empty, falls back to the shared key below, then `--dangerously-skip-permissions` |
+| `LIF_CLAUDE_PERMISSION_MODE` / `ClaudePermissionMode` | shared `claude --permission-mode` fallback for `cc` and `ccp` | optional; omit or leave empty for `--dangerously-skip-permissions` |
 
 Eight values are captain-only: the three WezTerm cwds, the four directory
 shortcuts, and the BWS project id.
@@ -92,47 +91,21 @@ id and the BWS access token stay out of git:
 
 ## Claude and BWS migration
 
-`cc`, `ccp`, bare `claude`, and `fm` now launch without BWS project injection
-and use Claude's restricted `default` permission mode unless an overlay selects
-another mode. Existing overlays that set a permission mode continue to work.
-Set the relevant mode to `bypassPermissions` for an intentional unrestricted
-launch; unrestricted behavior is no longer the implicit default.
+`cc`, `ccp`, bare `claude`, and `fm` keep their previous permission behavior but
+no longer receive the entire BWS project automatically. `claude-bws [args...]`
+is the explicit legacy whole-project injection path; use it only for a trusted
+task that needs every project secret. Prefer a narrower direct `bws run`
+selection when the installed CLI supports one.
 
-`claude-bws [args...]` is the explicit legacy path that injects the entire
-configured BWS project. It strips `BWS_ACCESS_TOKEN` and
-`CLAUDE_CODE_OAUTH_TOKEN` from Claude; on Windows it clears inherited variables
-before the child PowerShell profile starts, then BWS adds project secrets and
-preserves its minimal system/PATH environment. Whole-project injection is a broad trust
-boundary: use it only for a trusted task that needs those secrets. Prefer a
-direct, task-specific `bws run` selection/allowlist when the installed BWS CLI
-version provides one. Machines without a BWS project or token retain normal
-non-BWS Claude behavior.
-
-### Windows compatibility probe
-
-Before changing the Windows broad launcher, run the explicit probe from a
-configured PowerShell session (it is never run by install or CI):
-
-```powershell
-& <lif-agents-checkout>\local\install\probe-bws-windows.ps1 -ProjectId $LifHost.BwsProjectId
-```
-
-It invokes the installed `bws.exe` and authenticated `run` path twice with
-temporary shell and no-op `claude.exe` executables: a baseline preserving the
-parent environment, then the launcher's actual `--no-inherit-env` path. Both
-start the configured PowerShell normally (not `-NoProfile`). The probe never
-reads or reports secret values; it reports only the BWS version and booleans for
-token absence, harmless parent-marker survival, PATH/SystemRoot availability,
-and no-op launch success. All temporary executables/results are removed on
-success or failure, and no profile or BWS configuration is changed.
-
-Safe output is one JSON object with separate `baseline_*` and `actual_*`
-outcomes. Token-absence, PATH/SystemRoot, authenticated-run, and no-op-launch
-booleans must be `true`. Parent-survival is the compatibility decision under
-test: baseline must be `true`, and `actual_parent_survived_* = false` proves
-`--no-inherit-env` breaks launcher inputs. `bws_version` is a version string.
-A false required value or `probe_failed=true` means stop and report the output;
-it contains no credential material.
+Interactive `bws` commands use the shell compatibility function. Noninteractive
+callers must use the installed profile-independent wrapper: `lif-bws ...` on
+Unix, or `pwsh -File ~/.local/bin/lif-bws.ps1 ...` on Windows. Repository
+inventory found no noninteractive BWS callsites beyond the profile launchers,
+which use the compatibility function. Machine-local scripts are outside this
+repository and must be checked for direct `bws`/`bws.exe` calls and migrated to
+these wrappers. BWS 2.1 removes `BWS_ACCESS_TOKEN` before starting any `run`
+child, independent of `--shell`; the wrappers therefore do not modify command
+text with shell-specific syntax.
 
 Consequently a populated environment directory is **not** committed: what a
 committed environment directory carries is a `README.md` describing the machine,

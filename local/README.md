@@ -148,7 +148,8 @@ token at startup. Their `bws` compatibility functions load it only for each
 `bws get`, `bws list`, `bws run`, or similar invocation, and remove it before a
 `bws run` child starts.
 
-Claude launchers are restricted and secret-free by default. `claude-bws` is the
-explicit legacy whole-project injection command; treat that process as trusted
-with every project secret. Migration and permission-mode opt-ins are documented
-in [`environments/README.md`](environments/README.md).
+Claude launchers keep their existing permission behavior but are secret-free by
+default. `claude-bws` is the explicit legacy whole-project injection command;
+treat that process as trusted with every project secret. Noninteractive BWS
+wrapper commands and migration notes are documented in
+[`environments/README.md`](environments/README.md).

@@ -15,11 +15,9 @@ $LifHost = @{
     GithubDir    = 'REPLACE_ME'
     BwsProjectId = 'REPLACE_ME'
 
-    # Permission posture for Claude launchers. Unset means restricted
-    # `default`; use `bypassPermissions` only as an explicit unrestricted
-    # opt-in. Each launcher checks its own key, then the shared key.
-    # ClaudePermissionModeStandard = 'auto'    # cc only
-    # ClaudePermissionModePersonal = 'auto'    # ccp only
-    # ClaudePermissionModeFirstmate = 'auto'   # fm only
-    # ClaudePermissionMode = 'auto'            # shared fallback
+    # Permission posture the `cc`/`ccp` launchers use. Each checks its own key,
+    # then the shared key; unset defaults to --dangerously-skip-permissions.
+    # ClaudePermissionModeStandard = 'auto'   # cc only
+    # ClaudePermissionModePersonal = 'auto'   # ccp only
+    # ClaudePermissionMode = 'auto'           # shared fallback
 }

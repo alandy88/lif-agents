@@ -298,6 +298,9 @@ link "$local_root/starship/starship.toml" "$config_home/starship.toml"
 echo "Pi extension"
 link_managed "$local_root/pi/extensions/pi-status-footer.ts" "$HOME/.pi/agent/extensions/pi-status-footer.ts"
 
+echo "Noninteractive BWS wrapper"
+link_managed "$local_root/bin/lif-bws" "$HOME/.local/bin/lif-bws"
+
 echo "Environment overlay ($host)"
 # wezterm.lua reads ~/.config/lif-host.lua by an absolute path built from
 # wezterm.home_dir -- it does not consult XDG_CONFIG_HOME, so neither do we.

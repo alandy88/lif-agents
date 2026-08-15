@@ -64,16 +64,17 @@ function tm {
 # haiku) or an action (resume|remote|w|bare|print|designer); anything else is
 # passed straight through. CLAUDE_CONFIG_DIR is set for the call and restored
 # afterwards, so it is deterministic even when the session already exports one.
-# `claude` here is the bws-wrapping function at the bottom, deliberately.
+# `claude` here is the direct, secret-free function at the bottom.
 #
 # The permission posture is environment-owned and per-launcher: cc resolves
 # ClaudePermissionModeStandard, ccp resolves ClaudePermissionModePersonal, each
-# falling back to the shared ClaudePermissionMode, then restricted `default`.
-# Explicit `bypassPermissions` remains available through those same keys.
+# falling back to the shared ClaudePermissionMode when its own key is unset or
+# empty, then to the shared default of `--dangerously-skip-permissions`.
 function Invoke-LifClaude {
     param([string]$ConfigDir, [string]$PermissionMode, [string[]]$Argv)
 
-    $base = @('--permission-mode', $(if ($PermissionMode) { $PermissionMode } else { 'default' }))
+    $base = @(if ($PermissionMode) { @('--permission-mode', $PermissionMode) }
+              else { @('--dangerously-skip-permissions') })
     $sub  = if ($Argv.Count -gt 0) { $Argv[0] } else { '' }
     # @(...) is load-bearing: a single-element slice unwraps to a scalar string,
     # and splatting a scalar string explodes it one character per argument.
@@ -121,9 +122,8 @@ function ccpr { ccp resume @args }
 # single-quoted and spliced into one command string instead of passed through.
 function fm {
     if (-not ($v = Get-LifHostValue FirstmateHost, FirstmateDir)) { return }
-    $mode = if ($LifHost.ClaudePermissionModeFirstmate) { $LifHost.ClaudePermissionModeFirstmate } elseif ($LifHost.ClaudePermissionMode) { $LifHost.ClaudePermissionMode } else { 'default' }
     $q = ($args | ForEach-Object { "'" + ("$_" -replace "'", "'\''") + "'" }) -join ' '
-    ssh -t $v[0] "cd '$($v[1])' && exec ~/.local/bin/claude --permission-mode '$mode' $q"
+    ssh -t $v[0] "cd '$($v[1])' && exec ~/.local/bin/claude --dangerously-skip-permissions $q"
 }
 
 # Shell in the firstmate home, for bin/ scripts, bootstrap, herdr, treehouse.
@@ -167,7 +167,7 @@ function Get-LifBwsToken {
     finally { Remove-Variable secure -ErrorAction SilentlyContinue }
 }
 function bws {
-    $exe = (Get-Command bws.exe -CommandType Application -ErrorAction SilentlyContinue).Source
+    $exe = @(Get-Command bws.exe -CommandType Application -ErrorAction SilentlyContinue | Sort-Object Source -Unique)[0].Source
     if (-not $exe) { Write-Error 'bws.exe not found on PATH'; return }
     $token = Get-LifBwsToken
     if (-not $token) { Write-Error 'lif: BWS access token is not configured'; return }
@@ -175,14 +175,10 @@ function bws {
     $previous = if ($had) { $env:BWS_ACCESS_TOKEN } else { $null }
     try {
         $env:BWS_ACCESS_TOKEN = $token
-        $argv = @($args)
-        if ($argv.Count -gt 0 -and $argv[0] -eq 'run') {
-            $separator = [Array]::IndexOf($argv, '--')
-            if ($separator -ge 0 -and $separator + 1 -lt $argv.Count) {
-                $argv[$separator + 1] = '$env:BWS_ACCESS_TOKEN = $null; ' + $argv[$separator + 1]
-            }
-        }
-        & $exe @argv
+        # BWS 2.1 removes its authentication token from `run` children before
+        # starting any selected shell. Do not prepend PowerShell syntax to an
+        # arbitrary --shell command.
+        & $exe @args
     } finally {
         if ($had) { $env:BWS_ACCESS_TOKEN = $previous }
         else { Remove-Item Env:BWS_ACCESS_TOKEN -ErrorAction SilentlyContinue }
@@ -202,9 +198,6 @@ function claude-bws {
     if (-not $LifHost.BwsProjectId) { Write-Error 'lif-host overlay does not define BwsProjectId'; return }
     $exe = (Get-Command claude.exe -CommandType Application -ErrorAction SilentlyContinue).Source
     if (-not $exe) { Write-Error 'claude.exe not found on PATH'; return }
-    $cmd = @('$env:BWS_ACCESS_TOKEN = $null; $env:CLAUDE_CODE_OAUTH_TOKEN = $null;', "& '$exe'") + ($args | ForEach-Object { "'" + ("$_" -replace "'", "''") + "'" })
-    # Clear the inherited environment before pwsh starts: clearing inside $cmd
-    # is too late because PowerShell profiles run before the command itself.
-    # BWS adds project secrets after the clear and preserves PATH/SystemRoot.
-    bws run --no-inherit-env --shell pwsh --project-id $LifHost.BwsProjectId -- ($cmd -join ' ')
+    $cmd = @('$env:CLAUDE_CODE_OAUTH_TOKEN = $null;', "& '$exe'") + ($args | ForEach-Object { "'" + ("$_" -replace "'", "''") + "'" })
+    bws run --shell pwsh --project-id $LifHost.BwsProjectId -- ($cmd -join ' ')
 }

@@ -111,17 +111,19 @@ tm() {
 # haiku) or an action (resume|remote|w|bare|print|designer); anything else is
 # passed straight through. CLAUDE_CONFIG_DIR is exported in a subshell so it is
 # deterministic even when the surrounding shell already exports one, and so it
-# survives into the `bws run` child that the claude wrapper at the bottom
-# spawns. `claude` here is that wrapper, deliberately -- not `command claude`.
+# survives into the selected Claude child. `claude` here is the profile's
+# direct, secret-free compatibility function -- not `command claude`.
 #
 # The permission posture is environment-owned and per-launcher: cc resolves
 # LIF_CLAUDE_PERMISSION_MODE_STANDARD, ccp resolves LIF_CLAUDE_PERMISSION_MODE_PERSONAL,
-# each falling back to the shared LIF_CLAUDE_PERMISSION_MODE, then the restricted
-# Claude `default` mode. Explicit `bypassPermissions` remains available through
-# those same keys; an unset configuration is never unrestricted.
+# each falling back to the shared LIF_CLAUDE_PERMISSION_MODE when its own key is
+# unset or empty, then to the shared default of `--dangerously-skip-permissions`.
+# A set mode passes `--permission-mode <mode>` instead.
 _cc_run() {
-    local dir=$1 posture=${2:-default}; shift 2
-    local -a B=(--permission-mode "$posture")
+    local dir=$1 posture=$2; shift 2
+    local -a B
+    if [ -n "$posture" ]; then B=(--permission-mode "$posture")
+    else B=(--dangerously-skip-permissions); fi
     local sub=${1:-}
     [ $# -gt 0 ] && shift
     (
@@ -163,8 +165,7 @@ ccpr() { ccp resume "$@"; }
 # when a second unix machine actually needs to reach firstmate, not before.
 fm() {
     _lif_need LIF_FIRSTMATE_DIR || return 1
-    local posture=${LIF_CLAUDE_PERMISSION_MODE_FIRSTMATE:-${LIF_CLAUDE_PERMISSION_MODE:-default}}
-    ( cd "$LIF_FIRSTMATE_DIR" && claude --permission-mode "$posture" "$@" )
+    ( cd "$LIF_FIRSTMATE_DIR" && claude --dangerously-skip-permissions "$@" )
 }
 
 # `fmsh` on Windows opens a login shell in the firstmate home; here that home is
@@ -215,19 +216,9 @@ bws() {
     exe=$(_lif_bws_bin) || { echo 'bws not found on PATH' >&2; return 127; }
     token=$(_lif_read_bws_token) || { echo 'lif: BWS access token is not configured' >&2; return 1; }
     [ -n "$token" ] || return 1
-    if [ "${1:-}" = run ]; then
-        local -a argv=("$@")
-        local i
-        for ((i=1; i <= ${#argv[@]}; i++)); do
-            if [ "${argv[$i]}" = -- ] && [ $i -lt ${#argv[@]} ]; then
-                argv[$((i + 1))]="unset BWS_ACCESS_TOKEN; ${argv[$((i + 1))]}"
-                break
-            fi
-        done
-        BWS_ACCESS_TOKEN=$token "$exe" "${argv[@]}"
-    else
-        BWS_ACCESS_TOKEN=$token "$exe" "$@"
-    fi
+    # BWS 2.1 removes its authentication token from `run` children before it
+    # starts the selected shell. Do not inject shell-specific command text here.
+    BWS_ACCESS_TOKEN=$token "$exe" "$@"
 }
 
 # Claude is direct and secret-free by default. This explicitly named legacy
