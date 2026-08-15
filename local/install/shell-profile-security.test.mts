@@ -64,6 +64,19 @@ test("zsh Claude defaults restricted, supports explicit bypass, and injects broa
   assert.match(output, /claude-token= broad=injected args=--version/);
 });
 
+test("PowerShell broad injection clears inheritance before the child profile starts", () => {
+  const broadLauncher = pwsh.slice(pwsh.indexOf("function claude-bws"));
+  assert.match(
+    broadLauncher,
+    /bws run --no-inherit-env --shell pwsh/,
+    "clearing BWS_ACCESS_TOKEN in the command body is too late: pwsh loads its profile first",
+  );
+  assert.ok(
+    broadLauncher.indexOf("--no-inherit-env") < broadLauncher.indexOf("--shell pwsh"),
+    "BWS must clear the environment before spawning the selected shell",
+  );
+});
+
 test("PowerShell profile has parity for token scope and explicit security choices", () => {
   assert.match(pwsh, /Remove-Item Env:BWS_ACCESS_TOKEN/);
   assert.match(pwsh, /function bws/);

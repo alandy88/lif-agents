@@ -203,5 +203,8 @@ function claude-bws {
     $exe = (Get-Command claude.exe -CommandType Application -ErrorAction SilentlyContinue).Source
     if (-not $exe) { Write-Error 'claude.exe not found on PATH'; return }
     $cmd = @('$env:BWS_ACCESS_TOKEN = $null; $env:CLAUDE_CODE_OAUTH_TOKEN = $null;', "& '$exe'") + ($args | ForEach-Object { "'" + ("$_" -replace "'", "''") + "'" })
-    bws run --shell pwsh --project-id $LifHost.BwsProjectId -- ($cmd -join ' ')
+    # Clear the inherited environment before pwsh starts: clearing inside $cmd
+    # is too late because PowerShell profiles run before the command itself.
+    # BWS adds project secrets after the clear and preserves PATH/SystemRoot.
+    bws run --no-inherit-env --shell pwsh --project-id $LifHost.BwsProjectId -- ($cmd -join ' ')
 }

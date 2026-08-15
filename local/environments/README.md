@@ -99,8 +99,10 @@ Set the relevant mode to `bypassPermissions` for an intentional unrestricted
 launch; unrestricted behavior is no longer the implicit default.
 
 `claude-bws [args...]` is the explicit legacy path that injects the entire
-configured BWS project. It also strips `BWS_ACCESS_TOKEN` and
-`CLAUDE_CODE_OAUTH_TOKEN` from Claude. Whole-project injection is a broad trust
+configured BWS project. It strips `BWS_ACCESS_TOKEN` and
+`CLAUDE_CODE_OAUTH_TOKEN` from Claude; on Windows it clears inherited variables
+before the child PowerShell profile starts, then BWS adds project secrets and
+preserves its minimal system/PATH environment. Whole-project injection is a broad trust
 boundary: use it only for a trusted task that needs those secrets. Prefer a
 direct, task-specific `bws run` selection/allowlist when the installed BWS CLI
 version provides one. Machines without a BWS project or token retain normal
