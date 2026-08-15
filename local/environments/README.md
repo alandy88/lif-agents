@@ -108,6 +108,29 @@ direct, task-specific `bws run` selection/allowlist when the installed BWS CLI
 version provides one. Machines without a BWS project or token retain normal
 non-BWS Claude behavior.
 
+### Windows compatibility probe
+
+Before changing the Windows broad launcher, run the explicit probe from a
+configured PowerShell session (it is never run by install or CI):
+
+```powershell
+& <lif-agents-checkout>\local\install\probe-bws-windows.ps1 -ProjectId $LifHost.BwsProjectId
+```
+
+It invokes the installed `bws.exe` and its authenticated `run` path with a
+temporary no-op `claude.exe`. The probe never reads or reports secret values;
+it reports only the BWS version, feature booleans, token-absence booleans, and
+whether a harmless parent marker survives. All temporary executables/results
+are removed on success or failure, and no profile or BWS configuration is
+changed.
+
+Safe expected output is one JSON object: `run_supported`, `shell_supported`,
+`authenticated_run_succeeded`, both `token_absent_*`, both
+`harmless_parent_survived_*`, and `noop_claude_launched` should be `true`.
+`bws_version` is a version string and `no_inherit_supported` is informational.
+A false value or `probe_failed=true` means stop and report the output; it
+contains no credential material.
+
 Consequently a populated environment directory is **not** committed: what a
 committed environment directory carries is a `README.md` describing the machine,
 while the values are placed on the machine itself. An environment nobody has
