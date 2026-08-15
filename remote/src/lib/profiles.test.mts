@@ -1,12 +1,23 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  agents,
   describeRun,
   forwardedEnvKeys,
   phaseProfiles,
   profiles,
   resolvePhases,
+  routes,
 } from "./profiles.mts";
+
+test("compatibility aliases derive from agents and routes", () => {
+  assert.equal(profiles, agents);
+  assert.deepEqual(phaseProfiles, {
+    plan: agents[routes.mixed.plan],
+    task: agents[routes.mixed.task],
+    review: agents[routes.mixed.review],
+  });
+});
 
 test("describeRun names only the phases the lifecycle runs", () => {
   const mixed = resolvePhases({});
@@ -86,6 +97,17 @@ test("resolvePhases: a routing label forces every phase onto that profile", () =
   assert.equal(run.phases.review.model, "claude-opus-5");
 });
 
+test("resolvePhases isolates mutable profiles from registries and later runs", () => {
+  const run = resolvePhases({ dispatchProfile: "gpt" });
+  run.phases.task.model = "gpt-custom";
+
+  assert.equal(agents.gpt.model, "gpt-5.6-sol");
+  assert.equal(profiles.gpt.model, "gpt-5.6-sol");
+  assert.equal(phaseProfiles.task.model, "gpt-5.6-sol");
+  assert.equal(run.phases.plan.model, "gpt-5.6-sol");
+  assert.equal(resolvePhases({ dispatchProfile: "gpt" }).phases.task.model, "gpt-5.6-sol");
+});
+
 test("resolvePhases: dispatch 'mixed' overrides labels", () => {
   const run = resolvePhases({ labels: ["agent:gpt"], dispatchProfile: "mixed" });
   assert.equal(run.name, "mixed");
@@ -106,7 +128,10 @@ test("resolvePhases: label routing errors fail closed", () => {
 });
 
 test("resolvePhases: a model override on a mixed run is rejected", () => {
-  assert.throws(() => resolvePhases({ modelOverride: "gpt-5.6-sol" }), /requires a named profile/);
+  assert.throws(
+    () => resolvePhases({ modelOverride: "gpt-5.6-sol" }),
+    /requires a single-agent route/,
+  );
 });
 
 test("resolvePhases: a model override applies to a forced single profile", () => {
