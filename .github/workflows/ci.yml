@@ -42,3 +42,13 @@ jobs:
             echo "::error::run 'npm install --package-lock-only' and commit the result"
             exit 1
           fi
+
+  windows-probe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      # Exercises cmd generation, normal pwsh profile startup, and the temporary
+      # no-op executable without BWS credentials or project secrets.
+      - name: self-test Windows BWS probe
+        shell: pwsh
+        run: ./local/install/probe-bws-windows.ps1 -SelfTest

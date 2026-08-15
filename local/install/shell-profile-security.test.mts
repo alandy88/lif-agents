@@ -68,7 +68,8 @@ test("zsh Claude defaults restricted, supports explicit bypass, and injects broa
 test("Windows probe executes baseline and actual startup paths without bypassing profiles", () => {
   assert.match(windowsProbe, /bws run --shell \$baselineShell/);
   assert.match(windowsProbe, /bws run --no-inherit-env --shell \$actualShell/);
-  assert.doesNotMatch(windowsProbe, /ProcessStartInfo\(Pwsh, "[^"]*-NoProfile/);
+  assert.doesNotMatch(windowsProbe, /Add-Type|-NoProfile/);
+  assert.match(windowsProbe, /\[switch\]\$SelfTest/);
   assert.match(windowsProbe, /actual_token_absent_before_profile/);
   assert.match(windowsProbe, /actual_parent_survived_before_profile/);
   assert.match(windowsProbe, /actual_path_available_before_profile/);
