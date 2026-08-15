@@ -116,20 +116,12 @@ tm() {
 #
 # The permission posture is environment-owned and per-launcher: cc resolves
 # LIF_CLAUDE_PERMISSION_MODE_STANDARD, ccp resolves LIF_CLAUDE_PERMISSION_MODE_PERSONAL,
-# each falling back to the shared LIF_CLAUDE_PERMISSION_MODE when its own key is
-# unset or empty, then to the shared default of `--dangerously-skip-permissions`.
-# A set mode passes `--permission-mode <mode>` instead. cc/ccp resolve their own
-# key and pass the result into _cc_run as an argument, read at call time, so it
-# follows the overlay even though the overlay is sourced before these functions
-# are defined.
+# each falling back to the shared LIF_CLAUDE_PERMISSION_MODE, then the restricted
+# Claude `default` mode. Explicit `bypassPermissions` remains available through
+# those same keys; an unset configuration is never unrestricted.
 _cc_run() {
-    local dir=$1 posture=$2; shift 2
-    local -a B
-    if [ -n "$posture" ]; then
-        B=(--permission-mode "$posture")
-    else
-        B=(--dangerously-skip-permissions)
-    fi
+    local dir=$1 posture=${2:-default}; shift 2
+    local -a B=(--permission-mode "$posture")
     local sub=${1:-}
     [ $# -gt 0 ] && shift
     (
@@ -171,7 +163,8 @@ ccpr() { ccp resume "$@"; }
 # when a second unix machine actually needs to reach firstmate, not before.
 fm() {
     _lif_need LIF_FIRSTMATE_DIR || return 1
-    ( cd "$LIF_FIRSTMATE_DIR" && claude --dangerously-skip-permissions "$@" )
+    local posture=${LIF_CLAUDE_PERMISSION_MODE_FIRSTMATE:-${LIF_CLAUDE_PERMISSION_MODE:-default}}
+    ( cd "$LIF_FIRSTMATE_DIR" && claude --permission-mode "$posture" "$@" )
 }
 
 # `fmsh` on Windows opens a login shell in the firstmate home; here that home is
@@ -197,56 +190,64 @@ imagehub() { _lif_need LIF_IMAGEHUB_DIR && cd "$LIF_IMAGEHUB_DIR"; }
 github()   { _lif_need LIF_GITHUB_DIR   && cd "$LIF_GITHUB_DIR"; }
 
 # --- BWS access token ---
-# DPAPI has no unix counterpart, so the token comes from the OS keystore:
-#   macOS  - Keychain, the platform's own at-rest store. Seed it once with
-#            security add-generic-password -a "$USER" -s lif-bws-token -w
-#   Linux  - ~/.bws/token, mode 0600. Weaker than DPAPI (no machine binding,
-#            plaintext at rest); refused outright if group/other can read it.
-#            Harden with full-disk encryption, or point BWS_ACCESS_TOKEN at a
-#            password manager yourself before this file is sourced.
-_lif_load_bws_token() {
-    [ -n "${BWS_ACCESS_TOKEN:-}" ] && return 0
+# The token is loaded from its at-rest store only inside each `bws` invocation.
+# It is never exported by shell startup, and `bws run` removes it before its
+# command starts. macOS uses Keychain; Linux/WSL requires ~/.bws/token mode 0600.
+unset BWS_ACCESS_TOKEN
+_lif_read_bws_token() {
     if [ "$(uname -s)" = Darwin ]; then
-        BWS_ACCESS_TOKEN=$(security find-generic-password -s lif-bws-token -w 2>/dev/null) || return 1
-    else
-        local f=$HOME/.bws/token
-        [ -r "$f" ] || return 1
-        if [ -n "$(find "$f" -perm /077 2>/dev/null || find "$f" -perm +077 2>/dev/null)" ]; then
-            printf 'lif: %s is readable by group/other; chmod 600 it (token not loaded)\n' "$f" >&2
-            return 1
-        fi
-        BWS_ACCESS_TOKEN=$(cat "$f") || return 1
+        security find-generic-password -s lif-bws-token -w 2>/dev/null
+        return
     fi
-    [ -n "$BWS_ACCESS_TOKEN" ] || { unset BWS_ACCESS_TOKEN; return 1; }
-    export BWS_ACCESS_TOKEN
+    local f=$HOME/.bws/token
+    [ -r "$f" ] || return 1
+    if [ -n "$(find "$f" -perm /077 2>/dev/null || find "$f" -perm +077 2>/dev/null)" ]; then
+        printf 'lif: %s is readable by group/other; chmod 600 it (token not loaded)\n' "$f" >&2
+        return 1
+    fi
+    cat "$f"
 }
-_lif_load_bws_token || true
+_lif_bws_bin() {
+    if [ -n "${ZSH_VERSION:-}" ]; then whence -p bws; else type -P bws; fi
+}
+bws() {
+    local exe token
+    exe=$(_lif_bws_bin) || { echo 'bws not found on PATH' >&2; return 127; }
+    token=$(_lif_read_bws_token) || { echo 'lif: BWS access token is not configured' >&2; return 1; }
+    [ -n "$token" ] || return 1
+    if [ "${1:-}" = run ]; then
+        local -a argv=("$@")
+        local i
+        for ((i=1; i <= ${#argv[@]}; i++)); do
+            if [ "${argv[$i]}" = -- ] && [ $i -lt ${#argv[@]} ]; then
+                argv[$((i + 1))]="unset BWS_ACCESS_TOKEN; ${argv[$((i + 1))]}"
+                break
+            fi
+        done
+        BWS_ACCESS_TOKEN=$token "$exe" "${argv[@]}"
+    else
+        BWS_ACCESS_TOKEN=$token "$exe" "$@"
+    fi
+}
 
-# --- ADR-0020: launch Claude Code wrapped in `bws run` (memory-only secrets) ---
-# Shadows the claude binary so every launch path (cc, bare `claude`) gets
-# process-scoped secrets. Skipped when secrets are already injected (child of a
-# wrapped process). bws run passes one command string to sh, so args are quoted.
+# Claude is direct and secret-free by default. This explicitly named legacy
+# path injects the configured whole BWS project for tasks that truly need it.
+# Prefer a narrower direct `bws run` selection when the installed CLI offers it.
 _lif_claude_bin() {
     if [ -n "${ZSH_VERSION:-}" ]; then whence -p claude; else type -P claude; fi
 }
 claude() {
     local exe
-    exe=$(_lif_claude_bin) || exe=
-    if [ -z "$exe" ]; then
-        echo 'claude not found on PATH' >&2
-        return 127
-    fi
-    if [ -n "${BWS_ACCESS_TOKEN:-}" ] && [ -n "${LIF_STUDIO_BWS_PROJECT:-}" ] && [ -z "${GH_TOKEN:-}" ]; then
-        # Strip CLAUDE_CODE_OAUTH_TOKEN: it's for the headless .sandcastle agent;
-        # if present it overrides Claude Code's interactive claude.ai login
-        # (breaks Remote Control / model access). Other secrets stay injected.
-        local cmd a
-        cmd="unset CLAUDE_CODE_OAUTH_TOKEN; $(printf '%q' "$exe")"
-        for a in "$@"; do cmd="$cmd $(printf '%q' "$a")"; done
-        bws run --project-id "$LIF_STUDIO_BWS_PROJECT" -- "$cmd"
-    else
-        "$exe" "$@"
-    fi
+    exe=$(_lif_claude_bin) || { echo 'claude not found on PATH' >&2; return 127; }
+    "$exe" "$@"
+}
+claude-bws() {
+    _lif_need LIF_STUDIO_BWS_PROJECT || return 1
+    local exe cmd a
+    exe=$(_lif_claude_bin) || { echo 'claude not found on PATH' >&2; return 127; }
+    cmd="unset BWS_ACCESS_TOKEN CLAUDE_CODE_OAUTH_TOKEN; $(printf '%q' "$exe")"
+    for a in "$@"; do cmd="$cmd $(printf '%q' "$a")"; done
+    bws run --project-id "$LIF_STUDIO_BWS_PROJECT" -- "$cmd"
 }
 
 # --- Completions ---

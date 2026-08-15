@@ -143,5 +143,12 @@ platform-specific, because DPAPI has no unix counterpart:
 | Linux/WSL | `~/.bws/token`, mode 0600; the profile refuses it if group/other can read it | `zsh/profile.zsh` |
 
 The Linux fallback is weaker than the other two: plaintext at rest, no machine
-binding. Full-disk encryption, or exporting `BWS_ACCESS_TOKEN` from a password
-manager before the profile loads, closes that gap.
+binding, so use full-disk encryption. The profiles do not decrypt or export the
+token at startup. Their `bws` compatibility functions load it only for each
+`bws get`, `bws list`, `bws run`, or similar invocation, and remove it before a
+`bws run` child starts.
+
+Claude launchers are restricted and secret-free by default. `claude-bws` is the
+explicit legacy whole-project injection command; treat that process as trusted
+with every project secret. Migration and permission-mode opt-ins are documented
+in [`environments/README.md`](environments/README.md).

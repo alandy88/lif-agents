@@ -15,13 +15,11 @@ $LifHost = @{
     GithubDir    = 'REPLACE_ME'
     BwsProjectId = 'REPLACE_ME'
 
-    # Permission posture the `cc`/`ccp` Claude Code launchers use. Set a
-    # `claude --permission-mode` value (auto, acceptEdits, plan, manual,
-    # dontAsk, bypassPermissions) to run that mode instead of the shared
-    # default, --dangerously-skip-permissions. Each launcher checks its own
-    # key first, then falls back to the shared ClaudePermissionMode below,
-    # then the default.
-    # ClaudePermissionModeStandard = 'auto'   # cc only
-    # ClaudePermissionModePersonal = 'auto'   # ccp only
-    # ClaudePermissionMode = 'auto'           # shared fallback for both
+    # Permission posture for Claude launchers. Unset means restricted
+    # `default`; use `bypassPermissions` only as an explicit unrestricted
+    # opt-in. Each launcher checks its own key, then the shared key.
+    # ClaudePermissionModeStandard = 'auto'    # cc only
+    # ClaudePermissionModePersonal = 'auto'    # ccp only
+    # ClaudePermissionModeFirstmate = 'auto'   # fm only
+    # ClaudePermissionMode = 'auto'            # shared fallback
 }

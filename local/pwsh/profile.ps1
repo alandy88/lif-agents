@@ -68,20 +68,12 @@ function tm {
 #
 # The permission posture is environment-owned and per-launcher: cc resolves
 # ClaudePermissionModeStandard, ccp resolves ClaudePermissionModePersonal, each
-# falling back to the shared ClaudePermissionMode when its own key is unset or
-# empty, then to the shared default of `--dangerously-skip-permissions`. A set
-# mode passes `--permission-mode <mode>` instead. cc/ccp resolve their own key
-# and pass the result into Invoke-LifClaude as an argument, read at call time,
-# so it follows the overlay even though the overlay is loaded before these
-# functions are defined.
+# falling back to the shared ClaudePermissionMode, then restricted `default`.
+# Explicit `bypassPermissions` remains available through those same keys.
 function Invoke-LifClaude {
     param([string]$ConfigDir, [string]$PermissionMode, [string[]]$Argv)
 
-    $base = @(if ($PermissionMode) {
-        @('--permission-mode', $PermissionMode)
-    } else {
-        @('--dangerously-skip-permissions')
-    })
+    $base = @('--permission-mode', $(if ($PermissionMode) { $PermissionMode } else { 'default' }))
     $sub  = if ($Argv.Count -gt 0) { $Argv[0] } else { '' }
     # @(...) is load-bearing: a single-element slice unwraps to a scalar string,
     # and splatting a scalar string explodes it one character per argument.
@@ -129,8 +121,9 @@ function ccpr { ccp resume @args }
 # single-quoted and spliced into one command string instead of passed through.
 function fm {
     if (-not ($v = Get-LifHostValue FirstmateHost, FirstmateDir)) { return }
+    $mode = if ($LifHost.ClaudePermissionModeFirstmate) { $LifHost.ClaudePermissionModeFirstmate } elseif ($LifHost.ClaudePermissionMode) { $LifHost.ClaudePermissionMode } else { 'default' }
     $q = ($args | ForEach-Object { "'" + ("$_" -replace "'", "'\''") + "'" }) -join ' '
-    ssh -t $v[0] "cd '$($v[1])' && exec ~/.local/bin/claude --dangerously-skip-permissions $q"
+    ssh -t $v[0] "cd '$($v[1])' && exec ~/.local/bin/claude --permission-mode '$mode' $q"
 }
 
 # Shell in the firstmate home, for bin/ scripts, bootstrap, herdr, treehouse.
@@ -161,32 +154,54 @@ function github { if ($v = Get-LifHostValue GithubDir) { Set-Location $v } }
 # Multiplexing lives in `tm` near the top of this file. The previous `z`
 # function existed only to force Zellij's shell, which it dropped on Windows.
 
-# --- BWS access token (DPAPI-decrypted at session start) ---
-$__bws = "$env:USERPROFILE\.bws\token.dpapi"
-if (Test-Path $__bws) {
-    $sec = Get-Content $__bws | ConvertTo-SecureString
-    $env:BWS_ACCESS_TOKEN       = [System.Net.NetworkCredential]::new('', $sec).Password
-    if ($LifHost.BwsProjectId) { $env:LIF_STUDIO_BWS_PROJECT = $LifHost.BwsProjectId }
-    Remove-Variable sec
+# --- BWS access token ---
+# DPAPI is read only inside each `bws` invocation. Shell startup deliberately
+# removes an inherited token, and `bws run` removes it before its command starts.
+Remove-Item Env:BWS_ACCESS_TOKEN -ErrorAction SilentlyContinue
+if ($LifHost.BwsProjectId) { $env:LIF_STUDIO_BWS_PROJECT = $LifHost.BwsProjectId }
+function Get-LifBwsToken {
+    $path = Join-Path $env:USERPROFILE '.bws\token.dpapi'
+    if (-not (Test-Path $path)) { return $null }
+    $secure = Get-Content $path | ConvertTo-SecureString
+    try { [System.Net.NetworkCredential]::new('', $secure).Password }
+    finally { Remove-Variable secure -ErrorAction SilentlyContinue }
 }
-Remove-Variable __bws -ErrorAction SilentlyContinue
+function bws {
+    $exe = (Get-Command bws.exe -CommandType Application -ErrorAction SilentlyContinue).Source
+    if (-not $exe) { Write-Error 'bws.exe not found on PATH'; return }
+    $token = Get-LifBwsToken
+    if (-not $token) { Write-Error 'lif: BWS access token is not configured'; return }
+    $had = Test-Path Env:BWS_ACCESS_TOKEN
+    $previous = if ($had) { $env:BWS_ACCESS_TOKEN } else { $null }
+    try {
+        $env:BWS_ACCESS_TOKEN = $token
+        $argv = @($args)
+        if ($argv.Count -gt 0 -and $argv[0] -eq 'run') {
+            $separator = [Array]::IndexOf($argv, '--')
+            if ($separator -ge 0 -and $separator + 1 -lt $argv.Count) {
+                $argv[$separator + 1] = '$env:BWS_ACCESS_TOKEN = $null; ' + $argv[$separator + 1]
+            }
+        }
+        & $exe @argv
+    } finally {
+        if ($had) { $env:BWS_ACCESS_TOKEN = $previous }
+        else { Remove-Item Env:BWS_ACCESS_TOKEN -ErrorAction SilentlyContinue }
+        Remove-Variable token -ErrorAction SilentlyContinue
+    }
+}
 
-# --- ADR-0020: launch Claude Code wrapped in `bws run` (memory-only secrets) ---
-# Shadows claude.exe so every launch path (cc, bare `claude`) gets process-scoped
-# secrets. Guard skips re-wrapping when secrets are already injected (child of a
-# wrapped process). bws run loses arg quoting, so args are re-quoted manually.
+# Claude is direct and secret-free by default. This explicitly named legacy
+# path injects the configured whole BWS project for tasks that truly need it.
+# Prefer a narrower direct `bws run` selection when the installed CLI offers it.
 function claude {
     $exe = (Get-Command claude.exe -CommandType Application -ErrorAction SilentlyContinue).Source
     if (-not $exe) { Write-Error 'claude.exe not found on PATH'; return }
-    if ($env:BWS_ACCESS_TOKEN -and $env:LIF_STUDIO_BWS_PROJECT -and -not $env:GH_TOKEN) {
-        # Strip CLAUDE_CODE_OAUTH_TOKEN: it's for the headless .sandcastle agent;
-        # if present it overrides Claude Code's interactive claude.ai login
-        # (breaks Remote Control / model access). Other secrets stay injected.
-        $cmd = @('$env:CLAUDE_CODE_OAUTH_TOKEN = $null;', "& '$exe'") + ($args | ForEach-Object { "'" + ("$_" -replace "'", "''") + "'" })
-        # --shell pwsh: default shell is Windows PowerShell 5.1, whose Restricted
-        # execution policy fails dot-sourcing its profile on this box
-        bws run --shell pwsh --project-id $env:LIF_STUDIO_BWS_PROJECT -- ($cmd -join ' ')
-    } else {
-        & $exe @args
-    }
+    & $exe @args
+}
+function claude-bws {
+    if (-not $LifHost.BwsProjectId) { Write-Error 'lif-host overlay does not define BwsProjectId'; return }
+    $exe = (Get-Command claude.exe -CommandType Application -ErrorAction SilentlyContinue).Source
+    if (-not $exe) { Write-Error 'claude.exe not found on PATH'; return }
+    $cmd = @('$env:BWS_ACCESS_TOKEN = $null; $env:CLAUDE_CODE_OAUTH_TOKEN = $null;', "& '$exe'") + ($args | ForEach-Object { "'" + ("$_" -replace "'", "''") + "'" })
+    bws run --shell pwsh --project-id $LifHost.BwsProjectId -- ($cmd -join ' ')
 }
