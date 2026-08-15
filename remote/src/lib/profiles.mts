@@ -66,7 +66,11 @@ export type ProfileResolutionInput = {
 };
 
 function materialize(route: Record<Phase, AgentName>): Record<Phase, ModelProfile> {
-  return { plan: agents[route.plan], task: agents[route.task], review: agents[route.review] };
+  return {
+    plan: { ...agents[route.plan] },
+    task: { ...agents[route.task] },
+    review: { ...agents[route.review] },
+  };
 }
 
 function routeName(value: string, source: string): RouteName {
@@ -160,8 +164,11 @@ export function resolvePhases(input: ProfileResolutionInput = {}): ResolvedPhase
     );
   }
 
-  const forced = { ...base, model: override };
-  return { name, phases: { plan: forced, task: forced, review: forced } };
+  const phases = materialize(route);
+  phases.plan.model = override;
+  phases.task.model = override;
+  phases.review.model = override;
+  return { name, phases };
 }
 
 /**

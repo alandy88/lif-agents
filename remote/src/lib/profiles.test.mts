@@ -97,6 +97,17 @@ test("resolvePhases: a routing label forces every phase onto that profile", () =
   assert.equal(run.phases.review.model, "claude-opus-5");
 });
 
+test("resolvePhases isolates mutable profiles from registries and later runs", () => {
+  const run = resolvePhases({ dispatchProfile: "gpt" });
+  run.phases.task.model = "gpt-custom";
+
+  assert.equal(agents.gpt.model, "gpt-5.6-sol");
+  assert.equal(profiles.gpt.model, "gpt-5.6-sol");
+  assert.equal(phaseProfiles.task.model, "gpt-5.6-sol");
+  assert.equal(run.phases.plan.model, "gpt-5.6-sol");
+  assert.equal(resolvePhases({ dispatchProfile: "gpt" }).phases.task.model, "gpt-5.6-sol");
+});
+
 test("resolvePhases: dispatch 'mixed' overrides labels", () => {
   const run = resolvePhases({ labels: ["agent:gpt"], dispatchProfile: "mixed" });
   assert.equal(run.name, "mixed");
