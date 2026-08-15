@@ -99,13 +99,18 @@ selection when the installed CLI supports one.
 
 Interactive `bws` commands use the shell compatibility function. Noninteractive
 callers must use the installed profile-independent wrapper: `lif-bws ...` on
-Unix, or `pwsh -File ~/.local/bin/lif-bws.ps1 ...` on Windows. Repository
+Unix or `lif-bws.cmd ...` on Windows. The Windows `.cmd` entrypoint uses
+`pwsh -NoProfile` to invoke its sibling `lif-bws.ps1`, so cmd, Git hooks, and
+native children do not depend on loading the interactive profile. Repository
 inventory found no noninteractive BWS callsites beyond the profile launchers,
 which use the compatibility function. Machine-local scripts are outside this
 repository and must be checked for direct `bws`/`bws.exe` calls and migrated to
-these wrappers. BWS 2.1 removes `BWS_ACCESS_TOKEN` before starting any `run`
-child, independent of `--shell`; the wrappers therefore do not modify command
-text with shell-specific syntax.
+these wrappers. On the configured Windows host, BWS 2.1.0 empirically removed
+`BWS_ACCESS_TOKEN` from `run` children with and without `--no-inherit-env`;
+ordinary `run` preserved a harmless parent variable while `--no-inherit-env`
+dropped it. The wrappers therefore use ordinary `run` and do not modify command
+text with shell-specific syntax. This evidence does not claim behavior for
+other BWS versions.
 
 Consequently a populated environment directory is **not** committed: what a
 committed environment directory carries is a `README.md` describing the machine,

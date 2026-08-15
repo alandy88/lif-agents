@@ -10,6 +10,9 @@ const LOCAL = join(dirname(fileURLToPath(import.meta.url)), "..");
 const zshProfile = join(LOCAL, "zsh/profile.zsh");
 const lifBws = join(LOCAL, "bin/lif-bws");
 const pwsh = readFileSync(join(LOCAL, "pwsh/profile.ps1"), "utf8");
+const lifBwsPs1 = readFileSync(join(LOCAL, "bin/lif-bws.ps1"), "utf8");
+const lifBwsCmd = readFileSync(join(LOCAL, "bin/lif-bws.cmd"), "utf8");
+const windowsInstaller = readFileSync(join(LOCAL, "install/install.ps1"), "utf8");
 
 function runProfile(commands: string, shell = "bash"): string {
   const root = mkdtempSync(join(tmpdir(), "lif-profile-"));
@@ -84,10 +87,22 @@ test("zsh preserves permission behavior and injects broadly only explicitly", ()
   assert.match(output, /claude-token= broad=injected args=--version/);
 });
 
+test("Windows installs a profile-independent native lif-bws entrypoint", () => {
+  assert.match(lifBwsCmd, /pwsh -NoProfile -File "%~dp0lif-bws\.ps1" %\*/);
+  assert.match(lifBwsCmd, /exit \/b %ERRORLEVEL%/);
+  assert.match(windowsInstaller, /bin\\lif-bws\.ps1/);
+  assert.match(windowsInstaller, /bin\\lif-bws\.cmd/);
+  assert.match(lifBwsPs1, /Select-Object -First 1/);
+  assert.doesNotMatch(lifBwsPs1, /Sort-Object Source/);
+});
+
 test("PowerShell profile has parity for token scope and explicit security choices", () => {
   assert.match(pwsh, /Remove-Item Env:BWS_ACCESS_TOKEN/);
   assert.match(pwsh, /function bws/);
-  assert.doesNotMatch(pwsh, /\$argv\[\$separator \+ 1\]|BWS_ACCESS_TOKEN = \$null;/);
+  assert.doesNotMatch(pwsh, /\$argv\[\$separator \+ 1\]/);
+  assert.match(pwsh, /BWS_ACCESS_TOKEN = \$null; \$env:CLAUDE_CODE_OAUTH_TOKEN = \$null;/);
+  assert.match(pwsh, /Select-Object -First 1/);
+  assert.doesNotMatch(pwsh, /Sort-Object Source/);
   assert.match(pwsh, /--dangerously-skip-permissions/);
   assert.doesNotMatch(pwsh, /\$argv\[\$separator \+ 1\]/);
   assert.match(pwsh, /function claude-bws/);

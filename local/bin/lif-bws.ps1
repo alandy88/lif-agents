@@ -6,7 +6,7 @@ if (-not (Test-Path $path)) { throw 'lif-bws: token is not configured' }
 $secure = Get-Content $path | ConvertTo-SecureString
 try {
     $env:BWS_ACCESS_TOKEN = [System.Net.NetworkCredential]::new('', $secure).Password
-    $exe = @(Get-Command bws.exe -CommandType Application -ErrorAction Stop | Sort-Object Source -Unique)[0].Source
+    $exe = (Get-Command bws.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
     & $exe @args
     exit $LASTEXITCODE
 } finally {

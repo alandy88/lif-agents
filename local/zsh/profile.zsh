@@ -118,12 +118,18 @@ tm() {
 # LIF_CLAUDE_PERMISSION_MODE_STANDARD, ccp resolves LIF_CLAUDE_PERMISSION_MODE_PERSONAL,
 # each falling back to the shared LIF_CLAUDE_PERMISSION_MODE when its own key is
 # unset or empty, then to the shared default of `--dangerously-skip-permissions`.
-# A set mode passes `--permission-mode <mode>` instead.
+# A set mode passes `--permission-mode <mode>` instead. cc/ccp resolve their own
+# key and pass the result into _cc_run as an argument, read at call time, so it
+# follows the overlay even though the overlay is sourced before these functions
+# are defined.
 _cc_run() {
     local dir=$1 posture=$2; shift 2
     local -a B
-    if [ -n "$posture" ]; then B=(--permission-mode "$posture")
-    else B=(--dangerously-skip-permissions); fi
+    if [ -n "$posture" ]; then
+        B=(--permission-mode "$posture")
+    else
+        B=(--dangerously-skip-permissions)
+    fi
     local sub=${1:-}
     [ $# -gt 0 ] && shift
     (

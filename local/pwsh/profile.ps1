@@ -69,12 +69,19 @@ function tm {
 # The permission posture is environment-owned and per-launcher: cc resolves
 # ClaudePermissionModeStandard, ccp resolves ClaudePermissionModePersonal, each
 # falling back to the shared ClaudePermissionMode when its own key is unset or
-# empty, then to the shared default of `--dangerously-skip-permissions`.
+# empty, then to the shared default of `--dangerously-skip-permissions`. A set
+# mode passes `--permission-mode <mode>` instead. cc/ccp resolve their own key
+# and pass the result into Invoke-LifClaude as an argument, read at call time,
+# so it follows the overlay even though the overlay is loaded before these
+# functions are defined.
 function Invoke-LifClaude {
     param([string]$ConfigDir, [string]$PermissionMode, [string[]]$Argv)
 
-    $base = @(if ($PermissionMode) { @('--permission-mode', $PermissionMode) }
-              else { @('--dangerously-skip-permissions') })
+    $base = @(if ($PermissionMode) {
+        @('--permission-mode', $PermissionMode)
+    } else {
+        @('--dangerously-skip-permissions')
+    })
     $sub  = if ($Argv.Count -gt 0) { $Argv[0] } else { '' }
     # @(...) is load-bearing: a single-element slice unwraps to a scalar string,
     # and splatting a scalar string explodes it one character per argument.
@@ -167,7 +174,7 @@ function Get-LifBwsToken {
     finally { Remove-Variable secure -ErrorAction SilentlyContinue }
 }
 function bws {
-    $exe = @(Get-Command bws.exe -CommandType Application -ErrorAction SilentlyContinue | Sort-Object Source -Unique)[0].Source
+    $exe = (Get-Command bws.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1).Source
     if (-not $exe) { Write-Error 'bws.exe not found on PATH'; return }
     $token = Get-LifBwsToken
     if (-not $token) { Write-Error 'lif: BWS access token is not configured'; return }
@@ -198,6 +205,6 @@ function claude-bws {
     if (-not $LifHost.BwsProjectId) { Write-Error 'lif-host overlay does not define BwsProjectId'; return }
     $exe = (Get-Command claude.exe -CommandType Application -ErrorAction SilentlyContinue).Source
     if (-not $exe) { Write-Error 'claude.exe not found on PATH'; return }
-    $cmd = @('$env:CLAUDE_CODE_OAUTH_TOKEN = $null;', "& '$exe'") + ($args | ForEach-Object { "'" + ("$_" -replace "'", "''") + "'" })
+    $cmd = @('$env:BWS_ACCESS_TOKEN = $null; $env:CLAUDE_CODE_OAUTH_TOKEN = $null;', "& '$exe'") + ($args | ForEach-Object { "'" + ("$_" -replace "'", "''") + "'" })
     bws run --shell pwsh --project-id $LifHost.BwsProjectId -- ($cmd -join ' ')
 }
