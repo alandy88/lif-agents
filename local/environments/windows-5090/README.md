@@ -23,7 +23,7 @@ this machine.
 ## firstmate
 
 firstmate does not live on this machine, so `fm`, `fmsh` and `fmw` are remote:
-they ssh to `FirstmateHost` (`peteryu@peter-macmini`) using `FirstmateDir` and
+they ssh to `FirstmateHost` (`firstmate@100.110.209.2`) using `FirstmateDir` and
 `HerdrPath` as paths *on that host*, not here. `fmw` forces a tty with `ssh -t`,
 without which herdr has no terminal to attach to, and `HerdrPath` is absolute
 because a non-login ssh command never sources the rc that would put it on PATH.
@@ -40,12 +40,19 @@ redo it by hand if the overlay is ever rebuilt from the example:
 | Was | Now |
 |---|---|
 | `WslDistro = 'Ubuntu-24.04'` | dropped — nothing reads it |
-| `FirstmateDir = '/home/peter/firstmate'` | `/Users/peteryu/firstmate` |
+| `FirstmateDir = '/home/peter/firstmate'` | `/Users/firstmate/firstmate` |
 | `HerdrPath = '/home/peter/.local/bin/fm-herdr'` | `/opt/homebrew/bin/herdr` |
-| — | `FirstmateHost = 'peteryu@peter-macmini'` |
+| — | `FirstmateHost = 'firstmate@100.110.209.2'` |
 
 Missing the new key is loud rather than silent: `Get-LifHostValue` warns naming
 `FirstmateHost` and the helper returns without running.
+
+The host and dir above are the **dedicated `firstmate` account** (uid 503), not
+the captain's `peteryu`. That account is the isolation boundary firstmate is
+meant to run behind; pointing these keys at `peteryu` puts agent work in the
+captain's home, which is what happened on 2026-08-14 and was unwound the next
+day. The address is the tailnet IP because that is how the captain reaches it
+from both this machine and the phone.
 
 ## Herdr
 
