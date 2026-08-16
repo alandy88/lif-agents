@@ -54,7 +54,8 @@ captain** — never invent a plausible-looking path.
 | `LIF_BWS_PROJECT_ID` / `BwsProjectId` | Bitwarden Secrets project UUID | **ask**; secret-adjacent, see below |
 | `LIF_FIRSTMATE_DIR` / `FirstmateDir` | firstmate checkout; `fm`/`fmsh` use it | `~/firstmate` by convention — confirm |
 | `FirstmateHost` | ssh target the pwsh `fm`/`fmsh`/`fmw` reach; the firstmate host itself has no equivalent, since there they run locally | `windows-5090` only |
-| `LIF_HERDR_PATH` / `HerdrPath` | herdr binary `fmw` runs; absolute, because a non-login ssh command misses the shell rc that puts it on PATH | **ask** — install location differs per platform |
+| `LIF_HERDR_PATH` | herdr binary the zsh `fmw` runs locally; absolute, so it does not depend on PATH | **ask** — install location differs per platform |
+| ~~`HerdrPath`~~ | dropped — the pwsh `fmw` now runs bare `herdr`, which the firstmate account's `~/.zshenv` puts on PATH for the non-login shell ssh spawns | — |
 | `LIF_HERDR_DEFAULT_SHELL` | shell Herdr opens panes with | defaults per platform, see below |
 | `LIF_CLAUDE_PERMISSION_MODE_STANDARD` / `ClaudePermissionModeStandard` | `claude --permission-mode` the `cc` launcher uses | optional; when unset or empty, falls back to the shared key below, then `--dangerously-skip-permissions` |
 | `LIF_CLAUDE_PERMISSION_MODE_PERSONAL` / `ClaudePermissionModePersonal` | `claude --permission-mode` the `ccp` launcher uses | optional; when unset or empty, falls back to the shared key below, then `--dangerously-skip-permissions` |

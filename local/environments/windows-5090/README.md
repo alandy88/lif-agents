@@ -23,10 +23,11 @@ this machine.
 ## firstmate
 
 firstmate does not live on this machine, so `fm`, `fmsh` and `fmw` are remote:
-they ssh to `FirstmateHost` (`firstmate@100.110.209.2`) using `FirstmateDir` and
-`HerdrPath` as paths *on that host*, not here. `fmw` forces a tty with `ssh -t`,
-without which herdr has no terminal to attach to, and `HerdrPath` is absolute
-because a non-login ssh command never sources the rc that would put it on PATH.
+they ssh to `FirstmateHost` (`firstmate@100.110.209.2`) using `FirstmateDir` as a
+path *on that host*, not here. `fmw` forces a tty with `ssh -t`, without which
+herdr has no terminal to attach to. It runs bare `herdr`: that account's
+`~/.zshenv` puts it on PATH, and zsh reads `.zshenv` even for the non-login,
+non-interactive shell ssh spawns, which skips `.zprofile` and `.zshrc`.
 
 They bridged into WSL until firstmate moved to the Mac mini. The WSL checkout is
 still there and still current, so the box is dormant rather than retired — but
@@ -41,7 +42,7 @@ redo it by hand if the overlay is ever rebuilt from the example:
 |---|---|
 | `WslDistro = 'Ubuntu-24.04'` | dropped — nothing reads it |
 | `FirstmateDir = '/home/peter/firstmate'` | `/Users/firstmate/firstmate` |
-| `HerdrPath = '/home/peter/.local/bin/fm-herdr'` | `/opt/homebrew/bin/herdr` |
+| `HerdrPath = '/home/peter/.local/bin/fm-herdr'` | dropped — `fmw` runs bare `herdr` off the remote `~/.zshenv` PATH |
 | — | `FirstmateHost = 'firstmate@100.110.209.2'` |
 
 Missing the new key is loud rather than silent: `Get-LifHostValue` warns naming

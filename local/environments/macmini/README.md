@@ -83,6 +83,67 @@ override.
   that must survive. The installer appends its marked block and never rewrites
   the file.
 
+## `firstmate` account: hand-placed `~/.zshenv`
+
+Like the pwsh overlay, this file is **hand-placed and uncommitted** — the home
+directory is not a checkout, there is no chezmoi or stow, and `install.sh` only
+appends its marked block to `~/.zshrc` and never owns a shell rc. Nothing in the
+repo migrates or restores it. Recreate it by hand if the account is ever rebuilt.
+
+It exists because zsh reads `.zshenv` for *every* shell, including the non-login,
+non-interactive one that `ssh host 'cmd'` spawns — which skips `.zprofile` and
+`.zshrc` entirely. That is the shell the Windows `fm`/`fmw`/`hermes` bridges land
+in, so anything they need to resolve remotely has to live here.
+
+The stakes differ per consumer: `fmw` fails loudly with "command not found" if
+this file is missing, but `hermes` fails **silently** — with no `HERMES_HOME`,
+hermes creates a fresh `~/.hermes` and answers as a stranger with no memory,
+which reads as Marin having lost her past rather than as a broken bridge.
+
+```sh
+# Firstmate toolchain. Guarded because .zprofile and .zshrc prepend the same
+# block for login/interactive shells, and would otherwise duplicate it.
+case ":$PATH:" in
+    *":$HOME/.local/bin:"*) ;;
+    *) export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$HOME/.local/bin:$PATH" ;;
+esac
+export NVM_DIR="$HOME/.nvm"
+_nvm_default=$(cat "$NVM_DIR/alias/default" 2>/dev/null)
+if [ -n "$_nvm_default" ] && [ -d "$NVM_DIR/versions/node/v$_nvm_default/bin" ]; then
+    case ":$PATH:" in
+        *":$NVM_DIR/versions/node/v$_nvm_default/bin:"*) ;;
+        *) export PATH="$NVM_DIR/versions/node/v$_nvm_default/bin:$PATH" ;;
+    esac
+fi
+unset _nvm_default
+
+export HERMES_HOME=/opt/hermes-state/.hermes
+export HERMES_TUI_DIR="$HOME/hermes-tui-build/ui-tui"
+export HERMES_NODE=/usr/local/bin/node
+```
+
+**The duplicate toolchain block in `.zprofile` and `.zshrc` is load-bearing — do
+not delete it as redundant.** macOS `/etc/zprofile` runs `path_helper` *after*
+`.zshenv`, which hoists the system directories back to the front of PATH. Without
+`.zprofile` re-asserting order afterwards, a login shell resolves `node` to
+`/usr/local/bin/node` (v24.13.0) instead of nvm's v24.18.1, and — worse —
+`/opt/homebrew/bin` outranks nvm, putting the **broken** Homebrew node (v25.5.0,
+missing `libsqlite3.dylib`) one absent file away from winning. Backups of both
+files sit at `~/.zprofile.bak-2026-08-16` and `~/.zshrc.bak-2026-08-16`.
+
+`HERMES_NODE` is pinned for the same reason: `/usr/local/bin/node` is a working
+standalone install, and hermes must not pick up the Homebrew one.
+
+`HERMES_TUI_DIR` points at a prebuilt TUI bundle at `~/hermes-tui-build/ui-tui`,
+outside the sealed `root:wheel` hermes code tree. `hermes_cli/main.py` honours it
+and skips the npm-install path, which is the only way this account can run
+`--tui` at all, since it cannot build in place. Because that lookup also bypasses
+the staleness check, a Hermes upgrade will **not** rebuild the bundle — rerun
+`npm install && npm run build` in `~/hermes-tui-build/ui-tui` after upgrading, or
+the old TUI keeps running silently. Note `npm approve-scripts esbuild` is
+required first; npm 11 blocks postinstall scripts, so esbuild otherwise has no
+platform binary.
+
 ## Do not disturb
 
 This box runs the captain's Hermes agent and the Openclaw gateway. Do not touch

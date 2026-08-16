@@ -8,12 +8,12 @@
 $LifHost = @{
     FirstmateHost = 'REPLACE_ME'      # ssh target the fm/fmsh/fmw bridges use
     FirstmateDir = '/Users/YOUR-USER/firstmate'
-    HerdrPath    = '/opt/homebrew/bin/herdr'
     StudioDir    = 'REPLACE_ME'
     NotesDir     = 'REPLACE_ME'
     ImageHubDir  = 'REPLACE_ME'
     GithubDir    = 'REPLACE_ME'
     BwsProjectId = 'REPLACE_ME'
+    HermesBwsProjectId = 'REPLACE_ME'   # BWS project the `hermes` bridge unseals
 
     # Permission posture the `cc`/`ccp` launchers use. Each checks its own key,
     # then the shared key; unset defaults to --dangerously-skip-permissions.

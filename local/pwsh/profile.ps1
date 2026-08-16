@@ -141,14 +141,35 @@ function fmsh {
 
 # Attach to Herdr on the firstmate host. -t is required: without a forced tty
 # ssh runs the command non-interactively and herdr has nothing to attach to.
-# HerdrPath is absolute because a non-login ssh command skips the shell rc that
-# puts it on PATH. Args are quoted for the same reason as `fm` above -- ssh
-# joins them with plain spaces, so `fmw --session 'my work'` would otherwise
+# `herdr` is bare rather than an absolute path because that account's ~/.zshenv
+# puts it on PATH -- zsh reads .zshenv even for the non-login shell ssh spawns,
+# unlike .zprofile/.zshrc. Args are quoted for the same reason as `fm` above --
+# ssh joins them with plain spaces, so `fmw --session 'my work'` would otherwise
 # reach herdr as two arguments.
 function fmw {
-    if (-not ($v = Get-LifHostValue FirstmateHost, HerdrPath)) { return }
+    if (-not ($v = Get-LifHostValue FirstmateHost)) { return }
     $q = ($args | ForEach-Object { "'" + ("$_" -replace "'", "'\''") + "'" }) -join ' '
-    ssh -t $v[0] "exec '$($v[1])' $q"
+    ssh -t $v "exec herdr $q"
+}
+
+# Marin (Hermes agent) on the firstmate host, in the modern TUI by default.
+# HERMES_HOME/HERMES_TUI_DIR/HERMES_NODE come from that account's ~/.zshenv,
+# which zsh reads even for the non-login shell ssh spawns here -- without
+# HERMES_HOME hermes opens a fresh ~/.hermes and answers with no memory.
+# secret-exec supplies the keys the gateway gets, including OpenViking recall;
+# it lives outside PATH, hence the absolute path. Pass args to override `--tui`
+# (e.g. `hermes --cli`); quoted for the same reason as `fm` above.
+function hermes {
+    if (-not ($v = Get-LifHostValue FirstmateHost, HermesBwsProjectId)) { return }
+    $q = if ($args.Count) {
+        ($args | ForEach-Object { "'" + ("$_" -replace "'", "'\''") + "'" }) -join ' '
+    } else { '--tui' }
+    # Built as one line, not a here-string: PowerShell here-strings emit CRLF,
+    # and the stray \r ends up inside the remote argument.
+    $sx = "/usr/local/libexec/hermes/hermes-secret-exec --self-prefix MARIN_ " +
+          "--persona-prefixes MARIN_,REM_,AKIRA_ --project-id '$($v[1])' " +
+          "--server-url https://vault.bitwarden.com"
+    ssh -t $v[0] "exec $sx -- /opt/hermes-state/.hermes/hermes-agent/venv/bin/hermes $q"
 }
 
 # Directory shortcuts. `github` deliberately shadows GitHub Desktop's `github`
