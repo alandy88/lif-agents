@@ -159,6 +159,9 @@ ccp()  { _cc_run "$HOME/.claude-p" "${LIF_CLAUDE_PERMISSION_MODE_PERSONAL:-${LIF
 ccr()  { cc  resume "$@"; }
 ccpr() { ccp resume "$@"; }
 
+# --- DeepSeek harness ---
+alias dsh='npx @deepseek-ai/dsh'
+
 # --- firstmate ---
 # The pwsh versions cross an ssh bridge because firstmate lives on another host.
 # Here it is local, so there is no bridge: run it, in a subshell so the caller's
