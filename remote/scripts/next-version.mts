@@ -74,7 +74,7 @@ export function bump(version: string, impact: Impact): string {
   return `${major}.${minor}.${patch + 1}`;
 }
 
-/** `v0.2.3` -> `0.2.3`. Tags carry the prefix; npm and this module do not. */
+/** `v0.2.3` -> `0.2.3`. Tags carry the prefix; the manifest and this module do not. */
 export function stripPrefix(tag: string): string {
   return tag.startsWith("v") ? tag.slice(1) : tag;
 }

@@ -149,10 +149,11 @@ const config: ImplementConfig = {
 ## Working on this repo
 
 ```bash
-npm test              # unit tests
-npm run test:integration
-npm run typecheck
-npm run build
+bun install           # bun is this repo's package manager; the lockfile is bun.lock
+bun run test          # unit tests (node runs them; bun only launches the script)
+bun run test:integration
+bun run typecheck
+bun run build
 ```
 
 Release mechanics, layout rules, and sharp edges: [AGENTS.md](AGENTS.md).

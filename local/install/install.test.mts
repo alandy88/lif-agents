@@ -3,7 +3,7 @@
 // the only honest way to test it is to build the tree it expects and run it.
 //
 // It lives here rather than under remote/tests/ because it covers the local
-// half; the root `npm test` glob picks it up.
+// half; the root `bun run test` glob picks it up.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";

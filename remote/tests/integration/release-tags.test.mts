@@ -70,10 +70,10 @@ test("non-release tags are skipped, even when they sort above every release", as
   assert.equal(await lastReleaseTag(git), "v0.10.0");
 });
 
-test("a tag npm could not version is skipped, digits or not", async () => {
+test("a tag bun could not version is skipped, digits or not", async () => {
   // These all parse as three numbers, which is why the shape alone is not the
   // rule. Each becomes the BASELINE the next release bumps from, and each fails
-  // differently: 1e24 makes bump() emit the string `1e+24.0.1` that `npm
+  // differently: 1e24 makes bump() emit the string `1e+24.0.1` that `bun pm
   // version` rejects, 2^53+1 rounds DOWN by one so the bump derives from a
   // version that is not the tag, and `v01.0.0` is the quiet one — it bumps to
   // `1.0.1`, a version that may already exist.

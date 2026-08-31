@@ -10,35 +10,41 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      # Bun installs and runs the scripts; node still executes the tests, which
+      # run off remote/src/ under --experimental-strip-types.
       - uses: actions/setup-node@v4
         with:
-          # 24, not 22: `npm test` runs off remote/src/ under --experimental-strip-types,
-          # which strips types without downleveling, so the `await using` in
-          # presets/implement reaches V8 as-is and Node 22 cannot parse it. This
-          # is a dev-only floor — tsc downlevels it for remote/dist/, which is what
-          # consumers import, and package.json engines stays >=22.
+          # 24, not 22: `bun run test` runs off remote/src/ under
+          # --experimental-strip-types, which strips types without downleveling, so
+          # the `await using` in presets/implement reaches V8 as-is and Node 22
+          # cannot parse it. This is a dev-only floor — tsc downlevels it for
+          # remote/dist/, which is what consumers import, and package.json engines
+          # stays >=22.
           node-version: "24"
       # The local shell security suite executes profile.zsh under native zsh;
       # ubuntu-latest does not include it by default.
       - run: sudo apt-get update && sudo apt-get install -y zsh
-      - run: npm ci
-      - run: npm run typecheck
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
       # Before the tests, not after: boundary.test.mts reads remote/dist/*.d.mts,
       # which is not committed on main (release tags carry it — see release.yml).
-      # Building explicitly here keeps the tests independent of `npm ci` having
-      # happened to trigger the prepare script.
-      - run: npm run build
-      - run: npm test
-      - run: npm run test:integration
-      # `npm ci` fails on a lockfile that disagrees with package.json, but not on
-      # one that is merely stale against the registry — a dependency edit that
-      # forgot to regenerate it lands green and rewrites the tracked file on the
-      # next routine install. Commit 328db55 was exactly that, found in review
-      # rather than by CI.
+      # Building explicitly here keeps the tests independent of the install
+      # having happened to trigger the prepare script.
+      - run: bun run build
+      - run: bun run test
+      - run: bun run test:integration
+      # `--frozen-lockfile` fails on a lockfile that disagrees with package.json,
+      # but not on one that is merely stale against the registry — a dependency
+      # edit that forgot to regenerate it lands green and rewrites the tracked
+      # file on the next routine install. Commit 328db55 was exactly that, found
+      # in review rather than by CI.
       - name: lockfile tracks the manifest
         run: |
-          npm install --package-lock-only
-          if ! git diff --exit-code -- package-lock.json; then
-            echo "::error::run 'npm install --package-lock-only' and commit the result"
+          bun install --lockfile-only
+          if ! git diff --exit-code -- bun.lock; then
+            echo "::error::run 'bun install --lockfile-only' and commit the result"
             exit 1
           fi

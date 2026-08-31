@@ -26,13 +26,13 @@ import type { GitRunner } from "../src/lib/branch.mts";
  * be derived from has to be a tag that can be derived from.
  *
  * Each component is bounded rather than `[0-9]+`, and rejects leading zeros,
- * because "parses as a number" is not the same as "npm can version it". A tag
+ * because "parses as a number" is not the same as "the release can version it". A tag
  * that passes here becomes the BASELINE the next release is bumped from, so
  * every way `Number` can quietly misread one is a way to strand releases:
  *
  * - `v999999999999999999999999.0.0` -> `Number` gives 1e+24, which is an
  *   integer, so `bump` accepts it and returns the string `1e+24.0.1`. The later
- *   `npm version` rejects that, and every automatic release stays blocked until
+ *   `bun pm version` rejects that, and every automatic release stays blocked until
  *   somebody deletes the tag.
  * - `v9007199254740993.0.0` -> past 2^53 the value rounds DOWN by one, so the
  *   bump derives from a version that is not the tag it read.

@@ -10,8 +10,8 @@ import { fileURLToPath } from "node:url";
 //
 // This reads remote/dist/, which is the artifact consumers actually resolve. remote/dist/
 // is gitignored on main (release tags carry it); it exists at test time
-// because ci.yml runs `npm run build` before `npm test` — and locally because
-// `npm ci`'s prepare script runs tsc.
+// because ci.yml runs `bun run build` before `bun run test` — and locally because
+// `bun install`'s prepare script runs tsc.
 //
 // Phases are covered too: a Layer-4 consumer composes them directly (that is the
 // whole point of the layer), so a sandcastle type in `PhaseContext` would leak
