@@ -52,9 +52,9 @@ captain** — never invent a plausible-looking path.
 | `LIF_IMAGEHUB_DIR` / `ImageHubDir` | `imagehub` jumps here | **ask** |
 | `LIF_GITHUB_DIR` / `GithubDir` | `github` jumps here; the function shadows GitHub Desktop's `github` launcher | **ask** |
 | `LIF_BWS_PROJECT_ID` / `BwsProjectId` | Bitwarden Secrets project UUID | **ask**; secret-adjacent, see below |
-| `LIF_FIRSTMATE_DIR` / `FirstmateDir` | firstmate checkout; `fm`/`fmsh` use it | `~/firstmate` by convention — confirm |
-| `FirstmateHost` | ssh target the pwsh `fm`/`fmsh`/`fmw` reach; the firstmate host itself has no equivalent, since there they run locally | `windows-5090` only |
-| `LIF_HERDR_PATH` | herdr binary the zsh `fmw` runs locally; absolute, so it does not depend on PATH | **ask** — install location differs per platform |
+| `LIF_FIRSTMATE_DIR` / `FirstmateDir` | firstmate checkout `fm`/`fmsh` use; a local path on the firstmate host, a path *on the far side* wherever the ssh bridge is on | `~/firstmate` by convention on the host — confirm |
+| `LIF_FIRSTMATE_HOST` / `FirstmateHost` | ssh target `fm`/`fmsh`/`fmw` reach. Setting it is what turns the bridge on; the firstmate host itself omits it, since there they run locally | every client of the firstmate host |
+| `LIF_HERDR_PATH` | herdr binary the zsh `fmw` runs locally; absolute, so it does not depend on PATH. Only the firstmate host sets it — on a client the bridge runs bare `herdr` remotely, and a local herdr is a *different* server | **ask**, and only on that host |
 | ~~`HerdrPath`~~ | dropped — the pwsh `fmw` now runs bare `herdr`, which the firstmate account's `~/.zshenv` puts on PATH for the non-login shell ssh spawns | — |
 | `LIF_HERDR_DEFAULT_SHELL` | shell Herdr opens panes with | defaults per platform, see below |
 | `LIF_CLAUDE_PERMISSION_MODE_STANDARD` / `ClaudePermissionModeStandard` | `claude --permission-mode` the `cc` launcher uses | optional; when unset or empty, falls back to the shared key below, then `--dangerously-skip-permissions` |

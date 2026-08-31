@@ -11,10 +11,14 @@ LIF_NOTES_DIR='REPLACE_ME'        # `notes` jumps here
 LIF_IMAGEHUB_DIR='REPLACE_ME'     # `imagehub` jumps here
 LIF_GITHUB_DIR='REPLACE_ME'       # `github` jumps here (checkout root)
 
-# Set these two only on the machine that hosts firstmate; elsewhere the unix
-# fm/fmsh/fmw have nothing local to reach and should warn.
+# On the machine that hosts firstmate, leave HOST unset and these are local:
 LIF_FIRSTMATE_DIR="$HOME/firstmate"          # `fm`, `fmsh`
 LIF_HERDR_PATH='REPLACE_ME'                  # `fmw`; e.g. /opt/homebrew/bin/herdr
+#
+# On any other machine, set HOST instead and fm/fmsh/fmw ssh there. FIRSTMATE_DIR
+# is then a path on the far side, and HERDR_PATH must stay unset -- the bridge
+# runs bare `herdr` remotely, and a local herdr would be a different server.
+# LIF_FIRSTMATE_HOST='REPLACE_ME'            # e.g. firstmate@100.110.209.2
 
 # Bitwarden Secrets project id (a UUID). The access *token* is never here:
 # macOS reads it from the Keychain, Linux/WSL from ~/.bws/token (mode 0600).

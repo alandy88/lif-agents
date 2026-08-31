@@ -178,31 +178,53 @@ ccpr() { ccp resume "$@"; }
 alias dsh='npx @deepseek-ai/dsh'
 
 # --- firstmate ---
-# The pwsh versions cross an ssh bridge because firstmate lives on another host.
-# Here it is local, so there is no bridge: run it, in a subshell so the caller's
-# cwd survives.
-#
-# There is deliberately no ssh path on this side. Only the firstmate host sets
-# LIF_FIRSTMATE_DIR, and it is the machine this profile runs on; a unix client
-# that is not that host leaves the key unset and _lif_need warns, which is the
-# documented outcome for a value the captain does not have. Add the bridge here
-# when a second unix machine actually needs to reach firstmate, not before.
+# Two shapes, picked by whether the overlay sets LIF_FIRSTMATE_HOST. Unset means
+# this profile runs on the firstmate host itself and there is nothing to cross;
+# set means it is a remote client and these take the same ssh bridge the pwsh
+# versions do. LIF_FIRSTMATE_DIR splits the same way -- a local path on the
+# host, a path *on the far side* for a client.
+
+# Quote args for the remote shell: ssh joins them with plain spaces, so
+# `fmw --session 'my work'` would otherwise reach herdr as two arguments.
+_lif_shquote() {
+    local a out=
+    for a in "$@"; do
+        out="$out '$(printf '%s' "$a" | sed "s/'/'\\\\''/g")'"
+    done
+    printf '%s' "$out"
+}
+
 fm() {
     _lif_need LIF_FIRSTMATE_DIR || return 1
+    if [ -n "${LIF_FIRSTMATE_HOST:-}" ]; then
+        ssh -t "$LIF_FIRSTMATE_HOST" \
+            "cd '$LIF_FIRSTMATE_DIR' && exec ~/.local/bin/claude --dangerously-skip-permissions$(_lif_shquote "$@")"
+        return
+    fi
+    # Subshell so the caller's cwd survives.
     ( cd "$LIF_FIRSTMATE_DIR" && claude --dangerously-skip-permissions "$@" )
 }
 
-# `fmsh` on Windows opens a login shell in the firstmate home; here that home is
-# already reachable, so it is a cd -- and must not be a subshell.
 fmsh() {
     _lif_need LIF_FIRSTMATE_DIR || return 1
+    if [ -n "${LIF_FIRSTMATE_HOST:-}" ]; then
+        ssh -t "$LIF_FIRSTMATE_HOST" "cd '$LIF_FIRSTMATE_DIR' && exec zsh -l"
+        return
+    fi
+    # A cd rather than a subshell -- the point is to leave the caller there.
     cd "$LIF_FIRSTMATE_DIR"
 }
 
 # Herdr on the firstmate host. The workspace persists in the server's session
-# state, so this attaches rather than building anything; the Windows `fmw` runs
-# this same binary over ssh.
+# state, so this attaches rather than building anything. The remote form needs
+# -t: without a forced tty ssh runs the command non-interactively and herdr has
+# nothing to attach to. It runs bare `herdr` because that account's ~/.zshenv
+# puts it on PATH, which zsh reads even for the shell ssh spawns.
 fmw() {
+    if [ -n "${LIF_FIRSTMATE_HOST:-}" ]; then
+        ssh -t "$LIF_FIRSTMATE_HOST" "exec herdr$(_lif_shquote "$@")"
+        return
+    fi
     _lif_need LIF_HERDR_PATH || return 1
     "$LIF_HERDR_PATH" "$@"
 }
