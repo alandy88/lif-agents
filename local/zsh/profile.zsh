@@ -26,6 +26,23 @@ fi
 # No transient prompt: Enable-TransientPrompt is a PSReadLine feature with no
 # starship-supported zsh counterpart. Past prompts stay full in scrollback.
 
+# --- Autosuggestions ---
+# Gray ghost-text hint from history, the PSReadLine PredictionSource analogue.
+# zsh-only; first readable install path wins (apt, Homebrew, manual clone).
+if [ -n "${ZSH_VERSION:-}" ]; then
+    for _lif_zas in \
+        /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh \
+        /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh \
+        /usr/local/share/zsh-autosuggestions/zsh-autosuggestions.zsh \
+        "$HOME/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh"; do
+        if [ -r "$_lif_zas" ]; then
+            . "$_lif_zas"
+            break
+        fi
+    done
+    unset _lif_zas
+fi
+
 # --- Environment overlay: per-machine paths and ids, kept out of this repo ---
 # Sets LIF_* variables. Absent overlay -> nothing set; the consumers below warn
 # on their own key rather than running with a wrong path.
