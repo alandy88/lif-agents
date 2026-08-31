@@ -239,12 +239,17 @@ github()   { _lif_need LIF_GITHUB_DIR   && cd "$LIF_GITHUB_DIR"; }
 # --- BWS access token ---
 # The token is loaded from its at-rest store only inside each `bws` invocation.
 # It is never exported by shell startup, and `bws run` removes it before its
-# command starts. macOS uses Keychain; Linux/WSL requires ~/.bws/token mode 0600.
+# command starts. macOS uses Keychain; Linux prefers a systemd-creds host-bound
+# credential, falling back to ~/.bws/token mode 0600 where user-systemd is absent.
 unset BWS_ACCESS_TOKEN
 _lif_read_bws_token() {
     if [ "$(uname -s)" = Darwin ]; then
         security find-generic-password -s lif-bws-token -w 2>/dev/null
         return
+    fi
+    local c=$HOME/.config/bws/token.cred
+    if [ -r "$c" ] && command -v systemd-creds >/dev/null 2>&1; then
+        systemd-creds --user --name=bws decrypt "$c" - && return
     fi
     local f=$HOME/.bws/token
     [ -r "$f" ] || return 1

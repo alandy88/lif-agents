@@ -3,6 +3,8 @@
 unset BWS_ACCESS_TOKEN
 if [ "$(uname -s)" = Darwin ]; then
     token=$(security find-generic-password -s lif-bws-token -w 2>/dev/null) || exit 1
+elif [ -r "$HOME/.config/bws/token.cred" ] && command -v systemd-creds >/dev/null 2>&1; then
+    token=$(systemd-creds --user --name=bws decrypt "$HOME/.config/bws/token.cred" -) || exit 1
 else
     file=$HOME/.bws/token
     [ -r "$file" ] || { echo 'lif-bws: token is not configured' >&2; exit 1; }
