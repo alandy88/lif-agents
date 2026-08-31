@@ -12,6 +12,9 @@ format = """
 [](red)\
 $os\
 $username\
+$hostname\
+$container\
+$shlvl\
 [](bg:peach fg:red)\
 $directory\
 [](bg:yellow fg:peach)\
@@ -37,6 +40,8 @@ $pixi\
 $time\
 [ ](fg:lavender)\
 $cmd_duration\
+$status\
+$sudo\
 $line_break\
 $character"""
 
@@ -79,6 +84,28 @@ show_always = true
 style_user = "bg:red fg:crust"
 style_root = "bg:red fg:crust"
 format = '[ $user]($style)'
+
+# Which box am I on. ssh_only keeps this invisible on the local workstation and
+# present the moment a session is remote -- the three homelab hosts otherwise
+# render an identical prompt.
+[hostname]
+ssh_only = true
+style = "bg:red fg:crust"
+format = '[@$hostname]($style)'
+
+# Inside an Incus/Docker container rather than on the host.
+[container]
+style = "bg:red fg:crust"
+format = '[ $symbol]($style)'
+
+# Nested shells: SSH -> multiplexer -> subshell stacks up silently otherwise.
+[shlvl]
+disabled = false
+threshold = 2
+repeat = false
+symbol = "≡"
+style = "bg:red fg:crust"
+format = '[ $symbol$shlvl]($style)'
 
 [directory]
 style = "bg:peach fg:crust"
@@ -199,8 +226,23 @@ show_milliseconds = true
 format = " in $duration "
 style = "bg:lavender"
 disabled = false
-show_notifications = true
+show_notifications = false
 min_time_to_notify = 45000
+
+# The character arrow already turns red on failure; this adds the actual code,
+# which is the part you need when a command dies at 127 vs 130 vs 1.
+[status]
+disabled = false
+symbol = "✘"
+format = '[$symbol$status]($style) '
+style = "bold fg:red"
+
+# Marks a still-valid sudo timestamp -- this host is "hot" until it expires.
+[sudo]
+disabled = false
+symbol = "!"
+format = '[$symbol]($style) '
+style = "bold fg:maroon"
 
 [palettes.catppuccin_mocha]
 rosewater = "#f5e0dc"
