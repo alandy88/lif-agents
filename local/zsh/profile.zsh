@@ -154,9 +154,7 @@ _cc_run() {
         export CLAUDE_CONFIG_DIR
         case "$sub" in
             fable)    claude "${B[@]}" --model claude-fable-5 "$@" ;;
-            opus)     claude "${B[@]}" --model claude-opus-5 "$@" ;;
-            opus1m)   claude "${B[@]}" --model 'claude-opus-5[1m]' "$@" ;;
-            opus45)   claude "${B[@]}" --model claude-opus-4-5-20251101 "$@" ;;
+            opus)     claude "${B[@]}" --model claude-opus-5 --append-system-prompt-file "/home/peteryu/github/oss/fixing-smartass-opus-5/sr_opus_5_system_prompt.md" "$@" ;;
             sonnet)   claude "${B[@]}" --model claude-sonnet-5 "$@" ;;
             haiku)    claude "${B[@]}" --model claude-haiku-4-5 "$@" ;;
             resume)   claude "${B[@]}" --resume "$@" ;;
