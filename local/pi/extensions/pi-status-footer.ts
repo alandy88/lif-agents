@@ -45,6 +45,24 @@ export interface QuotaSelection {
 	weekly?: QuotaWindowSnapshot;
 }
 
+export interface InferenceTimingSnapshot {
+	requestStartedAt: number;
+	firstOutputAt: number;
+	completedAt: number;
+}
+
+export interface InferenceUsageSnapshot {
+	input: number;
+	cacheRead: number;
+	cacheWrite: number;
+	output: number;
+}
+
+export interface InferenceSpeedSnapshot {
+	inputTokensPerSecond: number;
+	outputTokensPerSecond: number;
+}
+
 const THINKING_THEME_TOKEN = {
 	off: "thinkingOff",
 	minimal: "thinkingMinimal",
@@ -123,7 +141,11 @@ function asAvailability(value: unknown): QuotaAvailabilitySnapshot | undefined {
 export function parseQuotaReport(text: string): QuotaReportSnapshot | undefined {
 	try {
 		const value: unknown = JSON.parse(text);
-		if (!isRecord(value) || value.schemaVersion !== 3 || !Array.isArray(value.providers)) return undefined;
+		if (
+			!isRecord(value) ||
+			(value.schemaVersion !== 3 && value.schemaVersion !== 5) ||
+			!Array.isArray(value.providers)
+		) return undefined;
 
 		const providers: QuotaProviderSnapshot[] = [];
 		for (const rawProvider of value.providers) {
@@ -212,6 +234,22 @@ function formatPercent(value: number): string {
 	return `${Math.round(clampPercent(value))}%`;
 }
 
+export function calculateInferenceSpeed(
+	timing: InferenceTimingSnapshot,
+	usage: InferenceUsageSnapshot,
+): InferenceSpeedSnapshot | undefined {
+	const inputSeconds = (timing.firstOutputAt - timing.requestStartedAt) / 1_000;
+	const outputSeconds = (timing.completedAt - timing.firstOutputAt) / 1_000;
+	if (inputSeconds <= 0 || outputSeconds <= 0) return undefined;
+
+	const inputTokens = usage.input + usage.cacheRead + usage.cacheWrite;
+	if (inputTokens < 0 || usage.output < 0) return undefined;
+	return {
+		inputTokensPerSecond: inputTokens / inputSeconds,
+		outputTokensPerSecond: usage.output / outputSeconds,
+	};
+}
+
 export function formatTokens(value: number): string {
 	const rounded = Math.max(0, Math.round(value));
 	if (rounded < 1_000) return String(rounded);
@@ -261,6 +299,10 @@ function quotaSegment(
 	return theme.fg(quotaColor(remaining), `${label} ${formatPercent(remaining)}${compact ? "" : " left"}`);
 }
 
+function speedSegment(label: "In" | "Out", value: number, theme: Theme): string {
+	return theme.fg("muted", `${label} ${formatTokens(value)}t/s`);
+}
+
 function joinSegments(segments: string[], separator: string): string {
 	return segments.join(separator);
 }
@@ -286,6 +328,7 @@ export interface FooterSnapshot {
 	thinkingLevel: string | undefined;
 	context: ContextSnapshot | undefined;
 	quota: QuotaSelection;
+	speed?: InferenceSpeedSnapshot;
 }
 
 export function formatFooterLine(snapshot: FooterSnapshot, theme: Theme, suppliedWidth: number): string {
@@ -301,6 +344,10 @@ export function formatFooterLine(snapshot: FooterSnapshot, theme: Theme, supplie
 		model,
 		effort,
 		contextSegment(snapshot.context, theme, false),
+		...(snapshot.speed ? [
+			speedSegment("In", snapshot.speed.inputTokensPerSecond, theme),
+			speedSegment("Out", snapshot.speed.outputTokensPerSecond, theme),
+		] : []),
 		...(snapshot.quota.fiveHour ? [quotaSegment("5h", snapshot.quota.fiveHour, theme, false)] : []),
 		quotaSegment("week", snapshot.quota.weekly, theme, false),
 	];
@@ -311,6 +358,10 @@ export function formatFooterLine(snapshot: FooterSnapshot, theme: Theme, supplie
 		model,
 		effort,
 		contextSegment(snapshot.context, theme, true),
+		...(snapshot.speed ? [
+			speedSegment("In", snapshot.speed.inputTokensPerSecond, theme),
+			speedSegment("Out", snapshot.speed.outputTokensPerSecond, theme),
+		] : []),
 		...(snapshot.quota.fiveHour ? [quotaSegment("5h", snapshot.quota.fiveHour, theme, true)] : []),
 		quotaSegment("week", snapshot.quota.weekly, theme, true),
 	];
@@ -326,6 +377,9 @@ export default function (pi: ExtensionAPI) {
 	let activeRequestRender: (() => void) | undefined;
 	let refreshInFlight = false;
 	let refreshQueued = false;
+	let requestStartedAt: number | undefined;
+	let firstOutputAt: number | undefined;
+	let inferenceSpeed: InferenceSpeedSnapshot | undefined;
 
 	const requestRender = () => {
 		activeRequestRender?.();
@@ -369,6 +423,9 @@ export default function (pi: ExtensionAPI) {
 		quotaReport = undefined;
 		refreshInFlight = false;
 		refreshQueued = false;
+		requestStartedAt = undefined;
+		firstOutputAt = undefined;
+		inferenceSpeed = undefined;
 
 		if (ctx.mode !== "tui") return;
 
@@ -397,6 +454,7 @@ export default function (pi: ExtensionAPI) {
 									thinkingLevel: pi.getThinkingLevel(),
 									context,
 									quota: selectQuota(quotaReport, model),
+									speed: inferenceSpeed,
 								},
 								theme,
 								width,
@@ -414,13 +472,53 @@ export default function (pi: ExtensionAPI) {
 		quotaReport = undefined;
 		refreshInFlight = false;
 		refreshQueued = false;
+		requestStartedAt = undefined;
+		firstOutputAt = undefined;
+		inferenceSpeed = undefined;
 		activeRequestRender = undefined;
 		if (ctx.mode === "tui") ctx.ui.setFooter(undefined);
 	});
 
-	pi.on("model_select", () => requestRender());
+	pi.on("before_provider_request", () => {
+		requestStartedAt = performance.now();
+		firstOutputAt = undefined;
+	});
+	pi.on("message_update", (event) => {
+		if (requestStartedAt === undefined || firstOutputAt !== undefined) return;
+		const type = event.assistantMessageEvent.type;
+		if (
+			type === "text_start" ||
+			type === "text_delta" ||
+			type === "thinking_start" ||
+			type === "thinking_delta" ||
+			type === "toolcall_start" ||
+			type === "toolcall_delta"
+		) {
+			firstOutputAt = performance.now();
+		}
+	});
+	pi.on("message_end", (event) => {
+		if (
+			event.message.role === "assistant" &&
+			requestStartedAt !== undefined &&
+			firstOutputAt !== undefined
+		) {
+			inferenceSpeed = calculateInferenceSpeed(
+				{ requestStartedAt, firstOutputAt, completedAt: performance.now() },
+				event.message.usage,
+			) ?? inferenceSpeed;
+			requestStartedAt = undefined;
+			firstOutputAt = undefined;
+		}
+		requestRender();
+	});
+	pi.on("model_select", () => {
+		requestStartedAt = undefined;
+		firstOutputAt = undefined;
+		inferenceSpeed = undefined;
+		requestRender();
+	});
 	pi.on("thinking_level_select", () => requestRender());
-	pi.on("message_end", () => requestRender());
 	pi.on("agent_settled", (event, ctx) => {
 		void event;
 		requestRender();
