@@ -301,6 +301,9 @@ link_managed "$local_root/pi/extensions/pi-status-footer.ts" "$HOME/.pi/agent/ex
 echo "Noninteractive BWS wrapper"
 link_managed "$local_root/bin/lif-bws" "$HOME/.local/bin/lif-bws"
 
+echo "Orca hub launcher"
+link_managed "$local_root/bin/lif-hub" "$HOME/.local/bin/lif-hub"
+
 echo "Environment overlay ($host)"
 # wezterm.lua reads ~/.config/lif-host.lua by an absolute path built from
 # wezterm.home_dir -- it does not consult XDG_CONFIG_HOME, so neither do we.

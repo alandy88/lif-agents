@@ -24,7 +24,7 @@
     "build": "tsc -p tsconfig.json",
     "prepare": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.scripts.json",
-    "test": "node --experimental-strip-types --test \"remote/src/**/*.test.mts\" \"remote/scripts/**/*.test.mts\" \"local/install/*.test.mts\" \"local/dispatch/src/**/*.test.mts\"",
+    "test": "node --experimental-strip-types --test \"remote/src/**/*.test.mts\" \"remote/scripts/**/*.test.mts\" \"local/install/*.test.mts\" \"local/dispatch/src/**/*.test.mts\" \"local/hub/src/**/*.test.mts\"",
     "test:integration": "node --experimental-strip-types --test \"remote/tests/integration/**/*.test.mts\""
   },
   "dependencies": {

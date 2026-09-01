@@ -8,6 +8,10 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   [local/install/AGENTS.md](local/install/AGENTS.md) — not the README's kit section.**
   `npm i -D github:alandy88/lif-agents` installs the *kit* and does nothing to this
   machine's terminal.
+- **`local/hub/` is the Orca launcher.** `lif-hub "message"` classifies a message into a
+  mode and repo, stacks the starter prompts from the vault, and creates an Orca worktree
+  with Claude already working. `local/orca-plugins/lif-hub/` is the chat panel that types
+  that command into a terminal. See [local/hub/README.md](local/hub/README.md).
 - **Machine-specific values belong to a named environment**, one directory per machine
   under `local/environments/`, which also states exactly which values an environment owes.
   No platform is the default: the Windows drive paths belong to `windows-5090` alone.

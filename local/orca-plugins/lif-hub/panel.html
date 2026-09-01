@@ -1,0 +1,273 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      :root {
+        --fg: var(--foreground, #ddd);
+        --bg: var(--background, transparent);
+        --muted: var(--muted-foreground, #999);
+        --line: var(--border, #555);
+        --card: var(--secondary, #2a2a2a);
+        --accent: var(--primary, #4c8bf5);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        font: 13px/1.4 system-ui, sans-serif;
+        color: var(--fg);
+        background: var(--bg);
+      }
+      header {
+        padding: 10px 12px 6px;
+        border-bottom: 1px solid var(--line);
+      }
+      header h1 { font-size: 14px; margin: 0 0 4px; }
+      header .sub { color: var(--muted); font-size: 12px; }
+      #log {
+        flex: 1;
+        overflow-y: auto;
+        padding: 10px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .msg {
+        max-width: 92%;
+        padding: 7px 10px;
+        border-radius: 10px;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .me { align-self: flex-end; background: var(--accent); color: #fff; }
+      .hub { align-self: flex-start; background: var(--card); border: 1px solid var(--line); }
+      .hub.err { border-color: #c44; }
+      .meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+      form {
+        border-top: 1px solid var(--line);
+        padding: 8px 12px 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+      .chips { display: flex; gap: 4px; flex-wrap: wrap; }
+      .chip {
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: var(--card);
+        color: var(--fg);
+        cursor: pointer;
+        font: inherit;
+        font-size: 11px;
+      }
+      .chip.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+      textarea {
+        width: 100%;
+        min-height: 64px;
+        resize: vertical;
+        padding: 6px 8px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--card);
+        color: var(--fg);
+        font: inherit;
+      }
+      select, button.go {
+        padding: 5px 10px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--card);
+        color: var(--fg);
+        font: inherit;
+        cursor: pointer;
+      }
+      button.go { background: var(--accent); color: #fff; border-color: var(--accent); }
+      button.go:disabled { opacity: 0.5; cursor: default; }
+      label.small { font-size: 11px; color: var(--muted); display: flex; gap: 4px; align-items: center; }
+      .spacer { flex: 1; }
+      #count { font-size: 11px; color: var(--muted); }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>LIF Hub</h1>
+      <div class="sub">Say what you want. It picks a mode and a repo, then starts an agent.</div>
+      <div class="row" style="margin-top:6px"><button type="button" class="chip" id="openpage">Open the full hub page</button></div>
+    </header>
+
+    <div id="log"></div>
+
+    <form id="form">
+      <div class="row">
+        <span class="chips" id="modes">
+          <button type="button" class="chip on" data-mode="">auto</button>
+          <button type="button" class="chip" data-mode="explore">explore</button>
+          <button type="button" class="chip" data-mode="plan">plan</button>
+          <button type="button" class="chip" data-mode="exec">exec</button>
+          <button type="button" class="chip" data-mode="verify">verify</button>
+          <button type="button" class="chip" data-mode="deploy">deploy</button>
+        </span>
+      </div>
+      <div class="row">
+        <input id="repo" list="repos" placeholder="repo (blank = auto)" style="flex:1;min-width:120px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg);font:inherit" />
+        <datalist id="repos"></datalist>
+        <select id="term" title="Terminal that runs lif-hub"></select>
+        <button type="button" id="refresh" class="chip" title="Re-read terminals of the focused worktree">↻</button>
+      </div>
+      <textarea id="text" placeholder="e.g. plan a Bicep module for the gateway's rate limiter"></textarea>
+      <div class="row">
+        <label class="small"><input type="checkbox" id="dry" /> dry run</label>
+        <span class="spacer"></span>
+        <span id="count"></span>
+        <button type="submit" class="go" id="go">Start agent</button>
+      </div>
+    </form>
+
+    <script>
+      'use strict'
+      // Orca caps one terminal.sendText at 4096 chars; base64 grows text by 4/3.
+      var MAX_MESSAGE_CHARS = 2800
+      var REPOS = [
+        'lif-notes', 'lif-studio', 'lif-workbench', 'comfyui-lif-nodes', 'ComfyClaw',
+        'lif-comfy-agent', 'lif-openclaw-agents', 'lif-agents', 'dsh-lif-plugins',
+        'qa-portal', 'slack-bot-blue-print', 'ai-gateway', 'lif-demo', 'ninfer'
+      ]
+
+      var seq = 0
+      var pending = {}
+      var logEl = document.getElementById('log')
+      var textEl = document.getElementById('text')
+      var termEl = document.getElementById('term')
+      var repoEl = document.getElementById('repo')
+      var dryEl = document.getElementById('dry')
+      var goEl = document.getElementById('go')
+      var countEl = document.getElementById('count')
+      var mode = ''
+
+      function call(action, params) {
+        return new Promise(function (resolve) {
+          var requestId = 'req-' + ++seq
+          pending[requestId] = resolve
+          window.parent.postMessage(
+            { type: 'orca-panel-action', requestId: requestId, action: action, params: params },
+            '*'
+          )
+        })
+      }
+      window.addEventListener('message', function (event) {
+        var data = event.data
+        if (!data || data.type !== 'orca-panel-action-result') return
+        var resolve = pending[data.requestId]
+        if (!resolve) return
+        delete pending[data.requestId]
+        resolve(data)
+      })
+
+      function say(text, who, err) {
+        var div = document.createElement('div')
+        div.className = 'msg ' + who + (err ? ' err' : '')
+        div.textContent = text
+        logEl.appendChild(div)
+        logEl.scrollTop = logEl.scrollHeight
+        return div
+      }
+
+      function b64utf8(s) {
+        var bytes = new TextEncoder().encode(s)
+        var bin = ''
+        for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
+        return btoa(bin)
+      }
+
+      function buildCommand(message, opts) {
+        var parts = ['lif-hub']
+        if (opts.mode) parts.push('--mode', opts.mode)
+        if (opts.repo) parts.push('--repo', opts.repo)
+        if (opts.dry) parts.push('--dry-run')
+        parts.push('--b64', b64utf8(message))
+        return parts.join(' ')
+      }
+
+      function refreshTerminals() {
+        return call('workspace.readContext').then(function (r) {
+          termEl.innerHTML = ''
+          if (!r.ok) { say('Cannot read workspace: ' + (r.error || r.errorCode), 'hub', true); return }
+          if (!r.value) { say('Focus a worktree that has a terminal. lif-hub is typed into it.', 'hub', true); return }
+          r.value.terminals.forEach(function (t, i) {
+            var o = document.createElement('option')
+            o.value = t.id
+            o.textContent = 'terminal ' + (i + 1)
+            termEl.appendChild(o)
+          })
+          if (r.value.terminals.length === 0) say('No terminal in ' + r.value.displayName + '. Open one.', 'hub', true)
+        })
+      }
+
+      REPOS.forEach(function (name) {
+        var o = document.createElement('option')
+        o.value = name
+        document.getElementById('repos').appendChild(o)
+      })
+
+      document.getElementById('modes').addEventListener('click', function (e) {
+        var chip = e.target.closest('.chip')
+        if (!chip) return
+        mode = chip.getAttribute('data-mode') || ''
+        Array.prototype.forEach.call(document.querySelectorAll('#modes .chip'), function (c) {
+          c.classList.toggle('on', c === chip)
+        })
+      })
+      document.getElementById('refresh').addEventListener('click', refreshTerminals)
+      document.getElementById('openpage').addEventListener('click', function () {
+        if (!termEl.value) { say('Pick a terminal first (↻).', 'hub', true); return }
+        call('terminal.sendText', { terminalId: termEl.value, text: 'lif-hub open', enter: true }).then(function (r) {
+          say(r.ok && r.value.accepted ? 'Opening the hub page as a browser tab.' : 'Send failed: ' + (r.error || r.errorCode), 'hub', !(r.ok && r.value.accepted))
+        })
+      })
+      textEl.addEventListener('input', function () {
+        var n = textEl.value.length
+        countEl.textContent = n > MAX_MESSAGE_CHARS ? n + ' / ' + MAX_MESSAGE_CHARS + ' too long' : n ? n + ' chars' : ''
+      })
+      textEl.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault()
+          goEl.click()
+        }
+      })
+
+      document.getElementById('form').addEventListener('submit', function (e) {
+        e.preventDefault()
+        var message = textEl.value.trim()
+        if (!message) return
+        if (message.length > MAX_MESSAGE_CHARS) { say('Message is over ' + MAX_MESSAGE_CHARS + ' chars. Shorten it.', 'hub', true); return }
+        if (!termEl.value) { say('Pick a terminal first (↻).', 'hub', true); return }
+        var opts = { mode: mode, repo: repoEl.value.trim(), dry: dryEl.checked }
+        var cmd = buildCommand(message, opts)
+        say(message, 'me')
+        goEl.disabled = true
+        call('terminal.sendText', { terminalId: termEl.value, text: cmd, enter: true }).then(function (r) {
+          goEl.disabled = false
+          if (!r.ok || !r.value.accepted) {
+            say('Send failed: ' + (r.error || r.errorCode || 'not accepted'), 'hub', true)
+            return
+          }
+          var label = (opts.mode || 'auto') + (opts.repo ? ' → ' + opts.repo : '') + (opts.dry ? ' (dry run)' : '')
+          var m = say('Sent to terminal. Watch it for the mode, repo, and new worktree.', 'hub')
+          var meta = document.createElement('div')
+          meta.className = 'meta'
+          meta.textContent = label
+          m.appendChild(meta)
+          textEl.value = ''
+          countEl.textContent = ''
+        })
+      })
+
+      refreshTerminals()
+    </script>
+  </body>
+</html>

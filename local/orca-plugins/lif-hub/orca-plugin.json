@@ -1,0 +1,21 @@
+{
+  "manifestVersion": 1,
+  "id": "lif-hub",
+  "publisher": "alandy88",
+  "name": "LIF Hub",
+  "version": "0.1.0",
+  "description": "Chat-style landing page: type what you want, it picks a mode and repo and starts an agent worktree with the matching starter prompt.",
+  "engines": { "orca": ">=1.4.0" },
+  "pluginApi": 1,
+  "main": "main.mjs",
+  "contributes": {
+    "panels": [{ "id": "hub", "title": "LIF Hub", "icon": "compass", "entry": "panel.html" }],
+    "events": [{ "on": "worktree.created" }, { "on": "agent.status.changed" }]
+  },
+  "capabilities": [
+    { "kind": "workspace:read" },
+    { "kind": "terminal:send" },
+    { "kind": "notifications:show" },
+    { "kind": "events:subscribe" }
+  ]
+}
