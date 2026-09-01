@@ -24,8 +24,8 @@
     "build": "tsc -p tsconfig.json",
     "prepare": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.scripts.json",
-    "test": "node --experimental-strip-types --test \"remote/src/**/*.test.mts\" \"remote/scripts/**/*.test.mts\" \"local/install/*.test.mts\" \"local/dispatch/src/**/*.test.mts\" \"local/hub/src/**/*.test.mts\"",
-    "test:integration": "node --experimental-strip-types --test \"remote/tests/integration/**/*.test.mts\""
+    "test": "bun test remote/src remote/scripts local/install local/dispatch/src local/hub/src",
+    "test:integration": "bun test remote/tests/integration"
   },
   "dependencies": {
     "@ai-hero/sandcastle": "^0.12.0"

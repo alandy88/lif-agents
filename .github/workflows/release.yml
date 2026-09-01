@@ -44,10 +44,6 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24" # same floor as ci.yml (tests run off remote/src/)
-
       # The test run executes the local profile security suite under native zsh;
       # ubuntu-latest does not include it by default.
       - run: sudo apt-get update && sudo apt-get install -y zsh
@@ -68,7 +64,7 @@ jobs:
       # against real temp repos.
       - name: is there anything to release?
         id: check
-        run: node --experimental-strip-types remote/scripts/release-gate.mts
+        run: bun remote/scripts/release-gate.mts
 
       # A stale run must not tag superseded code, but an operator who named a
       # version must not be silently ignored either — a dispatch that "succeeds"
@@ -100,7 +96,7 @@ jobs:
         env:
           EXPLICIT: ${{ inputs.version }}
           LAST_TAG: ${{ steps.check.outputs.last }}
-        run: node --experimental-strip-types remote/scripts/next-version.mts
+        run: bun remote/scripts/next-version.mts
 
       - name: stamp and tag
         if: steps.version.outputs.version != ''
@@ -142,7 +138,7 @@ jobs:
         run: |
           # `--tags` so what counts as a release tag stays defined in exactly one
           # place, and so the tag this run just created is included.
-          TAGS=$(node --experimental-strip-types remote/scripts/release-gate.mts --tags)
+          TAGS=$(bun remote/scripts/release-gate.mts --tags)
           if [ -z "$TAGS" ]; then
             echo "No tags yet — nothing to publish."
             exit 0

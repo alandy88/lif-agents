@@ -16,11 +16,14 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   under `local/environments/`, which also states exactly which values an environment owes.
   No platform is the default: the Windows drive paths belong to `windows-5090` alone.
   See [local/environments/README.md](local/environments/README.md).
-- **Bun is this repo's package manager**: `bun install --frozen-lockfile`, `bun run <script>`,
-  and a tracked `bun.lock` with no `package-lock.json`. Node still *runs* the tests —
-  the scripts call `node --experimental-strip-types`, so CI installs both. What
-  consumers use is a separate question: a git-URL install still works under npm, and
-  `shippedPaths()` in `remote/scripts/release-gate.mts` deliberately encodes npm's
+- **Bun is this repo's toolchain, not just its package manager**: `bun install
+  --frozen-lockfile`, `bun run <script>`, a tracked `bun.lock` with no
+  `package-lock.json`, and `bun test` as the runner. CI installs no Node at all. The
+  suites still import `node:test`, which Bun implements — but `bun test` sets
+  `process.argv[1]` to its own binary, not to each test file, so a test that reads
+  `argv[1]` must set it rather than trust it (see `remote/src/lib/entrypoint.test.mts`).
+  What consumers use is a separate question: a git-URL install still works under npm,
+  and `shippedPaths()` in `remote/scripts/release-gate.mts` deliberately encodes npm's
   packing rules.
 - **`package.json` must stay at the repo root**, with the tsconfigs the root scripts
   invoke. Neither npm nor bun can install from a subdirectory of a git URL, and all three

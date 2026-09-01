@@ -13,17 +13,6 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
-      # Bun installs and runs the scripts; node still executes the tests, which
-      # run off remote/src/ under --experimental-strip-types.
-      - uses: actions/setup-node@v4
-        with:
-          # 24, not 22: `bun run test` runs off remote/src/ under
-          # --experimental-strip-types, which strips types without downleveling, so
-          # the `await using` in presets/implement reaches V8 as-is and Node 22
-          # cannot parse it. This is a dev-only floor — tsc downlevels it for
-          # remote/dist/, which is what consumers import, and package.json engines
-          # stays >=22.
-          node-version: "24"
       # The local shell security suite executes profile.zsh under native zsh;
       # ubuntu-latest does not include it by default.
       - run: sudo apt-get update && sudo apt-get install -y zsh
