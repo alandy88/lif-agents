@@ -110,6 +110,12 @@ test("quota parsing reduces reports to non-secret display fields", () => {
   assert.equal(footer.parseQuotaReport("not json"), undefined);
 });
 
+test("current quota-axi schema exposes the applicable weekly window", () => {
+  const parsed = footer.parseQuotaReport(report({ schemaVersion: 5 }));
+  const selected = footer.selectQuota(parsed, { provider: "anthropic", id: "claude-sonnet" });
+  assert.deepEqual(selected.weekly, { id: "weekly", kind: "weekly", percentRemaining: 61 });
+});
+
 test("selection hides an absent five-hour quota and chooses the applicable weekly window", () => {
   const parsed = footer.parseQuotaReport(
     report({
@@ -158,6 +164,28 @@ test("exact model quota scope wins over broad account scope", () => {
   );
   const selected = footer.selectQuota(parsed, { provider: "anthropic", id: "claude-sonnet" });
   assert.equal(selected.weekly?.id, "exact-week");
+});
+
+test("footer shows completed prefill and decode throughput as In and Out", () => {
+  const speed = footer.calculateInferenceSpeed(
+    { requestStartedAt: 1_000, firstOutputAt: 3_000, completedAt: 5_000 },
+    { input: 600, cacheRead: 300, cacheWrite: 100, output: 120 },
+  );
+  assert.deepEqual(speed, { inputTokensPerSecond: 500, outputTokensPerSecond: 60 });
+
+  const line = footer.formatFooterLine(
+    {
+      modelId: "claude-sonnet",
+      thinkingLevel: "high",
+      context: { tokens: 42_000, contextWindow: 100_000, percent: 42 },
+      quota: { weekly: { id: "week", kind: "weekly", percentRemaining: 40 } },
+      speed,
+    },
+    theme([]),
+    160,
+  );
+  assert.match(line, /In 500t\/s/);
+  assert.match(line, /Out 60t\/s/);
 });
 
 test("footer uses semantic theme colors and fits a narrow terminal", () => {
