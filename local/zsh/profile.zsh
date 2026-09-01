@@ -94,6 +94,13 @@ case ":$PATH:" in
     *) PATH="$HOME/.local/bin:$PATH"; export PATH ;;
 esac
 
+if [ -d /home/linuxbrew/.linuxbrew/bin ]; then
+    case ":$PATH:" in
+        *":/home/linuxbrew/.linuxbrew/bin:"*) ;;
+        *) PATH="/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:$PATH"; export PATH ;;
+    esac
+fi
+
 if [ -d "$HOME/.bun" ]; then
     BUN_INSTALL="$HOME/.bun"
     export BUN_INSTALL
