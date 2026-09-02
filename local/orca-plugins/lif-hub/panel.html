@@ -165,7 +165,7 @@
             return j
           })
         }, function () {
-          throw new Error('Workbench did not answer from this panel (origin ' + location.origin + '). Is workbench-lite running on 127.0.0.1:8765? If it is, add this origin to WB_HUB_ALLOW_ORIGINS in apps/workbench-lite/.env and restart the service.')
+          throw new Error('Workbench did not answer from this panel. Is workbench-lite running on 127.0.0.1:8765?')
         })
       }
 

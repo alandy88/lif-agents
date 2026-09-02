@@ -1,8 +1,7 @@
 #!/bin/sh
-# Compatibility shim: prefer the migrated lif-workbench command, but remain runnable
-# on machines provisioned before lif-cli became an install prerequisite.
-if command -v lif-cli >/dev/null 2>&1; then
-  exec lif-cli hub "$@"
+# Compatibility shim: the hub moved to lif-workbench (`lif-cli hub`).
+if [ "${1-}" = "serve" ]; then
+  echo "lif-hub serve was removed; run the workbench-lite service and use 'lif-hub open'" >&2
+  exit 2
 fi
-here=$(dirname "$(readlink -f "$0")")
-exec node --experimental-strip-types "$here/../hub/src/cli.mts" "$@"
+exec lif-cli hub "$@"
