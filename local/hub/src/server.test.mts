@@ -107,4 +107,9 @@ test("GET /api/launches lists what was started, newest first, and POST /api/focu
   assert.deepEqual(hub.focused, [list[1]]);
   const missing = handle(hub, req({ method: "POST", url: "/api/focus", body: JSON.stringify({ id: "nope" }) }));
   assert.equal(missing.status, 404);
+
+  const incompatible = hub.launches.add({ backend: "herdr", worktreeId: "h1", worktreePath: "/h/wt" });
+  const mismatch = handle(hub, req({ method: "POST", url: "/api/focus", body: JSON.stringify({ id: incompatible.id }) }));
+  assert.equal(mismatch.status, 409);
+  assert.match(JSON.parse(mismatch.body).error, /belongs to herdr/);
 });

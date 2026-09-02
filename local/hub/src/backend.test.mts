@@ -4,7 +4,10 @@ import { test } from "node:test";
 import { agentFlags, backendName, shellQuote, worktreeName } from "./backend.mts";
 
 test("worktreeName appends the clock time", () => {
-  assert.equal(worktreeName("fix-bug", new Date(2026, 8, 2, 9, 5)), "fix-bug-0905");
+  assert.equal(
+    worktreeName("fix-bug", new Date(2026, 8, 2, 9, 5, 6, 7)),
+    "fix-bug-20260902-090506-007",
+  );
 });
 
 test("backendName: flag beats env beats HERDR_ENV, and orca is the fallback", () => {

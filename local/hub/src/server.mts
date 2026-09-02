@@ -78,6 +78,9 @@ export function handle(hub: Hub, req: HubRequest, readPage: () => string = () =>
       if (url.pathname === "/api/focus") {
         const record = typeof body.id === "string" ? hub.launches.get(body.id) : undefined;
         if (!record) return json(404, { error: "no such launch" });
+        if (record.backend !== hub.backend.name) {
+          return json(409, { error: `launch belongs to ${record.backend}, current backend is ${hub.backend.name}` });
+        }
         hub.backend.focus(record);
         return json(200, { ok: true });
       }

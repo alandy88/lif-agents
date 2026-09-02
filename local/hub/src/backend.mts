@@ -54,11 +54,20 @@ export interface Backend {
   focus(target: FocusTarget): void;
 }
 
-/** `<title>-<hhmm>` keeps repeated titles from colliding in one day. */
+/** Include date, seconds, and milliseconds so repeated titles do not collide. */
 export function worktreeName(title: string, now: Date = new Date()): string {
-  const hh = String(now.getHours()).padStart(2, "0");
-  const mm = String(now.getMinutes()).padStart(2, "0");
-  return `${title}-${hh}${mm}`;
+  const stamp = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+    "-",
+    String(now.getHours()).padStart(2, "0"),
+    String(now.getMinutes()).padStart(2, "0"),
+    String(now.getSeconds()).padStart(2, "0"),
+    "-",
+    String(now.getMilliseconds()).padStart(3, "0"),
+  ].join("");
+  return `${title}-${stamp}`;
 }
 
 export function backendName(env: NodeJS.ProcessEnv, override?: string): BackendName {

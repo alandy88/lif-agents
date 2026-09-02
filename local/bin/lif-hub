@@ -1,3 +1,8 @@
 #!/bin/sh
-# Compatibility shim: the hub moved to lif-workbench (`lif-cli hub`). Goes away next release.
-exec lif-cli hub "$@"
+# Compatibility shim: prefer the migrated lif-workbench command, but remain runnable
+# on machines provisioned before lif-cli became an install prerequisite.
+if command -v lif-cli >/dev/null 2>&1; then
+  exec lif-cli hub "$@"
+fi
+here=$(dirname "$(readlink -f "$0")")
+exec node --experimental-strip-types "$here/../hub/src/cli.mts" "$@"
