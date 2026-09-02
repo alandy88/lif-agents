@@ -21,11 +21,14 @@ credentials or preferences — see "Stop and ask".
 An *environment* is a named machine identity that owns every machine-specific
 value: see [local/environments/README.md](../environments/README.md), which lists
 exactly what an environment owes. An environment names a **machine**, not a
-platform. Existing names: `macbookpro-work`, `macmini`, `wsl`, `windows-5090`.
+platform. Existing names: `macbookpro-work`, `macmini`, `wsl`, `windows-5090`,
+`linux-5090` (the Ubuntu side of the 5090 box; already installed there).
 
 - Already installed on this machine → `local/install/install.sh` reads the name it
   recorded in `$XDG_CONFIG_HOME/lif-env`; no `--env` needed.
 - WSL → `local/install/install.sh` detects `wsl`.
+- Native Linux → nothing is detected; pass `--env linux-5090` on the 5090 box, or
+  create a new environment for another Linux machine.
 - macOS → **there is nothing to detect.** Do not assume this is an existing
   Mac environment because the OS matches; ask the captain which machine this
   is, then pass `--env <name>`.
@@ -99,15 +102,15 @@ step uninstalls orphaned formulae unrelated to the one you asked for — observe
 on the captain's Mac mini, where `brew install herdr` also removed
 `python@3.13`.
 
-| Prerequisite | macOS | WSL (Ubuntu) |
-|---|---|---|
-| WezTerm | `brew install --cask wezterm` | installed on the **Windows** side; WSL only supplies the shell |
-| Starship | `brew install starship` | `curl -sS https://starship.rs/install.sh \| sh` |
-| JetBrainsMono Nerd Font | `brew install --cask font-jetbrains-mono-nerd-font` | install on the Windows side, where WezTerm renders |
-| Herdr | `brew install herdr`; update later with `brew upgrade herdr`. Do **not** use `herdr update` here — it answers `self-update is disabled for Homebrew installs` and exits 0, so it silently does nothing. *Verified on macOS 26.5.2*: herdr 0.8.0 is in homebrew-core | already present on the captain's WSL box; `herdr update` self-updates |
-| zsh | ships with macOS | `sudo apt install zsh` (WSL defaults to bash) |
-| `claude`, `codex`, `opencode` | the agents the launch menu and `cc` invoke; install per their own docs | same |
-| `bws` (Bitwarden Secrets CLI) | only if this machine uses BWS | same |
+| Prerequisite | macOS | WSL (Ubuntu) | Native Linux (Ubuntu) |
+|---|---|---|---|
+| WezTerm | `brew install --cask wezterm` | installed on the **Windows** side; WSL only supplies the shell | upstream `.deb` from wezfurlong.org, or Flatpak |
+| Starship | `brew install starship` | `curl -sS https://starship.rs/install.sh \| sh` | same as WSL |
+| JetBrainsMono Nerd Font | `brew install --cask font-jetbrains-mono-nerd-font` | install on the Windows side, where WezTerm renders | unzip into `~/.local/share/fonts` and run `fc-cache -f` |
+| Herdr | `brew install herdr`; update later with `brew upgrade herdr`. Do **not** use `herdr update` here — it answers `self-update is disabled for Homebrew installs` and exits 0, so it silently does nothing. *Verified on macOS 26.5.2*: herdr 0.8.0 is in homebrew-core | already present on the captain's WSL box; `herdr update` self-updates | upstream install script; `herdr update` self-updates |
+| zsh | ships with macOS | `sudo apt install zsh` (WSL defaults to bash) | `sudo apt install zsh`, then `chsh -s /usr/bin/zsh` |
+| `claude`, `codex`, `opencode` | the agents the launch menu and `cc` invoke; install per their own docs | same | same |
+| `bws` (Bitwarden Secrets CLI) | only if this machine uses BWS | same | same as WSL |
 
 `claude`, `codex`, `opencode`, `bws`, and `quota-axi` are optional: without them
 the config still installs; affected functions simply fail when called, and the

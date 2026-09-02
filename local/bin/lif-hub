@@ -1,4 +1,7 @@
 #!/bin/sh
-# Route one message to an Orca agent session. Logic lives in local/hub/src/.
-here=$(dirname "$(readlink -f "$0")")
-exec node --experimental-strip-types "$here/../hub/src/cli.mts" "$@"
+# Compatibility shim: the hub moved to lif-workbench (`lif-cli hub`).
+if [ "${1-}" = "serve" ]; then
+  echo "lif-hub serve was removed; run the workbench-lite service and use 'lif-hub open'" >&2
+  exit 2
+fi
+exec lif-cli hub "$@"
