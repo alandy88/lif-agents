@@ -108,7 +108,18 @@ test("GET /api/launches lists what was started, newest first, and POST /api/focu
   const missing = handle(hub, req({ method: "POST", url: "/api/focus", body: JSON.stringify({ id: "nope" }) }));
   assert.equal(missing.status, 404);
 
-  const incompatible = hub.launches.add({ backend: "herdr", worktreeId: "h1", worktreePath: "/h/wt" });
+  const incompatible = hub.launches.add({
+    backend: "herdr",
+    message: "old launch",
+    mode: "exec",
+    domain: null,
+    repo: "lif-notes",
+    name: "old-launch-0900",
+    model: null,
+    effort: null,
+    worktreeId: "h1",
+    worktreePath: "/h/wt",
+  });
   const mismatch = handle(hub, req({ method: "POST", url: "/api/focus", body: JSON.stringify({ id: incompatible.id }) }));
   assert.equal(mismatch.status, 409);
   assert.match(JSON.parse(mismatch.body).error, /belongs to herdr/);
