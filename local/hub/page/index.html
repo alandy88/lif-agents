@@ -248,6 +248,7 @@
         var card = el('div', 'msg')
         var box = el('div', 'route')
         var head = el('div', '', 'Routed: ' + label(routed.classification) + '   ·   worktree ' + routed.name)
+        var modeDefaults = function (m) { return state.profiles.modes[m] || { model: '', effort: '' } }
         var row = el('div', 'row')
 
         var modeL = el('label', '', 'mode'), modeS = document.createElement('select')
@@ -263,7 +264,17 @@
         var repoL = el('label', '', 'repo'), repoS = document.createElement('select')
         fillSelect(repoS, state.profiles.repos.map(function (r) { return r.displayName }), routed.classification.repo)
         repoL.appendChild(repoS)
-        row.appendChild(modeL); row.appendChild(domL); row.appendChild(repoL)
+        var modelL = el('label', '', 'model'), modelS = document.createElement('select')
+        fillSelect(modelS, state.profiles.models, routed.model, 'default')
+        modelL.appendChild(modelS)
+        var effL = el('label', '', 'effort'), effS = document.createElement('select')
+        fillSelect(effS, state.profiles.efforts, routed.effort, 'default')
+        effL.appendChild(effS)
+        modeS.addEventListener('change', function () {
+          var d = modeDefaults(modeS.value)
+          modelS.value = d.model || ''; effS.value = d.effort || ''
+        })
+        row.appendChild(modeL); row.appendChild(domL); row.appendChild(repoL); row.appendChild(modelL); row.appendChild(effL)
 
         var det = document.createElement('details')
         det.appendChild(el('summary', '', 'Show the prompt the agent will get'))
@@ -280,7 +291,7 @@
         start.addEventListener('click', function () {
           start.disabled = cancel.disabled = true
           start.textContent = 'Starting…'
-          api('/api/launch', { message: message, mode: modeS.value, domain: domS.value || 'none', repo: repoS.value })
+          api('/api/launch', { message: message, mode: modeS.value, domain: domS.value || 'none', repo: repoS.value, model: modelS.value, effort: effS.value })
             .then(function (r) {
               card.remove()
               var m = say('Started ' + state.profiles.agent + ' in ' + (r.worktreePath || r.name), 'hub')
@@ -314,6 +325,7 @@
           var tags = el('div', 'tags')
           tags.appendChild(el('span', 'tag', l.mode + (l.domain ? '/' + l.domain : '')))
           tags.appendChild(el('span', 'tag', l.repo))
+          if (l.model || l.effort) tags.appendChild(el('span', 'tag', [l.model, l.effort].filter(Boolean).join(' ')))
           tags.appendChild(el('span', 'tag', whenLabel(l.at)))
           d.appendChild(tags)
           d.addEventListener('click', function () {
@@ -363,7 +375,7 @@
         Object.keys(p.modes).forEach(function (k) {
           var c = el('button', 'chip', k); c.type = 'button'; c.setAttribute('data-mode', k); $('modes').appendChild(c)
           var h = el('div')
-          h.appendChild(el('b', '', k)); h.appendChild(el('span', 'd', p.modes[k].describe))
+          h.appendChild(el('b', '', k)); h.appendChild(el('span', 'd', p.modes[k].describe + ((p.modes[k].model || p.modes[k].effort) ? ' [' + [p.modes[k].model, p.modes[k].effort].filter(Boolean).join(', ') + ']' : '')))
           Object.keys(p.modes[k].domains).forEach(function (d) {
             var dd = el('div', 'd', '· ' + d + ': ' + p.modes[k].domains[d]); dd.style.paddingLeft = '56px'; h.appendChild(dd)
           })

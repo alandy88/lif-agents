@@ -4,6 +4,8 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 
 - **Two halves, one root.** `local/` is the personal-machine setup; `remote/` is the kit,
   the package other repos install. They share nothing but the repository.
+- **The one shipped skill is `skills/lif-dispatch/`** (`SKILL.md` plus `references/`); it
+  fronts `local/dispatch/`.
 - **Asked to "install this" on a machine? Read
   [local/install/AGENTS.md](local/install/AGENTS.md) — not the README's kit section.**
   `npm i -D github:alandy88/lif-agents` installs the *kit* and does nothing to this
@@ -45,9 +47,10 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   deleted: `local/` here is now the only home for the terminal config, there is nothing
   left to `git subtree pull` from, and edits go straight into this repo. Only a real
   merge commit (not a squash merge) keeps lif-terminal's history reachable from `main`.
-  See `/home/peter/firstmate/data/agentcfg-monorepo-v1/report.md`.
+  See the firstmate report `data/agentcfg-monorepo-v1/report.md` — remote, on the Mac mini
+  at `firstmate@peter-macmini:/Users/firstmate/firstmate/`, not on this machine.
 - The design rationale for holding both halves in one repo, and the kit's full consumer
-  reference, are in `/home/peter/firstmate/data/agentcfg-monorepo-v1/report.md` and
+  reference, are in that same remote firstmate report and in
   [remote/README.md](remote/README.md).
 
 ## Releases

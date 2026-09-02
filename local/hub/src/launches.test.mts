@@ -7,7 +7,7 @@ import { test } from "node:test";
 import { MAX_RECORDS, launchLogPath, openLaunchLog } from "./launches.mts";
 
 const rec = (message: string) => ({
-  backend: "orca" as const, message, mode: "exec", domain: null, repo: "r", name: "n", worktreeId: "w", worktreePath: "/w",
+  backend: "orca" as const, message, mode: "exec", domain: null, repo: "r", name: "n", model: null, effort: null, worktreeId: "w", worktreePath: "/w",
 });
 
 test("launchLogPath follows XDG_STATE_HOME, else ~/.local/state", () => {

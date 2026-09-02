@@ -24,7 +24,7 @@ function fakeHub(): Hub & { launched: unknown[]; focused: unknown[] } {
       add: (r) => { const full = { id: `L${records.length + 1}`, at: "now", ...r }; records.unshift(full); return full; },
     },
     profiles: {
-      promptsFile: "", repoIndex: "", baseSection: "b", defaultRepo: "lif-notes", agent: "claude", classifierModel: "m",
+      promptsFile: "", repoIndex: "", baseSection: "b", defaultRepo: "lif-notes", agent: "claude", classifierModel: "m", models: ["opus"], efforts: ["high"],
       modes: { exec: { section: "s", describe: "do", domains: { coding: { section: "d", describe: "code" } } } },
     },
     repos: () => [{ displayName: "lif-notes", path: "/n" }],
@@ -36,7 +36,7 @@ function fakeHub(): Hub & { launched: unknown[]; focused: unknown[] } {
     launch(spec, message, classification) {
       launched.push(spec);
       const r = { worktreeId: "r::/n/wt", worktreePath: "/n/wt" };
-      this.launches.add({ backend: "orca", message, name: spec.name, ...classification, ...r });
+      this.launches.add({ backend: "orca", message, name: spec.name, model: null, effort: null, ...classification, ...r });
       return r;
     },
   };
@@ -55,7 +55,7 @@ test("GET / serves the page", () => {
 test("GET /api/profiles flattens modes and lists repos", () => {
   const r = handle(fakeHub(), req({ url: "/api/profiles" }));
   const j = JSON.parse(r.body);
-  assert.deepEqual(j.modes, { exec: { describe: "do", domains: { coding: "code" } } });
+  assert.deepEqual(j.modes, { exec: { describe: "do", model: "", effort: "", domains: { coding: "code" } } });
   assert.equal(j.repos[0].displayName, "lif-notes");
 });
 

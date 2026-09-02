@@ -11,8 +11,22 @@ export interface LaunchSpec {
   repoPath: string;
   name: string;
   agent: string;
+  model?: string;
+  effort?: string;
   prompt: string;
   activate: boolean;
+}
+
+/** `claude --model X --effort Y`: the flags an agent needs beyond its name. */
+export function agentFlags(spec: LaunchSpec): string[] {
+  const flags: string[] = [];
+  if (spec.model) flags.push("--model", spec.model);
+  if (spec.effort) flags.push("--effort", spec.effort);
+  return flags;
+}
+
+export function shellQuote(arg: string): string {
+  return `'${arg.replace(/'/g, `'\\''`)}'`;
 }
 
 export interface LaunchResult {

@@ -27,6 +27,7 @@
       }
       header h1 { font-size: 14px; margin: 0 0 4px; }
       header .sub { color: var(--muted); font-size: 12px; }
+      header a { color: var(--accent); font-size: 12px; }
       #log {
         flex: 1;
         overflow-y: auto;
@@ -77,16 +78,25 @@
         color: var(--fg);
         font: inherit;
       }
-      select, button.go {
-        padding: 5px 10px;
+      input#repo {
+        flex: 1;
+        min-width: 120px;
+        padding: 5px 8px;
         border: 1px solid var(--line);
         border-radius: 6px;
         background: var(--card);
         color: var(--fg);
         font: inherit;
+      }
+      button.go {
+        padding: 5px 10px;
+        border: 1px solid var(--accent);
+        border-radius: 6px;
+        background: var(--accent);
+        color: #fff;
+        font: inherit;
         cursor: pointer;
       }
-      button.go { background: var(--accent); color: #fff; border-color: var(--accent); }
       button.go:disabled { opacity: 0.5; cursor: default; }
       label.small { font-size: 11px; color: var(--muted); display: flex; gap: 4px; align-items: center; }
       .spacer { flex: 1; }
@@ -97,7 +107,7 @@
     <header>
       <h1>LIF Hub</h1>
       <div class="sub">Say what you want. It picks a mode and a repo, then starts an agent.</div>
-      <div class="row" style="margin-top:6px"><button type="button" class="chip" id="openpage">Open the full hub page</button></div>
+      <div class="row" style="margin-top:6px"><a id="openpage" href="http://127.0.0.1:8765/#/hub" target="_blank" rel="noreferrer">Open the full hub bench</a></div>
     </header>
 
     <div id="log"></div>
@@ -106,18 +116,11 @@
       <div class="row">
         <span class="chips" id="modes">
           <button type="button" class="chip on" data-mode="">auto</button>
-          <button type="button" class="chip" data-mode="explore">explore</button>
-          <button type="button" class="chip" data-mode="plan">plan</button>
-          <button type="button" class="chip" data-mode="exec">exec</button>
-          <button type="button" class="chip" data-mode="verify">verify</button>
-          <button type="button" class="chip" data-mode="deploy">deploy</button>
         </span>
       </div>
       <div class="row">
-        <input id="repo" list="repos" placeholder="repo (blank = auto)" style="flex:1;min-width:120px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg);font:inherit" />
+        <input id="repo" list="repos" placeholder="repo (blank = auto)" />
         <datalist id="repos"></datalist>
-        <select id="term" title="Terminal that runs lif-hub"></select>
-        <button type="button" id="refresh" class="chip" title="Re-read terminals of the focused worktree">↻</button>
       </div>
       <textarea id="text" placeholder="e.g. plan a Bicep module for the gateway's rate limiter"></textarea>
       <div class="row">
@@ -130,43 +133,18 @@
 
     <script>
       'use strict'
-      // Orca caps one terminal.sendText at 4096 chars; base64 grows text by 4/3.
-      var MAX_MESSAGE_CHARS = 2800
-      var REPOS = [
-        'lif-notes', 'lif-studio', 'lif-workbench', 'comfyui-lif-nodes', 'ComfyClaw',
-        'lif-comfy-agent', 'lif-openclaw-agents', 'lif-agents', 'dsh-lif-plugins',
-        'qa-portal', 'slack-bot-blue-print', 'ai-gateway', 'lif-demo', 'ninfer'
-      ]
+      // The hub lives in workbench-lite; every launch is one POST to it.
+      var HUB = 'http://127.0.0.1:8765/hub'
+      var MAX_MESSAGE_CHARS = 4096
+      var FALLBACK_MODES = ['explore', 'plan', 'exec', 'verify', 'deploy']
 
-      var seq = 0
-      var pending = {}
       var logEl = document.getElementById('log')
       var textEl = document.getElementById('text')
-      var termEl = document.getElementById('term')
       var repoEl = document.getElementById('repo')
       var dryEl = document.getElementById('dry')
       var goEl = document.getElementById('go')
       var countEl = document.getElementById('count')
       var mode = ''
-
-      function call(action, params) {
-        return new Promise(function (resolve) {
-          var requestId = 'req-' + ++seq
-          pending[requestId] = resolve
-          window.parent.postMessage(
-            { type: 'orca-panel-action', requestId: requestId, action: action, params: params },
-            '*'
-          )
-        })
-      }
-      window.addEventListener('message', function (event) {
-        var data = event.data
-        if (!data || data.type !== 'orca-panel-action-result') return
-        var resolve = pending[data.requestId]
-        if (!resolve) return
-        delete pending[data.requestId]
-        resolve(data)
-      })
 
       function say(text, who, err) {
         var div = document.createElement('div')
@@ -177,41 +155,40 @@
         return div
       }
 
-      function b64utf8(s) {
-        var bytes = new TextEncoder().encode(s)
-        var bin = ''
-        for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
-        return btoa(bin)
-      }
-
-      function buildCommand(message, opts) {
-        var parts = ['lif-hub']
-        if (opts.mode) parts.push('--mode', opts.mode)
-        if (opts.repo) parts.push('--repo', opts.repo)
-        if (opts.dry) parts.push('--dry-run')
-        parts.push('--b64', b64utf8(message))
-        return parts.join(' ')
-      }
-
-      function refreshTerminals() {
-        return call('workspace.readContext').then(function (r) {
-          termEl.innerHTML = ''
-          if (!r.ok) { say('Cannot read workspace: ' + (r.error || r.errorCode), 'hub', true); return }
-          if (!r.value) { say('Focus a worktree that has a terminal. lif-hub is typed into it.', 'hub', true); return }
-          r.value.terminals.forEach(function (t, i) {
-            var o = document.createElement('option')
-            o.value = t.id
-            o.textContent = 'terminal ' + (i + 1)
-            termEl.appendChild(o)
+      function api(path, body) {
+        var opts = body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {}
+        return fetch(HUB + path, opts).then(function (r) {
+          return r.text().then(function (t) {
+            var j = null
+            try { j = JSON.parse(t) } catch (e) { j = null }
+            if (!r.ok) throw new Error((j && j.detail) || t || ('HTTP ' + r.status))
+            return j
           })
-          if (r.value.terminals.length === 0) say('No terminal in ' + r.value.displayName + '. Open one.', 'hub', true)
+        }, function () {
+          throw new Error('Workbench did not answer from this panel (origin ' + location.origin + '). Is workbench-lite running on 127.0.0.1:8765? If it is, add this origin to WB_HUB_ALLOW_ORIGINS in apps/workbench-lite/.env and restart the service.')
         })
       }
 
-      REPOS.forEach(function (name) {
+      function label(c) { return c.mode + (c.domain ? '/' + c.domain : '') + ' → ' + c.repo }
+
+      function addMode(key) {
+        var c = document.createElement('button')
+        c.type = 'button'; c.className = 'chip'; c.textContent = key; c.setAttribute('data-mode', key)
+        document.getElementById('modes').appendChild(c)
+      }
+      function addRepo(name) {
         var o = document.createElement('option')
         o.value = name
         document.getElementById('repos').appendChild(o)
+      }
+
+      api('/profiles').then(function (p) {
+        Object.keys(p.modes).forEach(addMode)
+        p.repos.forEach(function (r) { addRepo(r.displayName) })
+        if (p.warnings && p.warnings.length) say(p.warnings.join('\n'), 'hub', true)
+      }).catch(function (e) {
+        FALLBACK_MODES.forEach(addMode)
+        say(e.message, 'hub', true)
       })
 
       document.getElementById('modes').addEventListener('click', function (e) {
@@ -220,13 +197,6 @@
         mode = chip.getAttribute('data-mode') || ''
         Array.prototype.forEach.call(document.querySelectorAll('#modes .chip'), function (c) {
           c.classList.toggle('on', c === chip)
-        })
-      })
-      document.getElementById('refresh').addEventListener('click', refreshTerminals)
-      document.getElementById('openpage').addEventListener('click', function () {
-        if (!termEl.value) { say('Pick a terminal first (↻).', 'hub', true); return }
-        call('terminal.sendText', { terminalId: termEl.value, text: 'lif-hub open', enter: true }).then(function (r) {
-          say(r.ok && r.value.accepted ? 'Opening the hub page as a browser tab.' : 'Send failed: ' + (r.error || r.errorCode), 'hub', !(r.ok && r.value.accepted))
         })
       })
       textEl.addEventListener('input', function () {
@@ -245,29 +215,26 @@
         var message = textEl.value.trim()
         if (!message) return
         if (message.length > MAX_MESSAGE_CHARS) { say('Message is over ' + MAX_MESSAGE_CHARS + ' chars. Shorten it.', 'hub', true); return }
-        if (!termEl.value) { say('Pick a terminal first (↻).', 'hub', true); return }
-        var opts = { mode: mode, repo: repoEl.value.trim(), dry: dryEl.checked }
-        var cmd = buildCommand(message, opts)
+        var body = { message: message, mode: mode, repo: repoEl.value.trim() }
+        var dry = dryEl.checked
         say(message, 'me')
         goEl.disabled = true
-        call('terminal.sendText', { terminalId: termEl.value, text: cmd, enter: true }).then(function (r) {
-          goEl.disabled = false
-          if (!r.ok || !r.value.accepted) {
-            say('Send failed: ' + (r.error || r.errorCode || 'not accepted'), 'hub', true)
-            return
-          }
-          var label = (opts.mode || 'auto') + (opts.repo ? ' → ' + opts.repo : '') + (opts.dry ? ' (dry run)' : '')
-          var m = say('Sent to terminal. Watch it for the mode, repo, and new worktree.', 'hub')
+        goEl.textContent = dry ? 'Routing…' : 'Starting…'
+        api(dry ? '/route' : '/launch', body).then(function (r) {
+          var m = say(dry ? 'Would route as ' + label(r.classification) + ' (worktree ' + r.name + '). Nothing started.' : 'Started the agent in ' + (r.worktreePath || r.name), 'hub')
           var meta = document.createElement('div')
           meta.className = 'meta'
-          meta.textContent = label
+          meta.textContent = label(r.classification) + (dry ? ' · ' + r.prompt.length + '-char prompt' : '')
           m.appendChild(meta)
           textEl.value = ''
           countEl.textContent = ''
+        }).catch(function (err) {
+          say((dry ? 'Routing failed: ' : 'Start failed: ') + err.message, 'hub', true)
+        }).then(function () {
+          goEl.disabled = false
+          goEl.textContent = 'Start agent'
         })
       })
-
-      refreshTerminals()
     </script>
   </body>
 </html>

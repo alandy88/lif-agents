@@ -16,6 +16,8 @@ test("buildHerdrCommands creates the worktree, starts the agent in its root pane
   const quiet = buildHerdrCommands({ repoPath: "/r", name: "n", agent: "claude", prompt: "p", activate: false }, "w1:p3");
   assert.ok(quiet[0]?.includes("--no-focus"));
   assert.equal(quiet[1]?.at(-1), "w1:p3");
+  const flagged = buildHerdrCommands({ repoPath: "/r", name: "n", agent: "claude", model: "opus", effort: "max", prompt: "p", activate: false }, "w1:p3");
+  assert.deepEqual(flagged[1], ["agent", "start", "n", "--kind", "claude", "--pane", "w1:p3", "--", "--model", "opus", "--effort", "max"]);
 });
 
 test("herdrAgentName fits Herdr's name rule", () => {

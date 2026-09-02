@@ -5,10 +5,24 @@
   "defaultRepo": "lif-notes",
   "agent": "claude",
   "classifierModel": "claude-haiku-4-5-20251001",
+  "models": [
+    "fable",
+    "opus",
+    "sonnet"
+  ],
+  "efforts": [
+    "low",
+    "medium",
+    "high",
+    "xhigh",
+    "max"
+  ],
   "modes": {
     "explore": {
       "section": "mode-idea-exploration-general",
       "describe": "Thinking out loud, weighing options, brainstorming. No code changes.",
+      "model": "opus",
+      "effort": "medium",
       "domains": {
         "software": {
           "section": "domain-idea-exploration-software-engineering-ai",
@@ -23,6 +37,8 @@
     "plan": {
       "section": "mode-implementation-plan-spec-general",
       "describe": "Write an implementation plan or spec. Read code, produce a document, change nothing.",
+      "model": "opus",
+      "effort": "high",
       "domains": {
         "personal": {
           "section": "domain-implementation-plan-spec-peters-repos-homelab-workbench",
@@ -33,6 +49,8 @@
     "exec": {
       "section": "mode-execution-general",
       "describe": "Do the work: build, change, write. The task is already clear.",
+      "model": "opus",
+      "effort": "high",
       "domains": {
         "coding": {
           "section": "domain-execution-coding",
@@ -43,11 +61,15 @@
     "verify": {
       "section": "mode-verification-testing-general-coding-github-ops-ci",
       "describe": "Test, check, review a PR, read CI, confirm something works. Fix nothing.",
+      "model": "sonnet",
+      "effort": "medium",
       "domains": {}
     },
     "deploy": {
       "section": "mode-deployment",
       "describe": "Ship or install something to a machine, CI, the homelab, or Azure.",
+      "model": "opus",
+      "effort": "high",
       "domains": {}
     }
   }

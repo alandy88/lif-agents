@@ -4,6 +4,9 @@
 export interface ModeProfile {
   section: string;
   describe: string;
+  /** Claude Code `--model` / `--effort` for agents started in this mode; unset means the agent's own default. */
+  model?: string;
+  effort?: string;
   domains: Record<string, { section: string; describe: string }>;
 }
 
@@ -14,6 +17,9 @@ export interface Profiles {
   defaultRepo: string;
   agent: string;
   classifierModel: string;
+  /** Choices the page offers; the CLI accepts anything. */
+  models: string[];
+  efforts: string[];
   modes: Record<string, ModeProfile>;
 }
 

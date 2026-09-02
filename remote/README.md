@@ -1,5 +1,8 @@
 # `@lif/sandcastle-kit` reference
 
+`@lif/sandcastle-kit` is the npm package name; the repository is `lif-agents` (formerly
+`lif-sandcastle`), and the package sources live under `remote/`.
+
 Everything a consumer might need beyond the root [README](../README.md): the
 full config surface, what each preset expects of a repo, prompt customization,
 and composing your own lifecycle out of the phases.

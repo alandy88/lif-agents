@@ -1,31 +1,35 @@
-// Orca backend: repos from `orca repo list`, one `orca worktree create` that
-// starts the agent with the prompt, and the hub page as an Orca browser tab.
-// Executable resolution follows the orca-cli skill's rules.
+// Orca backend: repos from `orca repo list`, `orca worktree create` for the
+// checkout, and the hub page as an Orca browser tab. Executable resolution
+// follows the orca-cli skill's rules.
+//
+// `--agent claude` takes no extra flags, so a launch with a model or effort
+// creates the worktree bare and then starts `claude --model … --effort …` in a
+// new terminal there. Without either, one `--agent --prompt` call does it all.
 
 import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
+import { agentFlags, shellQuote } from "./backend.mts";
 import type { Backend, FocusTarget, LaunchResult, LaunchSpec, Repo } from "./backend.mts";
 
-export function buildOrcaArgs(spec: LaunchSpec): string[] {
-  const args = [
-    "worktree",
-    "create",
-    "--repo",
-    `path:${spec.repoPath}`,
-    "--name",
-    spec.name,
-    "--no-parent",
-    "--agent",
-    spec.agent,
-    "--prompt",
-    spec.prompt,
-    "--json",
-  ];
-  if (spec.activate) args.push("--activate");
-  return args;
+export function buildOrcaArgs(spec: LaunchSpec): string[][] {
+  const create = ["worktree", "create", "--repo", `path:${spec.repoPath}`, "--name", spec.name, "--no-parent"];
+  const flags = agentFlags(spec);
+  if (!flags.length) {
+    create.push("--agent", spec.agent, "--prompt", spec.prompt, "--json");
+    if (spec.activate) create.push("--activate");
+    return [create];
+  }
+  create.push("--json");
+  const command = [spec.agent, ...flags, spec.prompt].map(shellQuote).join(" ");
+  const terminal = ["terminal", "create", "--worktree", `path:${WORKTREE_PATH}`, "--command", command, "--json"];
+  if (spec.activate) terminal.push("--focus");
+  return [create, terminal];
 }
+
+/** Placeholder in the preview for the path `worktree create` will return. */
+export const WORKTREE_PATH = "<worktree>";
 
 export function resolveOrcaExecutable(
   env: NodeJS.ProcessEnv = process.env,
@@ -61,17 +65,28 @@ export function listOrcaRepos(orca: string): Repo[] {
   return parsed.result.repos.map((r) => ({ displayName: r.displayName, path: r.path }));
 }
 
-export function launchOrca(orca: string, spec: LaunchSpec): LaunchResult {
-  const result = spawnSync(orca, buildOrcaArgs(spec), { encoding: "utf8", maxBuffer: 4 * 1024 * 1024 });
+function callOrca<T>(orca: string, args: string[]): T {
+  const result = spawnSync(orca, args, { encoding: "utf8", maxBuffer: 4 * 1024 * 1024 });
   if (result.error) throw new Error(`could not run orca: ${result.error.message}`);
-  let parsed: { ok?: boolean; error?: unknown; result?: { worktree?: { id?: string; path?: string } } };
+  let parsed: { ok?: boolean; error?: unknown; result?: T };
   try {
     parsed = JSON.parse(result.stdout);
   } catch {
-    throw new Error(`orca worktree create gave no JSON (exit ${result.status}): ${result.stderr.slice(0, 400)}`);
+    throw new Error(`orca ${args[0]} ${args[1]} gave no JSON (exit ${result.status}): ${result.stderr.slice(0, 400)}`);
   }
-  if (!parsed.ok) throw new Error(`orca worktree create failed: ${JSON.stringify(parsed.error ?? parsed)}`);
-  return { worktreeId: parsed.result?.worktree?.id ?? null, worktreePath: parsed.result?.worktree?.path ?? null };
+  if (!parsed.ok || parsed.result === undefined) throw new Error(`orca ${args[0]} ${args[1]} failed: ${JSON.stringify(parsed.error ?? parsed)}`);
+  return parsed.result;
+}
+
+export function launchOrca(orca: string, spec: LaunchSpec): LaunchResult {
+  const [create, terminal] = buildOrcaArgs(spec);
+  const created = callOrca<{ worktree?: { id?: string; path?: string } }>(orca, create as string[]);
+  const launched = { worktreeId: created.worktree?.id ?? null, worktreePath: created.worktree?.path ?? null };
+  if (terminal) {
+    if (!launched.worktreePath) throw new Error("orca worktree create returned no path to start the agent in");
+    callOrca(orca, terminal.map((a) => a.replace(WORKTREE_PATH, launched.worktreePath as string)));
+  }
+  return launched;
 }
 
 interface OrcaTerminal {
@@ -103,7 +118,7 @@ export function createOrcaBackend(env: NodeJS.ProcessEnv): Backend {
     name: "orca",
     executable: orca,
     repos: () => listOrcaRepos(orca),
-    preview: (spec) => [[orca, ...buildOrcaArgs(spec)]],
+    preview: (spec) => buildOrcaArgs(spec).map((args) => [orca, ...args]),
     launch: (spec) => launchOrca(orca, spec),
     openPage(url, env) {
       const args = ["tab", "create", "--url", url, "--json"];

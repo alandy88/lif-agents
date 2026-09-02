@@ -10,7 +10,7 @@ const profiles: Profiles = {
   baseSection: "base",
   defaultRepo: "lif-notes",
   agent: "claude",
-  classifierModel: "m",
+  classifierModel: "m", models: ["opus"], efforts: ["high"],
   modes: {
     explore: { section: "s1", describe: "think", domains: { software: { section: "d1", describe: "sw" } } },
     exec: { section: "s2", describe: "do", domains: { coding: { section: "d2", describe: "code" } } },

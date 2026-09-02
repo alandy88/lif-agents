@@ -10,11 +10,13 @@
 //   lif-hub serve [--port N]          run the hub page server in the foreground
 //   lif-hub open [--port N]           start the server if needed and open the page (Orca tab or browser)
 //   lif-hub --backend orca|herdr ...  choose which tool owns the worktree
+//   lif-hub --model opus --effort high ...   override the mode's model and effort
 
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { shellQuote } from "./backend.mts";
 import { createHub } from "./hub.mts";
 import type { Hub } from "./hub.mts";
 import { DEFAULT_PORT, isServerUp, startServer } from "./server.mts";
@@ -25,6 +27,8 @@ interface Args {
   mode?: string;
   domain?: string;
   repo?: string;
+  model?: string;
+  effort?: string;
   dryRun: boolean;
   noActivate: boolean;
   port: number;
@@ -45,6 +49,8 @@ export function parseArgs(argv: readonly string[]): Args {
     else if (a === "--mode") out.mode = next();
     else if (a === "--domain") out.domain = next();
     else if (a === "--repo") out.repo = next();
+    else if (a === "--model") out.model = next();
+    else if (a === "--effort") out.effort = next();
     else if (a === "--port") out.port = Number(next());
     else if (a === "--backend") out.backend = next();
     else if (a === "--b64") out.message = Buffer.from(next(), "base64").toString("utf8");
@@ -61,7 +67,7 @@ export function parseArgs(argv: readonly string[]): Args {
 function printList(hub: Hub): void {
   console.log("modes:");
   for (const [k, m] of Object.entries(hub.profiles.modes)) {
-    console.log(`  ${k.padEnd(8)} ${m.describe}`);
+    console.log(`  ${k.padEnd(8)} ${m.describe}  [${m.model ?? "default model"}, ${m.effort ?? "default effort"}]`);
     for (const [d, v] of Object.entries(m.domains)) console.log(`    --domain ${d.padEnd(10)} ${v.describe}`);
   }
   console.log("repos:");
@@ -106,13 +112,18 @@ export async function main(argv: readonly string[], env: NodeJS.ProcessEnv = pro
     console.error("lif-hub: give me a message (or --list)");
     return 2;
   }
-  const routed = hub.route(args.message, { mode: args.mode, domain: args.domain, repo: args.repo }, !args.noActivate);
+  const routed = hub.route(
+    args.message,
+    { mode: args.mode, domain: args.domain, repo: args.repo, model: args.model, effort: args.effort },
+    !args.noActivate,
+  );
   const { classification, prompt, spec } = routed;
   console.log(
-    `lif-hub: ${classification.mode}${classification.domain ? `/${classification.domain}` : ""} -> ${classification.repo} (${spec.name})`,
+    `lif-hub: ${classification.mode}${classification.domain ? `/${classification.domain}` : ""} -> ${classification.repo} (${spec.name}) ${spec.model ?? ""} ${spec.effort ?? ""}`.trimEnd(),
   );
   if (args.dryRun) {
-    const shown = hub.backend.preview(spec).map((argv) => `$ ${argv.map((a) => (a === prompt ? "<prompt>" : a)).join(" ")}`);
+    const hide = (a: string): string => a.replace(shellQuote(prompt), "'<prompt>'").replace(prompt, "<prompt>");
+    const shown = hub.backend.preview(spec).map((argv) => `$ ${argv.map(hide).join(" ")}`);
     console.log(`\n${shown.join("\n")}\n\n${prompt}`);
     return 0;
   }

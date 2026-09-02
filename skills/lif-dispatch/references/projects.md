@@ -13,11 +13,11 @@ Copy `<checkout>/local/dispatch/projects.example.json` to
 
 ```json
 {
-  "scratchRoot": "C:/Users/peter/.lif-worktrees",
+  "scratchRoot": "/home/peteryu/.lif-worktrees",
   "session": "default",
   "projects": {
     "lif-agents": {
-      "path": "D:/Git/lif-agents",
+      "path": "/home/peteryu/github/personal/lif-agents",
       "harness": "claude",
       "baseBranch": "main"
     }

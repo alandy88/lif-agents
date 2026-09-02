@@ -17,12 +17,21 @@ Herdr keeps no repo registry, so its repos are the git checkouts under
 `$LIF_GITHUB_DIR/personal`. Repo descriptions come from `$LIF_GITHUB_DIR/personal/AGENTS.md`
 either way. The classifier is one `claude -p` call on the model named in `profiles.json`.
 
+Each mode in `profiles.json` may name a `model` and `effort` for the agent it starts
+(Claude Code's `--model` and `--effort`); `models` and `efforts` list what the page
+offers. `--model`/`--effort` on the CLI, or the two dropdowns on the route card, override
+the mode. Orca's `--agent claude` takes no extra flags, so with a model or effort set the
+Orca launch is two calls: a bare `worktree create`, then `terminal create --command
+"claude --model … --effort … '<prompt>'"` in the new checkout. Leave both unset on a mode
+to get the one-call `--agent --prompt` launch.
+
     lif-hub --list                                 modes, domains, repos
     lif-hub --dry-run "..."                        show routing and the full prompt, launch nothing
     lif-hub --mode exec --repo lif-studio "..."    skip the classifier
     lif-hub --domain none "..."                    override just the domain
     lif-hub --b64 <base64>                         shell-safe message (what the Orca panel sends)
     lif-hub --backend herdr "..."                  launch through Herdr instead of Orca
+    lif-hub --model sonnet --effort low "..."      override the mode's model and effort
 
 Needs `LIF_NOTES_DIR` and `LIF_GITHUB_DIR`, both set by the environment overlay
 (`~/.config/lif-host.sh`). Installed to `~/.local/bin/lif-hub` by `local/install/install.sh`.

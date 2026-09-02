@@ -92,7 +92,7 @@ function Invoke-LifClaude {
     $env:CLAUDE_CONFIG_DIR = $ConfigDir
     try {
         switch -Exact ($sub) {
-            'fable'    { claude @base --model claude-fable-5 @rest }
+            'fable'    { claude @base --model claude-fable-5-1 @rest }
             'opus'     { claude @base --model claude-opus-5 @rest }
             'opus1m'   { claude @base --model 'claude-opus-5[1m]' @rest }
             'opus45'   { claude @base --model claude-opus-4-5-20251101 @rest }

@@ -6,6 +6,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
+import { agentFlags } from "./backend.mts";
 import type { Backend, LaunchResult, LaunchSpec, Repo } from "./backend.mts";
 
 export function listHerdrRepos(env: NodeJS.ProcessEnv, root?: string): Repo[] {
@@ -26,9 +27,10 @@ export function herdrAgentName(name: string): string {
 
 export function buildHerdrCommands(spec: LaunchSpec, paneId = "<pane>"): string[][] {
   const agentName = herdrAgentName(spec.name);
+  const flags = agentFlags(spec);
   return [
     ["worktree", "create", "--cwd", spec.repoPath, "--branch", spec.name, "--label", spec.name, spec.activate ? "--focus" : "--no-focus"],
-    ["agent", "start", agentName, "--kind", spec.agent, "--pane", paneId],
+    ["agent", "start", agentName, "--kind", spec.agent, "--pane", paneId, ...(flags.length ? ["--", ...flags] : [])],
     ["agent", "prompt", agentName, spec.prompt],
   ];
 }

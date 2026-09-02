@@ -1,15 +1,25 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { buildOrcaArgs, pickOrcaTerminal, resolveOrcaExecutable } from "./orca.mts";
+import { WORKTREE_PATH, buildOrcaArgs, pickOrcaTerminal, resolveOrcaExecutable } from "./orca.mts";
 
-test("buildOrcaArgs targets the repo by path and launches the agent with the prompt", () => {
-  const args = buildOrcaArgs({ repoPath: "/r", name: "n", agent: "claude", prompt: "p q", activate: true });
-  assert.deepEqual(args, [
+test("buildOrcaArgs without model or effort is one create call with the agent and prompt", () => {
+  const [create, ...rest] = buildOrcaArgs({ repoPath: "/r", name: "n", agent: "claude", prompt: "p q", activate: true });
+  assert.deepEqual(create, [
     "worktree", "create", "--repo", "path:/r", "--name", "n", "--no-parent",
     "--agent", "claude", "--prompt", "p q", "--json", "--activate",
   ]);
-  assert.ok(!buildOrcaArgs({ repoPath: "/r", name: "n", agent: "claude", prompt: "p", activate: false }).includes("--activate"));
+  assert.equal(rest.length, 0);
+  assert.ok(!buildOrcaArgs({ repoPath: "/r", name: "n", agent: "claude", prompt: "p", activate: false })[0]?.includes("--activate"));
+});
+
+test("buildOrcaArgs with a model or effort creates bare, then starts claude with flags in a terminal", () => {
+  const cmds = buildOrcaArgs({ repoPath: "/r", name: "n", agent: "claude", model: "opus", effort: "high", prompt: "it's p", activate: true });
+  assert.deepEqual(cmds[0], ["worktree", "create", "--repo", "path:/r", "--name", "n", "--no-parent", "--json"]);
+  assert.deepEqual(cmds[1], [
+    "terminal", "create", "--worktree", `path:${WORKTREE_PATH}`,
+    "--command", "'claude' '--model' 'opus' '--effort' 'high' 'it'\\''s p'", "--json", "--focus",
+  ]);
 });
 
 test("resolveOrcaExecutable honours ORCA_CLI_COMMAND first", () => {

@@ -15,6 +15,8 @@ export interface LaunchRecord {
   domain: string | null;
   repo: string;
   name: string;
+  model: string | null;
+  effort: string | null;
   worktreeId: string | null;
   worktreePath: string | null;
 }

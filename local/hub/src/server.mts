@@ -33,7 +33,7 @@ function json(status: number, value: unknown): HubResponse {
 
 function overridesFrom(raw: Record<string, unknown>): Overrides {
   const pick = (k: string): string | undefined => (typeof raw[k] === "string" && raw[k] !== "" ? (raw[k] as string) : undefined);
-  return { mode: pick("mode"), domain: pick("domain"), repo: pick("repo") };
+  return { mode: pick("mode"), domain: pick("domain"), repo: pick("repo"), model: pick("model"), effort: pick("effort") };
 }
 
 /** Pure request handler so it can be tested without sockets. */
@@ -47,7 +47,12 @@ export function handle(hub: Hub, req: HubRequest, readPage: () => string = () =>
     const modes = Object.fromEntries(
       Object.entries(hub.profiles.modes).map(([k, m]) => [
         k,
-        { describe: m.describe, domains: Object.fromEntries(Object.entries(m.domains).map(([d, v]) => [d, v.describe])) },
+        {
+          describe: m.describe,
+          model: m.model ?? "",
+          effort: m.effort ?? "",
+          domains: Object.fromEntries(Object.entries(m.domains).map(([d, v]) => [d, v.describe])),
+        },
       ]),
     );
     return json(200, {
@@ -55,6 +60,8 @@ export function handle(hub: Hub, req: HubRequest, readPage: () => string = () =>
       repos: hub.repos(),
       defaultRepo: hub.profiles.defaultRepo,
       agent: hub.profiles.agent,
+      models: hub.profiles.models,
+      efforts: hub.profiles.efforts,
       backend: hub.backend.name,
     });
   }
@@ -79,7 +86,14 @@ export function handle(hub: Hub, req: HubRequest, readPage: () => string = () =>
       const overrides = overridesFrom(body);
       if (url.pathname === "/api/route") {
         const r = hub.route(message, overrides);
-        return json(200, { classification: r.classification, name: r.spec.name, repoPath: r.spec.repoPath, prompt: r.prompt });
+        return json(200, {
+          classification: r.classification,
+          name: r.spec.name,
+          repoPath: r.spec.repoPath,
+          model: r.spec.model ?? "",
+          effort: r.spec.effort ?? "",
+          prompt: r.prompt,
+        });
       }
       if (url.pathname === "/api/launch") {
         const r = hub.route(message, overrides);

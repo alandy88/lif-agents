@@ -20,6 +20,8 @@ export interface Overrides {
   mode?: string;
   domain?: string;
   repo?: string;
+  model?: string;
+  effort?: string;
 }
 
 export interface Routed {
@@ -120,7 +122,15 @@ export function createHub(env: NodeJS.ProcessEnv = process.env, backendOverride?
       return {
         classification,
         prompt,
-        spec: { repoPath: repo.path, name: worktreeName(classification.title), agent: profiles.agent, prompt, activate },
+        spec: {
+          repoPath: repo.path,
+          name: worktreeName(classification.title),
+          agent: profiles.agent,
+          model: overrides.model ?? modeProfile.model,
+          effort: overrides.effort ?? modeProfile.effort,
+          prompt,
+          activate,
+        },
       };
     },
     launch(spec, message, classification): LaunchResult {
@@ -132,6 +142,8 @@ export function createHub(env: NodeJS.ProcessEnv = process.env, backendOverride?
         domain: classification.domain,
         repo: classification.repo,
         name: spec.name,
+        model: spec.model ?? null,
+        effort: spec.effort ?? null,
         ...launched,
       });
       return launched;

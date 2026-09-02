@@ -15,6 +15,9 @@ test("parseArgs: --b64 decodes utf8 and overrides win", () => {
   assert.equal(a.mode, "exec");
   assert.equal(a.repo, "r");
   assert.equal(a.dryRun, true);
+  const b = parseArgs(["--model", "sonnet", "--effort", "low", "x"]);
+  assert.equal(b.model, "sonnet");
+  assert.equal(b.effort, "low");
 });
 
 test("parseArgs: serve/open subcommands and --port", () => {
