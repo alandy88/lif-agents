@@ -1,4 +1,4 @@
 #!/bin/sh
-# Route one message to an Orca agent session. Logic lives in local/hub/src/.
+# Route one message to an agent worktree in Orca or Herdr. Logic lives in local/hub/src/.
 here=$(dirname "$(readlink -f "$0")")
 exec node --experimental-strip-types "$here/../hub/src/cli.mts" "$@"

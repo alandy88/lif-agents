@@ -165,7 +165,9 @@
       .compose-row .spacer { flex: 1; }
       .hint { font-size: 11px; color: var(--muted); }
 
-      .launch { padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); margin-bottom: 8px; }
+      .launch { padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); margin-bottom: 8px; cursor: pointer; }
+      .launch:hover { border-color: var(--accent); }
+      .launch.err { border-color: #c44; }
       .launch .title { font-weight: 600; font-size: 13px; }
       .launch .where { font-size: 12px; color: var(--muted); word-break: break-all; }
       .launch .tags { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
@@ -202,7 +204,7 @@
     <aside>
       <h2>Modes</h2>
       <div class="modes-help" id="modes-help"></div>
-      <h2>Started this session</h2>
+      <h2>Started</h2>
       <div id="launches"><div class="empty">Nothing yet.</div></div>
     </aside>
 
@@ -283,7 +285,7 @@
               card.remove()
               var m = say('Started ' + state.profiles.agent + ' in ' + (r.worktreePath || r.name), 'hub')
               m.appendChild(el('div', 'meta', label(r.classification)))
-              addLaunch(message, r)
+              loadLaunches()
             })
             .catch(function (e) {
               start.disabled = cancel.disabled = false
@@ -294,21 +296,39 @@
         return post(card)
       }
 
-      function addLaunch(message, r) {
-        state.launches.unshift({ message: message, r: r, at: new Date() })
+      function whenLabel(iso) {
+        var d = new Date(iso), now = new Date()
+        var hm = d.toTimeString().slice(0, 5)
+        return d.toDateString() === now.toDateString() ? hm : d.toISOString().slice(5, 10) + ' ' + hm
+      }
+
+      function renderLaunches() {
         var host = $('launches')
         host.innerHTML = ''
+        if (!state.launches.length) { host.appendChild(el('div', 'empty', 'Nothing yet.')); return }
         state.launches.forEach(function (l) {
           var d = el('div', 'launch')
+          d.title = 'Click to open this agent in ' + (l.backend || 'the tool')
           d.appendChild(el('div', 'title', l.message.length > 80 ? l.message.slice(0, 77) + '…' : l.message))
-          d.appendChild(el('div', 'where', (l.r.worktreePath || l.r.name)))
+          d.appendChild(el('div', 'where', l.worktreePath || l.name))
           var tags = el('div', 'tags')
-          tags.appendChild(el('span', 'tag', l.r.classification.mode + (l.r.classification.domain ? '/' + l.r.classification.domain : '')))
-          tags.appendChild(el('span', 'tag', l.r.classification.repo))
-          tags.appendChild(el('span', 'tag', l.at.toTimeString().slice(0, 5)))
+          tags.appendChild(el('span', 'tag', l.mode + (l.domain ? '/' + l.domain : '')))
+          tags.appendChild(el('span', 'tag', l.repo))
+          tags.appendChild(el('span', 'tag', whenLabel(l.at)))
           d.appendChild(tags)
+          d.addEventListener('click', function () {
+            d.classList.remove('err')
+            api('/api/focus', { id: l.id }).catch(function (e) {
+              d.classList.add('err')
+              say('Could not open ' + l.name + ': ' + e.message, 'hub', true)
+            })
+          })
           host.appendChild(d)
         })
+      }
+
+      function loadLaunches() {
+        return api('/api/launches').then(function (j) { state.launches = j.launches; renderLaunches() })
       }
 
       function setBusy(b) { state.busy = b; goEl.disabled = b; goEl.textContent = b ? 'Routing…' : 'Route' }
@@ -351,6 +371,7 @@
         })
         p.repos.forEach(function (r) { repoEl.appendChild(new Option('repo: ' + r.displayName, r.displayName)) })
         textEl.focus()
+        loadLaunches().catch(function (e) { say('Could not load past launches: ' + e.message, 'hub', true) })
       }).catch(function (e) {
         $('health').textContent = 'server error'
         $('health').className = 'pill bad'

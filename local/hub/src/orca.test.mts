@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { buildOrcaArgs, resolveOrcaExecutable, worktreeName } from "./launch.mts";
+import { buildOrcaArgs, pickOrcaTerminal, resolveOrcaExecutable } from "./orca.mts";
 
 test("buildOrcaArgs targets the repo by path and launches the agent with the prompt", () => {
   const args = buildOrcaArgs({ repoPath: "/r", name: "n", agent: "claude", prompt: "p q", activate: true });
@@ -10,10 +10,6 @@ test("buildOrcaArgs targets the repo by path and launches the agent with the pro
     "--agent", "claude", "--prompt", "p q", "--json", "--activate",
   ]);
   assert.ok(!buildOrcaArgs({ repoPath: "/r", name: "n", agent: "claude", prompt: "p", activate: false }).includes("--activate"));
-});
-
-test("worktreeName appends the clock time", () => {
-  assert.equal(worktreeName("fix-bug", new Date(2026, 8, 2, 9, 5)), "fix-bug-0905");
 });
 
 test("resolveOrcaExecutable honours ORCA_CLI_COMMAND first", () => {
@@ -30,4 +26,15 @@ test("resolveOrcaExecutable on linux prefers orca-ide and refuses the GNOME scre
 
 test("resolveOrcaExecutable elsewhere is plain orca", () => {
   assert.equal(resolveOrcaExecutable({}, "darwin", () => false), "orca");
+});
+
+test("pickOrcaTerminal prefers the agent's terminal in the target worktree", () => {
+  const terms = [
+    { handle: "t1", worktreeId: "a::/a", worktreePath: "/a", agentIdentity: null },
+    { handle: "t2", worktreeId: "b::/b", worktreePath: "/b", agentIdentity: null },
+    { handle: "t3", worktreeId: "b::/b", worktreePath: "/b", agentIdentity: { kind: "claude" } },
+  ];
+  assert.equal(pickOrcaTerminal(terms, { worktreeId: "b::/b", worktreePath: null })?.handle, "t3");
+  assert.equal(pickOrcaTerminal(terms, { worktreeId: null, worktreePath: "/a" })?.handle, "t1");
+  assert.equal(pickOrcaTerminal(terms, { worktreeId: null, worktreePath: "/zzz" }), undefined);
 });

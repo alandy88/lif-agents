@@ -1,21 +1,20 @@
-// The pipeline behind both the CLI and the hub page: load config, list Orca
-// repos, classify a message, assemble the prompt, launch the worktree.
+// The pipeline behind both the CLI and the hub page: load config, list the
+// backend's repos, classify a message, assemble the prompt, launch the worktree.
 
-import { execFileSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { backendName, worktreeName } from "./backend.mts";
+import type { Backend, LaunchResult, LaunchSpec, Repo } from "./backend.mts";
 import { applyOverrides, buildClassifierPrompt, parseClassification } from "./classify.mts";
 import type { Classification, Profiles } from "./classify.mts";
-import { buildOrcaArgs, resolveOrcaExecutable, worktreeName } from "./launch.mts";
-import type { LaunchSpec } from "./launch.mts";
+import { createHerdrBackend } from "./herdr.mts";
+import { launchLogPath, openLaunchLog } from "./launches.mts";
+import type { LaunchLog } from "./launches.mts";
+import { createOrcaBackend } from "./orca.mts";
 import { assemblePrompt, parsePromptSections } from "./prompts.mts";
-
-export interface OrcaRepo {
-  displayName: string;
-  path: string;
-}
 
 export interface Overrides {
   mode?: string;
@@ -29,17 +28,13 @@ export interface Routed {
   spec: LaunchSpec;
 }
 
-export interface LaunchResult {
-  worktreeId: string | null;
-  worktreePath: string | null;
-}
-
 export interface Hub {
   profiles: Profiles;
-  orca: string;
-  repos(): OrcaRepo[];
+  backend: Backend;
+  launches: LaunchLog;
+  repos(): Repo[];
   route(message: string, overrides: Overrides, activate?: boolean): Routed;
-  launch(spec: LaunchSpec): LaunchResult;
+  launch(spec: LaunchSpec, message: string, classification: Classification): LaunchResult;
 }
 
 function expandEnv(value: string, env: NodeJS.ProcessEnv): string {
@@ -58,11 +53,8 @@ export function loadProfiles(env: NodeJS.ProcessEnv): Profiles {
   return raw;
 }
 
-export function listOrcaRepos(orca: string): OrcaRepo[] {
-  const out = execFileSync(orca, ["repo", "list", "--json"], { encoding: "utf8" });
-  const parsed = JSON.parse(out) as { ok: boolean; result?: { repos: OrcaRepo[] }; error?: unknown };
-  if (!parsed.ok || !parsed.result) throw new Error(`orca repo list failed: ${JSON.stringify(parsed.error)}`);
-  return parsed.result.repos.map((r) => ({ displayName: r.displayName, path: r.path }));
+export function selectBackend(env: NodeJS.ProcessEnv, override?: string): Backend {
+  return backendName(env, override) === "herdr" ? createHerdrBackend(env) : createOrcaBackend(env);
 }
 
 export function runClassifier(model: string, prompt: string): string {
@@ -85,15 +77,17 @@ export function titleFromMessage(message: string): string {
   );
 }
 
-export function createHub(env: NodeJS.ProcessEnv = process.env): Hub {
+export function createHub(env: NodeJS.ProcessEnv = process.env, backendOverride?: string): Hub {
   const profiles = loadProfiles(env);
-  const orca = resolveOrcaExecutable(env);
-  let repoCache: OrcaRepo[] | null = null;
-  const repos = (): OrcaRepo[] => (repoCache ??= listOrcaRepos(orca));
+  const backend = selectBackend(env, backendOverride);
+  const launches = openLaunchLog(launchLogPath(env));
+  let repoCache: Repo[] | null = null;
+  const repos = (): Repo[] => (repoCache ??= backend.repos());
 
   return {
     profiles,
-    orca,
+    backend,
+    launches,
     repos,
     route(message, overrides, activate = true) {
       const all = repos();
@@ -122,24 +116,25 @@ export function createHub(env: NodeJS.ProcessEnv = process.env): Hub {
         task: message,
       });
       const repo = all.find((r) => r.displayName === classification.repo);
-      if (!repo) throw new Error(`repo "${classification.repo}" is not registered in Orca`);
+      if (!repo) throw new Error(`repo "${classification.repo}" is unknown to ${backend.name}`);
       return {
         classification,
         prompt,
         spec: { repoPath: repo.path, name: worktreeName(classification.title), agent: profiles.agent, prompt, activate },
       };
     },
-    launch(spec) {
-      const result = spawnSync(orca, buildOrcaArgs(spec), { encoding: "utf8", maxBuffer: 4 * 1024 * 1024 });
-      if (result.error) throw new Error(`could not run orca: ${result.error.message}`);
-      let parsed: { ok?: boolean; error?: unknown; result?: { worktree?: { id?: string; path?: string } } };
-      try {
-        parsed = JSON.parse(result.stdout);
-      } catch {
-        throw new Error(`orca worktree create gave no JSON (exit ${result.status}): ${result.stderr.slice(0, 400)}`);
-      }
-      if (!parsed.ok) throw new Error(`orca worktree create failed: ${JSON.stringify(parsed.error ?? parsed)}`);
-      return { worktreeId: parsed.result?.worktree?.id ?? null, worktreePath: parsed.result?.worktree?.path ?? null };
+    launch(spec, message, classification): LaunchResult {
+      const launched = backend.launch(spec);
+      launches.add({
+        backend: backend.name,
+        message,
+        mode: classification.mode,
+        domain: classification.domain,
+        repo: classification.repo,
+        name: spec.name,
+        ...launched,
+      });
+      return launched;
     },
   };
 }

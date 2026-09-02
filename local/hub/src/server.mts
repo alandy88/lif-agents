@@ -50,8 +50,15 @@ export function handle(hub: Hub, req: HubRequest, readPage: () => string = () =>
         { describe: m.describe, domains: Object.fromEntries(Object.entries(m.domains).map(([d, v]) => [d, v.describe])) },
       ]),
     );
-    return json(200, { modes, repos: hub.repos(), defaultRepo: hub.profiles.defaultRepo, agent: hub.profiles.agent });
+    return json(200, {
+      modes,
+      repos: hub.repos(),
+      defaultRepo: hub.profiles.defaultRepo,
+      agent: hub.profiles.agent,
+      backend: hub.backend.name,
+    });
   }
+  if (req.method === "GET" && url.pathname === "/api/launches") return json(200, { launches: hub.launches.list() });
   if (req.method === "POST") {
     if (req.origin && req.host && new URL(req.origin).host !== req.host) return json(403, { error: "cross-origin request refused" });
     let body: Record<string, unknown>;
@@ -60,17 +67,23 @@ export function handle(hub: Hub, req: HubRequest, readPage: () => string = () =>
     } catch {
       return json(400, { error: "body must be JSON" });
     }
-    const message = typeof body.message === "string" ? body.message.trim() : "";
-    if (!message) return json(400, { error: "message is required" });
-    const overrides = overridesFrom(body);
     try {
+      if (url.pathname === "/api/focus") {
+        const record = typeof body.id === "string" ? hub.launches.get(body.id) : undefined;
+        if (!record) return json(404, { error: "no such launch" });
+        hub.backend.focus(record);
+        return json(200, { ok: true });
+      }
+      const message = typeof body.message === "string" ? body.message.trim() : "";
+      if (!message) return json(400, { error: "message is required" });
+      const overrides = overridesFrom(body);
       if (url.pathname === "/api/route") {
         const r = hub.route(message, overrides);
         return json(200, { classification: r.classification, name: r.spec.name, repoPath: r.spec.repoPath, prompt: r.prompt });
       }
       if (url.pathname === "/api/launch") {
         const r = hub.route(message, overrides);
-        const launched = hub.launch(r.spec);
+        const launched = hub.launch(r.spec, message, r.classification);
         return json(200, { classification: r.classification, name: r.spec.name, repoPath: r.spec.repoPath, ...launched });
       }
     } catch (error) {

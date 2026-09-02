@@ -1,5 +1,6 @@
-// lif-hub: classify one message, assemble the starter prompt, launch an Orca
-// worktree with the agent already working on it.
+// lif-hub: classify one message, assemble the starter prompt, launch a
+// worktree with the agent already working on it. Orca or Herdr owns the
+// worktree: LIF_HUB_BACKEND / --backend picks, else Herdr inside a Herdr pane.
 //
 //   lif-hub "message"                 classify + launch
 //   lif-hub --b64 <base64-message>    same, message shell-safe (the Orca side panel uses this)
@@ -7,15 +8,15 @@
 //   lif-hub --dry-run ...             print what would run, launch nothing
 //   lif-hub --list                    print modes, domains, repos
 //   lif-hub serve [--port N]          run the hub page server in the foreground
-//   lif-hub open [--port N]           start the server if needed and open the page as an Orca browser tab
+//   lif-hub open [--port N]           start the server if needed and open the page (Orca tab or browser)
+//   lif-hub --backend orca|herdr ...  choose which tool owns the worktree
 
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createHub } from "./hub.mts";
 import type { Hub } from "./hub.mts";
-import { buildOrcaArgs } from "./launch.mts";
 import { DEFAULT_PORT, isServerUp, startServer } from "./server.mts";
 
 interface Args {
@@ -27,6 +28,7 @@ interface Args {
   dryRun: boolean;
   noActivate: boolean;
   port: number;
+  backend?: string;
 }
 
 export function parseArgs(argv: readonly string[]): Args {
@@ -44,6 +46,7 @@ export function parseArgs(argv: readonly string[]): Args {
     else if (a === "--domain") out.domain = next();
     else if (a === "--repo") out.repo = next();
     else if (a === "--port") out.port = Number(next());
+    else if (a === "--backend") out.backend = next();
     else if (a === "--b64") out.message = Buffer.from(next(), "base64").toString("utf8");
     else if (a === "--dry-run") out.dryRun = true;
     else if (a === "--list" || a === "-h" || a === "--help") out.command = "list";
@@ -63,7 +66,8 @@ function printList(hub: Hub): void {
   }
   console.log("repos:");
   for (const r of hub.repos()) console.log(`  ${r.displayName.padEnd(22)} ${r.path}`);
-  console.log("\nlif-hub serve | open   run the hub page / open it as an Orca browser tab");
+  console.log(`\nbackend: ${hub.backend.name} (${hub.backend.executable})`);
+  console.log("lif-hub serve | open   run the hub page / open it in Orca or the browser");
 }
 
 async function openHubTab(hub: Hub, port: number, env: NodeJS.ProcessEnv): Promise<number> {
@@ -78,21 +82,14 @@ async function openHubTab(hub: Hub, port: number, env: NodeJS.ProcessEnv): Promi
     for (let i = 0; i < 40 && !(await isServerUp(port)); i++) await new Promise((r) => setTimeout(r, 100));
     if (!(await isServerUp(port))) throw new Error(`hub server did not come up on ${url}`);
   }
-  const home = env.LIF_NOTES_DIR;
-  const args = ["tab", "create", "--url", url, "--json"];
-  if (home) args.push("--worktree", `path:${home}`);
-  const result = spawnSync(hub.orca, args, { encoding: "utf8" });
-  if (result.status !== 0) {
-    console.error(result.stdout, result.stderr);
-    return result.status ?? 1;
-  }
+  hub.backend.openPage(url, env);
   console.log(`hub open at ${url}`);
   return 0;
 }
 
 export async function main(argv: readonly string[], env: NodeJS.ProcessEnv = process.env): Promise<number> {
   const args = parseArgs(argv);
-  const hub = createHub(env);
+  const hub = createHub(env, args.backend);
 
   if (args.command === "list") {
     printList(hub);
@@ -115,11 +112,11 @@ export async function main(argv: readonly string[], env: NodeJS.ProcessEnv = pro
     `lif-hub: ${classification.mode}${classification.domain ? `/${classification.domain}` : ""} -> ${classification.repo} (${spec.name})`,
   );
   if (args.dryRun) {
-    const shown = buildOrcaArgs(spec).map((a) => (a === prompt ? "<prompt>" : a)).join(" ");
-    console.log(`\n$ ${hub.orca} ${shown}\n\n${prompt}`);
+    const shown = hub.backend.preview(spec).map((argv) => `$ ${argv.map((a) => (a === prompt ? "<prompt>" : a)).join(" ")}`);
+    console.log(`\n${shown.join("\n")}\n\n${prompt}`);
     return 0;
   }
-  const launched = hub.launch(spec);
+  const launched = hub.launch(spec, args.message, classification);
   console.log(`launched ${spec.agent} in ${launched.worktreePath ?? "(new worktree)"}`);
   return 0;
 }

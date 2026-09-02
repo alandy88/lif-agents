@@ -2,13 +2,27 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { Hub } from "./hub.mts";
+import type { LaunchRecord } from "./launches.mts";
 import { handle } from "./server.mts";
 
-function fakeHub(): Hub & { launched: unknown[] } {
+function fakeHub(): Hub & { launched: unknown[]; focused: unknown[] } {
   const launched: unknown[] = [];
+  const focused: unknown[] = [];
+  const records: LaunchRecord[] = [];
   return {
     launched,
-    orca: "orca",
+    focused,
+    backend: {
+      name: "orca", executable: "orca", repos: () => [], preview: () => [], openPage: () => {},
+      launch: () => ({ worktreeId: null, worktreePath: null }),
+      focus: (t) => { focused.push(t); },
+    },
+    launches: {
+      file: "",
+      list: () => records,
+      get: (id) => records.find((r) => r.id === id),
+      add: (r) => { const full = { id: `L${records.length + 1}`, at: "now", ...r }; records.unshift(full); return full; },
+    },
     profiles: {
       promptsFile: "", repoIndex: "", baseSection: "b", defaultRepo: "lif-notes", agent: "claude", classifierModel: "m",
       modes: { exec: { section: "s", describe: "do", domains: { coding: { section: "d", describe: "code" } } } },
@@ -19,9 +33,11 @@ function fakeHub(): Hub & { launched: unknown[] } {
       prompt: `P:${message}`,
       spec: { repoPath: "/n", name: "t-t-0900", agent: "claude", prompt: `P:${message}`, activate: true },
     }),
-    launch: (spec) => {
+    launch(spec, message, classification) {
       launched.push(spec);
-      return { worktreeId: "r::/n/wt", worktreePath: "/n/wt" };
+      const r = { worktreeId: "r::/n/wt", worktreePath: "/n/wt" };
+      this.launches.add({ backend: "orca", message, name: spec.name, ...classification, ...r });
+      return r;
     },
   };
 }
@@ -76,4 +92,19 @@ test("hub errors surface as 500 with the message", () => {
   const r = handle(hub, req({ method: "POST", url: "/api/route", body: JSON.stringify({ message: "x" }) }));
   assert.equal(r.status, 500);
   assert.match(JSON.parse(r.body).error, /claude is down/);
+});
+
+test("GET /api/launches lists what was started, newest first, and POST /api/focus jumps to one", () => {
+  const hub = fakeHub();
+  handle(hub, req({ method: "POST", url: "/api/launch", body: JSON.stringify({ message: "one" }) }));
+  handle(hub, req({ method: "POST", url: "/api/launch", body: JSON.stringify({ message: "two" }) }));
+  const list = JSON.parse(handle(hub, req({ url: "/api/launches" })).body).launches;
+  assert.deepEqual(list.map((l: LaunchRecord) => l.message), ["two", "one"]);
+  assert.equal(list[0].worktreePath, "/n/wt");
+
+  const ok = handle(hub, req({ method: "POST", url: "/api/focus", body: JSON.stringify({ id: list[1].id }) }));
+  assert.equal(ok.status, 200);
+  assert.deepEqual(hub.focused, [list[1]]);
+  const missing = handle(hub, req({ method: "POST", url: "/api/focus", body: JSON.stringify({ id: "nope" }) }));
+  assert.equal(missing.status, 404);
 });
