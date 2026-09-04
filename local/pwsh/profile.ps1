@@ -123,6 +123,45 @@ function ccp {
 function ccr  { cc  resume @args }
 function ccpr { ccp resume @args }
 
+# --- pi ---
+# One dispatcher over pi's providers. Mirrors `pi` in zsh/profile.zsh -- keep
+# the two in step.
+#   pi [word] [args...]
+# The optional first word is a model (opus|sonnet|fable|sol|luna|terra|qwen27);
+# anything else -- a flag, a message, `install`, `update` -- is passed straight
+# through, so bare `pi` and `pi --help` still reach the binary. The binary is
+# resolved through Get-Command so this function does not call itself.
+#
+# The opus overlay prompt lives in a checkout under the machine's github root,
+# which differs per machine, so it is reachable only where GithubDir is set and
+# the file is actually there. Missing means launch without it, rather than hand
+# the agent a path that does not resolve.
+function Get-LifOpusPrompt {
+    if (-not $LifHost.GithubDir) { return $null }
+    $file = Join-Path $LifHost.GithubDir 'oss' 'fixing-smartass-opus-5' 'sr_opus_5_system_prompt.md'
+    if (Test-Path -LiteralPath $file) { $file } else { $null }
+}
+function pi {
+    $exe = Get-Command pi -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $exe) { Write-Warning 'pi is not on PATH'; return }
+    $sub  = if ($args.Count -gt 0) { $args[0] } else { '' }
+    # @(...) matters here: a single-element slice unwraps to a scalar string,
+    # and splatting a scalar string explodes it one character per argument.
+    $rest = @(if ($args.Count -gt 1) { $args[1..($args.Count - 1)] } else { @() })
+    $P = @(if ($p = Get-LifOpusPrompt) { @('--append-system-prompt', $p) } else { @() })
+    switch -Exact ($sub) {
+        'opus'   { & $exe --provider anthropic    --model claude-opus-5 @P @rest }
+        'sonnet' { & $exe --provider anthropic    --model claude-sonnet-5 @rest }
+        'fable'  { & $exe --provider anthropic    --model claude-fable-5 @rest }
+        'sol'    { & $exe --provider openai-codex --model gpt-5.6-sol @rest }
+        'luna'   { & $exe --provider openai-codex --model gpt-5.6-luna @rest }
+        'terra'  { & $exe --provider openai-codex --model gpt-5.6-terra @rest }
+        'qwen27' { & $exe --provider lif-llm      --model Qwen3.8-27B @rest }
+        ''       { & $exe }
+        default  { & $exe @args }
+    }
+}
+
 # --- firstmate (remote host) ---
 # Launches Claude Code on the firstmate host at its firstmate dir. ssh joins its
 # trailing args with plain spaces before the remote shell sees them, so args are

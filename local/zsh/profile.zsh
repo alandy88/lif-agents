@@ -146,6 +146,17 @@ tm() {
 # key and pass the result into _cc_run as an argument, read at call time, so it
 # follows the overlay even though the overlay is sourced before these functions
 # are defined.
+# The opus overlay prompt lives in a checkout under the machine's github root,
+# which differs per machine -- so it is reachable only where LIF_GITHUB_DIR is
+# set and the file is actually there. Missing means launch without it, rather
+# than hand the agent a path that does not resolve.
+_lif_opus_prompt() {
+    [ -n "${LIF_GITHUB_DIR:-}" ] || return 1
+    local f="$LIF_GITHUB_DIR/oss/fixing-smartass-opus-5/sr_opus_5_system_prompt.md"
+    [ -f "$f" ] || return 1
+    printf '%s\n' "$f"
+}
+
 _cc_run() {
     local dir=$1 posture=$2; shift 2
     local -a B
@@ -154,6 +165,8 @@ _cc_run() {
     else
         B=(--dangerously-skip-permissions)
     fi
+    local -a P; P=()
+    local f; f=$(_lif_opus_prompt) && P=(--append-system-prompt-file "$f")
     local sub=${1:-}
     [ $# -gt 0 ] && shift
     (
@@ -161,7 +174,7 @@ _cc_run() {
         export CLAUDE_CONFIG_DIR
         case "$sub" in
             fable)    claude "${B[@]}" --model claude-fable-5-1 "$@" ;;
-            opus)     claude "${B[@]}" --model claude-opus-5 --append-system-prompt-file "/home/peteryu/github/oss/fixing-smartass-opus-5/sr_opus_5_system_prompt.md" "$@" ;;
+            opus)     claude "${B[@]}" --model claude-opus-5 "${P[@]}" "$@" ;;
             sonnet)   claude "${B[@]}" --model claude-sonnet-5 "$@" ;;
             haiku)    claude "${B[@]}" --model claude-haiku-4-5 "$@" ;;
             resume)   claude "${B[@]}" --resume "$@" ;;
@@ -180,6 +193,31 @@ cc()   { _cc_run "$HOME/.claude"   "${LIF_CLAUDE_PERMISSION_MODE_STANDARD:-${LIF
 ccp()  { _cc_run "$HOME/.claude-p" "${LIF_CLAUDE_PERMISSION_MODE_PERSONAL:-${LIF_CLAUDE_PERMISSION_MODE:-}}" "$@"; }
 ccr()  { cc  resume "$@"; }
 ccpr() { ccp resume "$@"; }
+
+# --- pi ---
+# One dispatcher over pi's providers, the same shape as cc. The optional first
+# word is a model (opus|sonnet|fable|sol|luna|terra|qwen27); anything else --
+# a flag, a message, `install`, `update` -- is passed straight through, so bare
+# `pi` and `pi --help` still reach the binary. `command pi` is what breaks the
+# recursion into this function. `opus` carries the same appended system prompt
+# `cc opus` does.
+pi() {
+    local -a P; P=()
+    local f; f=$(_lif_opus_prompt) && P=(--append-system-prompt "$f")
+    local sub=${1:-}
+    [ $# -gt 0 ] && shift
+    case "$sub" in
+        opus)   command pi --provider anthropic    --model claude-opus-5 "${P[@]}" "$@" ;;
+        sonnet) command pi --provider anthropic    --model claude-sonnet-5 "$@" ;;
+        fable)  command pi --provider anthropic    --model claude-fable-5 "$@" ;;
+        sol)    command pi --provider openai-codex --model gpt-5.6-sol "$@" ;;
+        luna)   command pi --provider openai-codex --model gpt-5.6-luna "$@" ;;
+        terra)  command pi --provider openai-codex --model gpt-5.6-terra "$@" ;;
+        qwen27) command pi --provider lif-llm      --model Qwen3.8-27B "$@" ;;
+        '')     command pi ;;
+        *)      command pi "$sub" "$@" ;;
+    esac
+}
 
 # --- DeepSeek harness ---
 alias dsh='npx @deepseek-ai/dsh'

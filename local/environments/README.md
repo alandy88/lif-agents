@@ -50,7 +50,7 @@ captain** — never invent a plausible-looking path.
 | `LIF_STUDIO_DIR` / `StudioDir` | `lif` jumps here | **ask** |
 | `LIF_NOTES_DIR` / `NotesDir` | `notes` jumps here | **ask** |
 | `LIF_IMAGEHUB_DIR` / `ImageHubDir` | `imagehub` jumps here | **ask** |
-| `LIF_GITHUB_DIR` / `GithubDir` | `github` jumps here; the function shadows GitHub Desktop's `github` launcher | **ask** |
+| `LIF_GITHUB_DIR` / `GithubDir` | `github` jumps here; the function shadows GitHub Desktop's `github` launcher. Also roots the appended system prompt `cc opus` and `pi opus` pass, at `oss/fixing-smartass-opus-5/` | **ask** |
 | `LIF_BWS_PROJECT_ID` / `BwsProjectId` | Bitwarden Secrets project UUID | **ask**; secret-adjacent, see below |
 | `LIF_FIRSTMATE_DIR` / `FirstmateDir` | firstmate checkout `fm`/`fmsh` use; a local path on the firstmate host, a path *on the far side* wherever the ssh bridge is on | `~/firstmate` by convention on the host — confirm |
 | `LIF_FIRSTMATE_HOST` / `FirstmateHost` | ssh target `fm`/`fmsh`/`fmw` reach. Setting it is what turns the bridge on; the firstmate host itself omits it, since there they run locally | every client of the firstmate host |
