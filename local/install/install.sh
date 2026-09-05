@@ -264,13 +264,54 @@ link_managed() {
     link "$target" "$link"
 }
 
+# Static diagnostics only: never source a user's rc during installation. These
+# recognize common literal configurations, not arbitrary shell control flow.
+warn_prompt_setup() {
+    local rc=$1
+    [ -f "$rc" ] || return 0
+    awk '
+        /^[[:space:]]*#/ { next }
+        /^[[:space:]]*(export[[:space:]]+)?ZSH_THEME=/ {
+            theme = $0
+            sub(/^[^=]*=/, "", theme)
+            sub(/[[:space:]]*#.*/, "", theme)
+            gsub(/[[:space:]"\047]/, "", theme)
+        }
+        /starship[[:space:]]+init[[:space:]]+zsh/ { starship = 1 }
+        /lif-shell\.zsh/ { lif = NR }
+        /^[[:space:]]*(source|\.)[[:space:]].*oh-my-zsh\.sh/ {
+            if (theme != "") themed = 1
+            if (lif) wrong_order = 1
+        }
+        END {
+            if (themed) print "  warn " FILENAME ": Oh My Zsh theme enabled; set ZSH_THEME=\"\" before loading Oh My Zsh to use Starship."
+            if (starship) print "  warn " FILENAME ": Starship is already initialized by the LIF profile; remove the redundant direct initialization."
+            if (wrong_order) print "  warn " FILENAME ": lif-terminal block precedes Oh My Zsh; move it after Oh My Zsh so Starship owns the prompt."
+        }
+    ' "$rc"
+}
+
 # Append a marked source block to a shell rc file, once. The captain curates
 # their own rc: this only ever appends its own block, never rewrites the file.
 wire_rc() {
     local rc=$1 line=$2 backup marker='# >>> lif-terminal >>>'
 
-    if [ -f "$rc" ] && grep -qF "$marker" "$rc"; then
-        echo "  ok   $rc"
+    warn_prompt_setup "$rc"
+    if [ -f "$rc" ] && grep -qE '# (>>> lif-terminal >>>|<<< lif-terminal <<<)' "$rc"; then
+        # Accept exactly one intact three-line block. Do not append a duplicate
+        # or rewrite personal edits when a damaged/stale block is present.
+        if awk -v source_line="$line" '
+            $0 == "# >>> lif-terminal >>>" { starts++; start = NR }
+            $0 == source_line { sources++; source_at = NR }
+            $0 == "# <<< lif-terminal <<<" { ends++; end = NR }
+            END { exit !(starts == 1 && sources == 1 && ends == 1 && source_at == start + 1 && end == start + 2) }
+        ' "$rc"; then
+            echo "  ok   $rc"
+        else
+            echo "  warn $rc: incomplete or modified lif-terminal block; restore one block containing:"
+            printf '    %s\n' "$marker" "$line" '# <<< lif-terminal <<<'
+            echo "  keep $rc (manual repair required)"
+        fi
         return
     fi
     if [ $dry_run -eq 1 ]; then
@@ -327,9 +368,9 @@ echo "Shell profile"
 # never has to name the checkout.
 link "$local_root/zsh/profile.zsh" "$HOME/.config/lif-shell.zsh"
 if [ $skip_rc -eq 1 ]; then
-    echo "  skip ~/.zshrc (--skip-shell-rc)"
+    echo "  skip ${ZDOTDIR:-$HOME}/.zshrc (--skip-shell-rc)"
 else
-    wire_rc "$HOME/.zshrc" '[ -r "$HOME/.config/lif-shell.zsh" ] && . "$HOME/.config/lif-shell.zsh"'
+    wire_rc "${ZDOTDIR:-$HOME}/.zshrc" '[ -r "$HOME/.config/lif-shell.zsh" ] && . "$HOME/.config/lif-shell.zsh"'
 fi
 
 echo "Herdr"

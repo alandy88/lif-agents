@@ -80,6 +80,70 @@ function install(repo: string, home: string, ...options: string[]): string {
   );
 }
 
+const sourceLine = '[ -r "$HOME/.config/lif-shell.zsh" ] && . "$HOME/.config/lif-shell.zsh"';
+const managedBlock = `# >>> lif-terminal >>>\n${sourceLine}\n# <<< lif-terminal <<<\n`;
+
+function installShell(repo: string, home: string, options: string[] = [], zdotdir = ""): string {
+  return execFileSync("bash", [join(repo, "local/install/install.sh"), "--env", ENV_NAME, ...options], {
+    env: { ...process.env, HOME: home, XDG_CONFIG_HOME: join(home, ".config"), ZDOTDIR: zdotdir },
+    encoding: "utf8",
+  });
+}
+
+for (const preview of [false, true]) {
+  test(`shell wiring respects ZDOTDIR (preview=${preview})`, () => {
+    const { root, repo, home } = scaffold("zdotdir");
+    try {
+      const zdotdir = join(home, "custom zsh");
+      const rc = join(zdotdir, ".zshrc");
+      const output = installShell(repo, home, preview ? ["--dry-run"] : [], zdotdir);
+      assert.ok(output.includes(rc));
+      assert.equal(existsSync(join(home, ".zshrc")), false);
+      if (preview) assert.equal(existsSync(rc), false);
+      else {
+        assert.equal(readFileSync(rc, "utf8"), `\n${managedBlock}`);
+        assert.match(installShell(repo, home, [], zdotdir), /ok .*\.zshrc/);
+        assert.equal(readFileSync(rc, "utf8"), `\n${managedBlock}`);
+      }
+    } finally { rmSync(root, { recursive: true, force: true }); }
+  });
+}
+
+for (const [name, content, warning] of [
+  ["missing source", "# >>> lif-terminal >>>\n# <<< lif-terminal <<<\n", /incomplete or modified lif-terminal block/],
+  ["missing end", `# >>> lif-terminal >>>\n${sourceLine}\n`, /incomplete or modified lif-terminal block/],
+  ["orphan end", "# <<< lif-terminal <<<\n", /incomplete or modified lif-terminal block/],
+  ["duplicate block", managedBlock + managedBlock, /incomplete or modified lif-terminal block/],
+  ["theme", 'ZSH_THEME="robbyrussell"\nsource "$ZSH/oh-my-zsh.sh"\n' + managedBlock, /Oh My Zsh theme.*ZSH_THEME/],
+  ["order", managedBlock + 'source "$ZSH/oh-my-zsh.sh"\n', /lif-terminal block precedes Oh My Zsh/],
+  ["duplicate prompt", 'eval "$(starship init zsh)"\n' + managedBlock, /Starship.*initialized.*profile/],
+] as const) {
+  test(`shell wiring warns without rewriting: ${name}`, () => {
+    const { root, repo, home } = scaffold("rc-warning");
+    try {
+      const rc = join(home, ".zshrc");
+      writeFileSync(rc, content);
+      for (const options of [["--dry-run"], []]) {
+        assert.match(installShell(repo, home, options), warning);
+        assert.equal(readFileSync(rc, "utf8"), content);
+      }
+    } finally { rmSync(root, { recursive: true, force: true }); }
+  });
+}
+
+test("shell wiring preserves existing config and ignores commented prompt settings", () => {
+  const { root, repo, home } = scaffold("rc-safe");
+  try {
+    const rc = join(home, ".zshrc");
+    const content = '# ZSH_THEME="robbyrussell"\n# eval "$(starship init zsh)"\nZSH_THEME=""\nsource "$ZSH/oh-my-zsh.sh"\n';
+    writeFileSync(rc, content);
+    assert.doesNotMatch(installShell(repo, home), /warn/);
+    assert.equal(readFileSync(rc, "utf8"), content + "\n" + managedBlock);
+    assert.equal(readFileSync(`${rc}.pre-lif-terminal.bak`, "utf8"), content);
+    assert.doesNotMatch(installShell(repo, home), /warn/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 function footerPath(home: string): string {
   return join(home, ".pi/agent/extensions/pi-status-footer.ts");
 }

@@ -92,8 +92,12 @@ commands. Prefer that over inventing values.
 
 ## 3. Prerequisites
 
-Install these first; the repo installs none of them. macOS commands assume
-[Homebrew](https://brew.sh).
+Starship and Oh My Zsh are both expected to be installed before running this
+installer; it configures the shell but installs neither. Use `ZSH_THEME=""`
+and load the LIF profile after Oh My Zsh so Starship owns the prompt.
+
+Install these prerequisites first; the repo installs none of them. macOS commands
+assume [Homebrew](https://brew.sh).
 
 On a machine running services, prefix the `brew` commands with
 `HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1`. Homebrew otherwise
@@ -152,8 +156,11 @@ touching the destination. It:
   including when the old path is gone and the link is dangling. A `lif-host.*`
   symlink pointing anywhere else is treated as the captain's own and kept
 - symlinks the zsh profile to `~/.config/lif-shell.zsh` and appends one marked
-  block to `~/.zshrc` that sources it (`--skip-shell-rc` opts out). It never
-  rewrites an existing `~/.zshrc` — the captain curates that file
+  block to `${ZDOTDIR:-$HOME}/.zshrc` that sources it (`--skip-shell-rc` opts out).
+  Export `ZDOTDIR` when invoking the installer if configured in `.zshenv`; the
+  installer does not execute shell startup files to discover it. An incomplete,
+  modified, or duplicate managed block produces a manual-repair warning rather
+  than an “ok” or another block. It never rewrites the captain's existing rc
 - renders `local/herdr/config.toml` into `$XDG_CONFIG_HOME/herdr/config.toml`,
   substituting this environment's `default_shell`. Herdr 0.7.5 reads that path
   on Linux and, *verified on macOS 26.5.2*, on macOS too: it resolves its config
@@ -173,9 +180,11 @@ touching the destination. It:
 The Starship prompt is wired by the profile (`starship init zsh`), not by
 `~/.zshrc` directly, so it arrives with the rest of the profile. If the existing
 `~/.zshrc` already runs `starship init`, the appended block does not remove it
-and Starship initializes twice per shell — redundant rather than broken. Report
-the duplicate line to the captain instead of deleting it yourself; the rc is
-theirs.
+and Starship initializes twice per shell — redundant rather than broken. The
+installer warns about common literal direct initializations, enabled Oh My Zsh
+themes, and a LIF source line preceding Oh My Zsh. These are static hints, not a
+shell parser: resolve warnings with the captain and verify in a fresh shell.
+For Oh My Zsh integration details, see [the compatibility note](../zsh/oh-my-zsh-starship.md).
 
 If the captain's login shell is bash rather than zsh, add the same source line
 to `~/.bashrc` by hand — the profile detects the shell and works in both.
