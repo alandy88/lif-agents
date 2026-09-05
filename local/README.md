@@ -2,7 +2,7 @@
 
 Terminal config: WezTerm + Herdr + Starship + a shell profile — pwsh 7 on
 Windows, zsh on macOS and WSL. Every environment uses all four; only the shell
-profile differs. Pi's status footer is managed alongside those four terminal
+profile differs. Pi's status footer and quiet-tools extension are managed alongside those four terminal
 components. The firstmate helpers run locally on the host that carries the
 firstmate checkout; the pwsh profile reaches that host over ssh, because the
 Windows box does not carry one.
@@ -22,6 +22,7 @@ directory unless stated otherwise.
 | `pwsh/profile.ps1` | dot-sourced from `$PROFILE` | — |
 | `zsh/profile.zsh` | — | `~/.config/lif-shell.zsh`, sourced from `~/.zshrc` |
 | `pi/extensions/pi-status-footer.ts` | `%USERPROFILE%\.pi\agent\extensions\pi-status-footer.ts` | `~/.pi/agent/extensions/pi-status-footer.ts` |
+| `pi/extensions/quiet-tools.ts` | `%USERPROFILE%\.pi\agent\extensions\quiet-tools.ts` | `~/.pi/agent/extensions/quiet-tools.ts` |
 | `hosts/*.example` | templates for the environment overlay (see below) | same |
 
 Redirect env vars rather than symlinks on Windows: Windows symlinks need
@@ -53,18 +54,35 @@ git clone https://github.com/alandy88/lif-agents   # anywhere you keep checkouts
 On macOS or WSL, run `local/install/install.sh` instead. It reuses the environment
 recorded by the last run on that machine, detects `wsl` under WSL, and never
 guesses on macOS -- so a first install there needs `--env <name>`. Both installers
-also manage the Pi status footer at Pi's global user extension path. Pi discovers
-it at startup; after an install or reinstall, restart Pi or run `/reload` in an
-existing session to activate the new footer. Agents installing this on a machine
+also manage the Pi extensions at Pi's global user extension path. Pi discovers
+them at startup; after an install or reinstall, restart Pi or run `/reload` in an
+existing session to activate them. Agents installing this on a machine
 should follow [install/AGENTS.md](install/AGENTS.md), which covers the prerequisites and
 the values that must be asked for rather than guessed.
 
-Idempotent — re-run after a `git pull`. On Unix the footer is linked to the
-checkout; on Windows it is copied because the installer does not require
-symlink privileges. A regular footer file is backed up before replacement, and
+Idempotent — re-run after a `git pull`. On Unix the extensions are linked to the
+checkout; on Windows they are copied because the installer does not require
+symlink privileges. A regular extension file is backed up before replacement, and
 an unrelated symlink at the destination is kept. `--dry-run` / `-WhatIf` previews
 that work without touching the destination. See the installing-agent
 instructions above for the complete backup behavior.
+
+## Quiet tools in Pi
+
+`/quiet-tools on` (default) hides built-in text tool calls, diffs, and results.
+`/quiet-tools off` restores their native content renderers, without boxed backgrounds;
+`Ctrl+O` still controls expansion. The preference follows the session branch and
+survives reload/resume. Hidden tool failures appear in the existing footer until
+the next agent run. The footer also displays other extensions' status entries.
+
+This is display-only: execution, cancellation, stored results, and model context
+are unchanged. Requires Pi's `create*ToolDefinition`, renderer-context invalidation,
+and `renderShell: "self"` interfaces. Built-ins already overridden by other
+extensions (including sandbox/SSH tools) are skipped. Custom/dynamically added
+tools, inline images, user `!` commands, and assistant commentary remain visible.
+Use Pi's image display setting separately if desired. Startup reports unsupported
+active tools; Pi may also report built-in override notices. Already-emitted terminal
+scrollback is not redacted. JSON, RPC, and print modes are untouched.
 
 ## Environment overlay
 

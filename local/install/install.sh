@@ -297,6 +297,7 @@ link "$local_root/starship/starship.toml" "$config_home/starship.toml"
 
 echo "Pi extension"
 link_managed "$local_root/pi/extensions/pi-status-footer.ts" "$HOME/.pi/agent/extensions/pi-status-footer.ts"
+link_managed "$local_root/pi/extensions/quiet-tools.ts" "$HOME/.pi/agent/extensions/quiet-tools.ts"
 
 echo "Noninteractive BWS wrapper"
 link_managed "$local_root/bin/lif-bws" "$HOME/.local/bin/lif-bws"

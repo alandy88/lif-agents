@@ -65,6 +65,10 @@ function scaffold(name: string): { root: string; repo: string; home: string } {
     join(repo, "local/pi/extensions/pi-status-footer.ts"),
   );
 
+  cpSync(
+    join(INSTALL_DIR, "../pi/extensions/quiet-tools.ts"),
+    join(repo, "local/pi/extensions/quiet-tools.ts"),
+  );
   return { root, repo, home };
 }
 
@@ -191,6 +195,36 @@ test("previews Pi footer installation without touching the destination", () => {
   assert.equal(existsSync(footerPath(home)), false);
   rmSync(root, { recursive: true, force: true });
 });
+
+for (const scenario of ["fresh", "file", "foreign", "preview", "preview-file"] as const) {
+  test(`quiet-tools installer: ${scenario}`, () => {
+    const { root, repo, home } = scaffold(`quiet-${scenario}`);
+    const destination = join(home, ".pi/agent/extensions/quiet-tools.ts");
+    const source = join(repo, "local/pi/extensions/quiet-tools.ts");
+    const foreign = join(root, "foreign.ts");
+    try {
+      mkdirSync(dirname(destination), { recursive: true });
+      if (scenario === "file" || scenario === "preview-file") writeFileSync(destination, "previous");
+      if (scenario === "foreign") {
+        writeFileSync(foreign, "foreign");
+        symlinkSync(foreign, destination);
+      }
+      install(repo, home, ...(scenario.startsWith("preview") ? ["--dry-run"] : []));
+      if (scenario === "preview") assert.equal(existsSync(destination), false);
+      else if (scenario === "preview-file") {
+        assert.equal(readFileSync(destination, "utf8"), "previous");
+        assert.equal(existsSync(`${destination}.pre-lif-terminal.bak`), false);
+      } else if (scenario === "foreign") assert.equal(readlinkSync(destination), foreign);
+      else {
+        assert.equal(readlinkSync(destination), source);
+        if (scenario === "file") assert.equal(readFileSync(`${destination}.pre-lif-terminal.bak`, "utf8"), "previous");
+        assert.match(install(repo, home), /ok .*quiet-tools\.ts/);
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+}
 
 test("preview reports the footer backup without creating it", () => {
   const { root, repo, home } = scaffold("pi-footer-preview-existing");

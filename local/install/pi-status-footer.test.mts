@@ -228,3 +228,28 @@ test("footer omits the five-hour segment when selection has no five-hour window"
   assert.equal(line.includes("5h"), false);
   assert.match(line, /week 90% left/);
 });
+
+test("footer renders extension statuses only when present and respects width", () => {
+  const handlers: Record<string, Function> = {};
+  const statuses = new Map<string, string>();
+  let rendered: any;
+  const ctx = {
+    mode: "tui", model: undefined, getContextUsage: () => undefined,
+    ui: { setFooter(factory: any) {
+      if (factory) rendered = factory({ requestRender() {} }, theme([]), { getExtensionStatuses: () => statuses });
+    } },
+  };
+  footer.default({
+    on(name: string, handler: Function) { handlers[name] = handler; },
+    getThinkingLevel: () => "off",
+    exec: async () => ({ code: 1, stdout: "" }),
+  });
+  handlers.session_start!({}, ctx);
+  assert.equal(rendered.render(80).length, 1);
+  statuses.set("lif-quiet-tools", "Tools: 1 failed · /quiet-tools off");
+  assert.match(rendered.render(80)[1], /Tools: 1 failed/);
+  assert.ok(rendered.render(8).every((line: string) => visibleWidth(line) <= 8));
+  statuses.clear();
+  assert.equal(rendered.render(80).length, 1);
+  handlers.session_shutdown!({}, ctx);
+});
