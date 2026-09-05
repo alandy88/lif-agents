@@ -114,6 +114,20 @@ test("restores branch preference and reports failures only through status", asyn
   assert.deepEqual(h.tools.get("read").renderCall({}, {}, context).render(80), ["call"]);
 });
 
+test("restores the resumed branch in the fresh runtime created after session replacement", async () => {
+  const previous = harness();
+  previous.handlers.tool_execution_end!({ toolName: "read", isError: true }, previous.ctx);
+  assert.match(previous.statuses.get("lif-quiet-tools")!, /1 failed/);
+  previous.handlers.session_shutdown!({ reason: "resume" }, previous.ctx);
+
+  const resumed = harness("tui", [
+    { type: "custom", customType: "lif-quiet-tools", data: { quiet: false } },
+  ]);
+  const context = { toolCallId: "resumed-id", invalidate() {} };
+  assert.deepEqual(resumed.tools.get("read").renderCall({}, {}, context).render(80), ["call"]);
+  assert.equal(resumed.statuses.get("lif-quiet-tools"), undefined);
+});
+
 for (const mode of ["rpc", "json", "print"]) {
   test(`does not override tools in ${mode} mode`, () => assert.equal(harness(mode).tools.size, 0));
 }
