@@ -196,7 +196,7 @@ ccpr() { ccp resume "$@"; }
 
 # --- pi ---
 # One dispatcher over pi's providers, the same shape as cc. The optional first
-# word is a model (opus|sonnet|fable|sol|luna|terra|qwen27); anything else --
+# word is a model (opus|sonnet|fable|sol|luna|terra|astra|qwen27); anything else --
 # a flag, a message, `install`, `update` -- is passed straight through, so bare
 # `pi` and `pi --help` still reach the binary. `command pi` is what breaks the
 # recursion into this function. `opus` carries the same appended system prompt
@@ -213,6 +213,7 @@ pi() {
         sol)    command pi --provider openai-codex --model gpt-5.6-sol "$@" ;;
         luna)   command pi --provider openai-codex --model gpt-5.6-luna "$@" ;;
         terra)  command pi --provider openai-codex --model gpt-5.6-terra "$@" ;;
+        astra)  command pi --provider openai-codex --model gpt-6-astra "$@" ;;
         qwen27) command pi --provider lif-llm      --model Qwen3.8-27B "$@" ;;
         '')     command pi ;;
         *)      command pi "$sub" "$@" ;;
