@@ -127,7 +127,7 @@ function ccpr { ccp resume @args }
 # One dispatcher over pi's providers. Mirrors `pi` in zsh/profile.zsh -- keep
 # the two in step.
 #   pi [word] [args...]
-# The optional first word is a model (opus|sonnet|fable|sol|luna|terra|qwen27);
+# The optional first word is a model (opus|sonnet|fable|sol|luna|terra|astra|qwen27);
 # anything else -- a flag, a message, `install`, `update` -- is passed straight
 # through, so bare `pi` and `pi --help` still reach the binary. The binary is
 # resolved through Get-Command so this function does not call itself.
@@ -156,6 +156,7 @@ function pi {
         'sol'    { & $exe --provider openai-codex --model gpt-5.6-sol @rest }
         'luna'   { & $exe --provider openai-codex --model gpt-5.6-luna @rest }
         'terra'  { & $exe --provider openai-codex --model gpt-5.6-terra @rest }
+        'astra'  { & $exe --provider openai-codex --model gpt-6-astra @rest }
         'qwen27' { & $exe --provider lif-llm      --model Qwen3.8-27B @rest }
         ''       { & $exe }
         default  { & $exe @args }

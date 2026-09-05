@@ -3,7 +3,7 @@
 **You are here because someone cloned this repo on a machine and asked you to
 install it.** This file is the entrypoint for that. It covers the terminal
 setup: WezTerm, Starship, Herdr, the shell profile, and Pi's managed status
-footer.
+footer and quiet-tools extension.
 
 **Do not run `npm i -D github:alandy88/lif-agents`.** The README's kit section
 belongs to `@lif/sandcastle-kit`, a JavaScript package other repos
@@ -140,8 +140,8 @@ optional afterwards -- the installer records the name in
 
 It is idempotent. Regular files and directories it replaces are backed up to
 `<name>.pre-lif-terminal.bak`; an existing symlink is replaced without a backup.
-The managed Pi footer is linked to the checkout on Unix and copied on Windows.
-A regular footer file is backed up before replacement; an unrelated symlink at
+The managed Pi extensions are linked to the checkout on Unix and copied on Windows.
+A regular extension file is backed up before replacement; an unrelated symlink at
 that destination is kept. `--dry-run` / `-WhatIf` previews these changes without
 touching the destination. It:
 
@@ -164,6 +164,9 @@ touching the destination. It:
   `~/.pi/agent/extensions/pi-status-footer.ts`. The footer shows the model,
   thinking effort, context usage, and applicable quota windows; quota refreshes
   retain only the non-secret display snapshot.
+- installs `local/pi/extensions/quiet-tools.ts` at the same global extension
+  directory. Built-in text tool rows are hidden by default; `/quiet-tools off`
+  reveals them. Coverage and limitations: [Quiet tools](../README.md#quiet-tools-in-pi).
 - records the environment name in `$XDG_CONFIG_HOME/lif-env`, last, so a run
   that failed partway does not record a name it never finished installing
 
