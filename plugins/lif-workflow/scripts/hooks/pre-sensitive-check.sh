@@ -3,12 +3,12 @@
 # Checks: sensitive files, git internals, lockfiles
 set -uo pipefail
 
-INPUT=$(cat)
-TOOL=$(echo "$INPUT" | jq -r '.tool_name')
+# dispatch.js parses the payload and exports HOOK_TOOL_NAME / HOOK_FILE_PATH.
+TOOL="${HOOK_TOOL_NAME:-}"
 
 case "$TOOL" in
   Read|Edit|Write|MultiEdit)
-    FILE=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
+    FILE="${HOOK_FILE_PATH:-}"
     # Secret files — always prompt regardless of tool
     case "$FILE" in
       *.env|*.env.*)

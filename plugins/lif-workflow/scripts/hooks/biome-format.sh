@@ -3,8 +3,8 @@
 # Always exits 0 — failures are advisory, never blocking.
 set -uo pipefail
 
-INPUT=$(cat)
-FILE=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
+# dispatch.js parses the payload and exports HOOK_FILE_PATH; no jq needed.
+FILE="${HOOK_FILE_PATH:-}"
 
 case "$FILE" in
   *.js|*.jsx) ;;

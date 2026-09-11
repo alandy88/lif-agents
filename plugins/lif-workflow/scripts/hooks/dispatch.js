@@ -21,8 +21,26 @@ if (!fs.existsSync(script)) {
 	process.exit(2);
 }
 
+// Parse the hook payload here so the shell scripts need no jq. The raw payload
+// is still forwarded on stdin for scripts that want more than these fields.
+const input = fs.readFileSync(0, "utf8");
+let payload = {};
+try {
+	payload = input.trim() ? JSON.parse(input) : {};
+} catch {
+	process.stderr.write("dispatch.js: hook payload is not valid JSON\n");
+	process.exit(2);
+}
+const toolInput = payload.tool_input ?? {};
+const env = {
+	...process.env,
+	HOOK_TOOL_NAME: payload.tool_name ?? "",
+	HOOK_COMMAND: typeof toolInput.command === "string" ? toolInput.command : "",
+	HOOK_FILE_PATH: typeof toolInput.file_path === "string" ? toolInput.file_path : "",
+};
+
 const cmd = isWin ? "pwsh" : "bash";
 const args = isWin ? ["-NoProfile", "-File", script] : [script];
 
-const result = spawnSync(cmd, args, { stdio: "inherit" });
+const result = spawnSync(cmd, args, { input, env, stdio: ["pipe", "inherit", "inherit"] });
 process.exit(result.status ?? 1);

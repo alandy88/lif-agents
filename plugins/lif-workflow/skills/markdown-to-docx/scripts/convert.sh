@@ -107,6 +107,11 @@ setup_output() {
     echo "Output directory: $OUTPUT_DIR"
     
     if [ -d "$OUTPUT_DIR" ]; then
+        # Never clean the tree we are about to read from.
+        if [ "$(cd "$OUTPUT_DIR" && pwd -P)" = "$(cd "$INPUT_DIR" && pwd -P)" ]; then
+            echo -e "${RED}✗ Output directory is the input directory ($OUTPUT_DIR); refusing to clean it${NC}"
+            exit 1
+        fi
         echo "Cleaning existing output directory..."
         rm -rf "$OUTPUT_DIR"/*
     else

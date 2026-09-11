@@ -4,8 +4,8 @@
 # Always exits 0 — failures are advisory, never blocking.
 set -uo pipefail
 
-INPUT=$(cat)
-FILE=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
+# dispatch.js parses the payload and exports HOOK_FILE_PATH; no jq needed.
+FILE="${HOOK_FILE_PATH:-}"
 
 case "$FILE" in
   *.py) ;;
@@ -37,8 +37,8 @@ fi
 if [ -f "$FILE" ]; then
   COUNT=$(grep -cE '\bprint\(' "$FILE" 2>/dev/null || true)
   if [ "$COUNT" -gt 0 ] 2>/dev/null; then
-    jq -n --arg ctx "Warning: $COUNT print() statement(s) found in $FILE — prefer logging module" \
-      '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $ctx}}'
+    ESCAPED=$(printf '%s' "$FILE" | sed 's/\\/\\\\/g; s/"/\\"/g')
+    printf '{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"Warning: %s print() statement(s) found in %s — prefer logging module"}}\n' "$COUNT" "$ESCAPED"
   fi
 fi
 

@@ -2,7 +2,8 @@
 # PreToolUse guard for Bash — destructive/risky git commands only
 set -uo pipefail
 
-CMD=$(cat | jq -r '.tool_input.command // empty')
+# dispatch.js parses the payload and exports HOOK_COMMAND; no jq needed.
+CMD="${HOOK_COMMAND:-}"
 [ -n "$CMD" ] || exit 0
 
 ask() {
@@ -10,10 +11,13 @@ ask() {
   exit 0
 }
 
-# Blank quoted spans so documentation text is never read as an executed command
-# (`echo '(git commit --no-verify)'`), then split into command segments so each
-# is judged on its own (`cd x && git push --force`, `a --force-with-lease && b --force`).
-SCAN=$(printf '%s' "$CMD" | sed -E "s/'[^']*'/ /g; s/\"[^\"]*\"/ /g")
+# Quoted spans that contain whitespace are prose (`echo '(git commit --no-verify)'`)
+# and are blanked so they are never read as an executed command. Quoted spans
+# without whitespace are single arguments (`git commit '--no-verify'`,
+# `git 'reset' --hard`), so only their quote characters are dropped and the word
+# stays in the scan. Then split into command segments so each is judged on its
+# own (`cd x && git push --force`, `a --force-with-lease && b --force`).
+SCAN=$(printf '%s' "$CMD" | sed -E "s/'[^']*[[:space:]][^']*'/ /g; s/\"[^\"]*[[:space:]][^\"]*\"/ /g; s/['\"]//g")
 
 GITSEGS=()
 while IFS= read -r SEG; do

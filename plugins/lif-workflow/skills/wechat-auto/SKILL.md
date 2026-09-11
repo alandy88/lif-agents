@@ -25,7 +25,9 @@ function Invoke-WeChatCLI {
     $cli = "$SKILL_DIR\scripts\wechat-cli.ahk"   # substitute actual path
     $stdout = [System.IO.Path]::GetTempFileName()
     $stderr = [System.IO.Path]::GetTempFileName()
-    $argString = "/ErrorStdOut `"$cli`" " + ($Arguments -join " ")
+    # Quote every argument so values with spaces survive Start-Process's re-split.
+    $quoted = $Arguments | ForEach-Object { '"' + ($_ -replace '"', '\"') + '"' }
+    $argString = "/ErrorStdOut `"$cli`" " + ($quoted -join " ")
     $p = Start-Process -FilePath $ahk -ArgumentList $argString `
         -NoNewWindow -Wait -PassThru `
         -RedirectStandardOutput $stdout -RedirectStandardError $stderr

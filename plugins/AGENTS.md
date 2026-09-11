@@ -10,9 +10,10 @@ from GitHub; this directory holds the plugin itself, the skill evals, and the na
   `.agents/skills/` (with `.claude/skills` symlinked to it) and are not installed through
   a plugin: `lif-workbench` for character, prompt, image, and LoRA work; `comfyui-lif-nodes`
   for node development; `lif-openclaw-agents` for persona setup.
-- `evals/` — behavioural evals (`uv run --with pytest --with pyyaml pytest evals`, add
+- `evals/` — behavioural evals (`uv run --no-project --with pytest --with pyyaml pytest evals` from `plugins/`, add
   `--full` for the LLM judge). Skill lookup searches this plugin first, then
-  `$LIF_WORKBENCH_ROOT/.agents/skills` and `$COMFYUI_LIF_NODES_ROOT/.agents/skills`.
+  `$LIF_WORKBENCH_ROOT/.agents/skills` and `$COMFYUI_LIF_NODES_ROOT/.agents/skills`;
+  evals for skills that are not checked out are skipped, not failed.
 - `docs/skill-naming-convention.md` — category prefixes and the inventory across repos.
 
 Install and refresh:

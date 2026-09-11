@@ -53,8 +53,9 @@ def skill_system_prompt():
             path = root / skill_name / "SKILL.md"
             if path.exists():
                 return path.read_text(encoding="utf-8")
-        raise FileNotFoundError(
-            f"No SKILL.md found for skill '{skill_name}' under {_skill_roots()}"
+        pytest.skip(
+            f"skill '{skill_name}' is not in this plugin and no checkout of it was "
+            "found; set LIF_WORKBENCH_ROOT / COMFYUI_LIF_NODES_ROOT to run this eval"
         )
 
     return _load
