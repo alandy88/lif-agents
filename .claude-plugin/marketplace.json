@@ -1,0 +1,18 @@
+{
+  "name": "lif-agents",
+  "owner": {
+    "name": "Peter Yu",
+    "email": "hyu067@gmail.com"
+  },
+  "metadata": {
+    "description": "Cross-repository workflow skills and hooks for the LIF coding agents.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "lif-workflow",
+      "source": "./plugins/lif-workflow",
+      "description": "Session handoff, planning, backlog, issue and PR loops, Codex fanout, and safety hooks. Repo-bound skills live in each repo's .agents/skills instead."
+    }
+  ]
+}

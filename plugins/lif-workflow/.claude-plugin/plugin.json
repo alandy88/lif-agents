@@ -1,0 +1,10 @@
+{
+  "name": "lif-workflow",
+  "version": "1.0.0",
+  "description": "Cross-repository workflow for LIF coding agents: session handoff (handoff, pickup, plan-handoff), planning and backlog (structured-planning, backlog, seed, retro), single-issue and PR loops (issue-implement, issue-review, pr-shepherd), Codex fanout (codex), Claude Code reference (claude-code-docs, claude-code-reviewer), vault conventions (obsidian-vault), skill authoring (skill-designer), personal utilities (morning-briefing, markdown-to-docx, wechat-auto), and PreToolUse/PostToolUse safety and formatting hooks.",
+  "author": {
+    "name": "Peter Yu",
+    "email": "hyu067@gmail.com"
+  },
+  "keywords": ["lif", "workflow", "handoff", "planning", "backlog", "review", "hooks"]
+}

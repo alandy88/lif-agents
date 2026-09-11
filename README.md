@@ -53,6 +53,13 @@ post-install verification steps are in
 [local/install/AGENTS.md](local/install/AGENTS.md). What each config file is and
 where it lands: [local/README.md](local/README.md).
 
+### Workflow plugin (lif-workflow)
+
+`plugins/lif-workflow/` is a Claude Code plugin with the skills that must work from any
+repo (session handoff, planning, backlog, issue and PR loops, Codex fanout) plus the
+PreToolUse/PostToolUse safety and formatting hooks. See
+[plugins/AGENTS.md](plugins/AGENTS.md) for install and update commands.
+
 ### Agent dispatcher (lif-dispatch)
 
 `local/dispatch/` dispatches coding agents into disposable git worktrees inside
