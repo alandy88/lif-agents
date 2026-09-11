@@ -1,0 +1,46 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verdict", "summary", "findings"],
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "enum": ["approve", "request_changes", "needs_discussion"]
+    },
+    "summary": {
+      "type": "string",
+      "description": "One-paragraph overall assessment"
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "category", "file", "description", "suggestion"],
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": ["critical", "high", "medium", "low", "nit"]
+          },
+          "category": {
+            "type": "string",
+            "enum": ["bug", "security", "performance", "design", "style", "testing", "docs"]
+          },
+          "file": { "type": "string" },
+          "line": { "type": ["integer", "null"] },
+          "description": { "type": "string" },
+          "suggestion": { "type": "string" }
+        }
+      }
+    },
+    "spec_alignment": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "covered": { "type": "array", "items": { "type": "string" } },
+        "missing": { "type": "array", "items": { "type": "string" } },
+        "diverged": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Claude Code Reviewer"
+  short_description: "Review code and designs with Claude Code"
+  default_prompt: "Use $claude-code-reviewer to review this diff, feature, or design for correctness risks, regressions, missing tests, and tradeoffs."
