@@ -181,6 +181,26 @@ ccp()  { _cc_run "$HOME/.claude-p" "${LIF_CLAUDE_PERMISSION_MODE_PERSONAL:-${LIF
 ccr()  { cc  resume "$@"; }
 ccpr() { ccp resume "$@"; }
 
+# --- Pi ---
+# Same model words as cc, on top of `command pi`:
+#   pi [word] [args...]    fable|opus|sonnet|haiku|sol|luna|terra pick the model; anything
+#                          else (including pi subcommands) passes straight through.
+pi() {
+    local sub=${1:-}
+    [ $# -gt 0 ] && shift
+    case "$sub" in
+        fable)   command pi --provider anthropic --model claude-fable-5-1 "$@" ;;
+        opus)    command pi --provider anthropic --model claude-opus-5-5 "$@" ;;
+        sonnet)  command pi --provider anthropic --model claude-sonnet-5 "$@" ;;
+        haiku)   command pi --provider anthropic --model claude-haiku-4-5 "$@" ;;
+        sol)     command pi --provider openai-codex --model gpt-5.6-sol "$@" ;;
+        luna)    command pi --provider openai-codex --model gpt-5.6-luna "$@" ;;
+        terra)   command pi --provider openai-codex --model gpt-5.6-terra "$@" ;;
+        '')      command pi ;;
+        *)       command pi "$sub" "$@" ;;
+    esac
+}
+
 # --- DeepSeek harness ---
 alias dsh='npx @deepseek-ai/dsh'
 
