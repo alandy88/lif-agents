@@ -237,20 +237,20 @@ test("live provider switches fetch monthly usage once and refresh Codex quotas",
   });
   const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
   try {
-    handlers.session_start({}, ctx);
+    handlers.session_start!({}, ctx);
     await settle();
     assert.match(component.render(200)[0], /Month \$4\.50/);
     ctx.model = { provider: "openai-codex", id: "sol" };
-    handlers.model_select({}, ctx);
+    handlers.model_select!({}, ctx);
     await settle();
     assert.doesNotMatch(component.render(200)[0], /Month|Session/);
     assert.equal(quotaRequests, 1);
     ctx.model = { provider: "anthropic", id: "sonnet" };
-    handlers.model_select({}, ctx);
+    handlers.model_select!({}, ctx);
     await settle();
     assert.match(component.render(200)[0], /Month \$4\.50/);
     assert.equal(requests, 1);
-    handlers.session_shutdown({}, ctx);
+    handlers.session_shutdown!({}, ctx);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -283,7 +283,7 @@ test("monthly spend survives an idle redraw and failed refresh", async () => {
   });
   const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
   try {
-    handlers.session_start({}, ctx);
+    handlers.session_start!({}, ctx);
     await settle();
     assert.match(component.render(200)[0], /Month \$4\.50/);
     now += 300_001;
@@ -321,7 +321,7 @@ test("monthly spend survives an idle redraw and failed refresh", async () => {
     await settle();
     assert.match(component.render(200)[0], /Month unavailable/);
   } finally {
-    handlers.session_shutdown({}, ctx);
+    handlers.session_shutdown!({}, ctx);
     Date.now = originalNow;
     globalThis.fetch = originalFetch;
   }
