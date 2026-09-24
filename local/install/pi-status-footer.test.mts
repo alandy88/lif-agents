@@ -256,6 +256,77 @@ test("live provider switches fetch monthly usage once and refresh Codex quotas",
   }
 });
 
+test("monthly spend survives an idle redraw and failed refresh", async () => {
+  const handlers: Record<string, Function> = {};
+  let component: any;
+  let requests = 0;
+  let failure: "network" | "http" | undefined;
+  let enabled = true;
+  let now = Date.parse("2026-09-15T12:00:00Z");
+  const originalNow = Date.now;
+  const originalFetch = globalThis.fetch;
+  Date.now = () => now;
+  globalThis.fetch = (async () => {
+    requests++;
+    if (failure === "network") throw new Error("temporary failure");
+    return { ok: failure !== "http", json: async () => ({ extra_usage: { is_enabled: enabled, used_credits: requests * 450 } }) };
+  }) as any;
+  const ctx: any = {
+    mode: "tui", model: { provider: "anthropic", id: "opus" },
+    modelRegistry: { isUsingOAuth: () => true, getApiKeyForProvider: async () => "test-token" },
+    sessionManager: { getEntries: () => [] }, getContextUsage: () => undefined,
+    ui: { setFooter(factory: any) { if (factory) component = factory({ requestRender() {} }, theme([])); } },
+  };
+  footer.default({
+    on(name: string, handler: Function) { handlers[name] = handler; },
+    getThinkingLevel: () => "high",
+  });
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+  try {
+    handlers.session_start({}, ctx);
+    await settle();
+    assert.match(component.render(200)[0], /Month \$4\.50/);
+    now += 300_001;
+    failure = "network";
+    assert.match(component.render(200)[0], /Month \$4\.50 stale/);
+    await settle();
+    assert.match(component.render(200)[0], /Month \$4\.50 stale/);
+    assert.equal(requests, 2);
+    for (let i = 0; i < 10; i++) component.render(200);
+    await settle();
+    assert.equal(requests, 2);
+    now += 300_001;
+    failure = undefined;
+    component.render(200);
+    await settle();
+    assert.match(component.render(200)[0], /Month \$13\.50/);
+    assert.doesNotMatch(component.render(200)[0], /stale/);
+    now += 300_001;
+    failure = "http";
+    component.render(200);
+    await settle();
+    assert.match(component.render(200)[0], /Month \$13\.50 stale/);
+    now = Date.parse("2026-10-01T00:00:00Z");
+    assert.match(component.render(200)[0], /Month unavailable/);
+    await settle();
+    assert.match(component.render(200)[0], /Month unavailable/);
+    now += 300_001;
+    failure = undefined;
+    component.render(200);
+    await settle();
+    assert.match(component.render(200)[0], /Month \$27\.00/);
+    now += 300_001;
+    enabled = false;
+    component.render(200);
+    await settle();
+    assert.match(component.render(200)[0], /Month unavailable/);
+  } finally {
+    handlers.session_shutdown({}, ctx);
+    Date.now = originalNow;
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("Claude session cost excludes Codex and survives model switches", () => {
   const message = (provider: string, total: number) => ({ type: "message", message: { role: "assistant", provider, usage: { cost: { total } } } });
   assert.equal(footer.claudeSessionCost([message("anthropic", 1), message("openai-codex", 20), message("anthropic", 2)]), 3);

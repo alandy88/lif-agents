@@ -347,14 +347,14 @@ export function parseMonthlySpend(value: unknown): number | undefined {
 	return credits / 10 ** decimals;
 }
 
-function spendSegment(label: string, value: number | undefined, theme: Theme): string {
-	return theme.fg("muted", `${label} ${value === undefined ? "unavailable" : `$${value.toFixed(2)}`}`);
+function spendSegment(label: string, value: number | undefined, theme: Theme, stale = false): string {
+	return theme.fg("muted", `${label} ${value === undefined ? "unavailable" : `$${value.toFixed(2)}${stale ? " stale" : ""}`}`);
 }
 
 function usageSegments(snapshot: FooterSnapshot, theme: Theme, compact: boolean): string[] {
 	if (snapshot.provider === "anthropic") return [
 		spendSegment("Session", snapshot.claudeSessionUsd, theme),
-		spendSegment("Month", snapshot.claudeMonthUsd, theme),
+		spendSegment("Month", snapshot.claudeMonthUsd, theme, snapshot.claudeMonthStale),
 	];
 	return [
 		...(snapshot.quota.fiveHour ? [quotaSegment("5h", snapshot.quota.fiveHour, theme, compact)] : []),
@@ -366,6 +366,7 @@ export interface FooterSnapshot {
 	provider?: string;
 	claudeSessionUsd?: number;
 	claudeMonthUsd?: number;
+	claudeMonthStale?: boolean;
 	modelId: string | undefined;
 	thinkingLevel: string | undefined;
 	context: ContextSnapshot | undefined;
@@ -427,11 +428,15 @@ export default function (pi: ExtensionAPI) {
 
 	let monthly: { usd: number | undefined; fetchedAt: number; month: string } | undefined;
 	let monthlyInFlight = false;
-	const monthKey = () => new Date().toISOString().slice(0, 7);
+	let monthlyAttempt: { at: number; month: string } | undefined;
+	const monthlyTtl = 300_000;
+	const monthKey = () => new Date(Date.now()).toISOString().slice(0, 7);
 	const refreshMonthly = async (ctx: ExtensionContext): Promise<void> => {
 		const controller = sessionController;
 		if (!controller || monthlyInFlight || ctx.model?.provider !== "anthropic") return;
-		if (monthly?.month === monthKey() && Date.now() - monthly.fetchedAt < 300_000) return;
+		const month = monthKey();
+		if (monthlyAttempt?.month === month && Date.now() - monthlyAttempt.at < monthlyTtl) return;
+		monthlyAttempt = { at: Date.now(), month };
 		monthlyInFlight = true;
 		try {
 			let usd: number | undefined;
@@ -442,16 +447,15 @@ export default function (pi: ExtensionAPI) {
 						headers: { Authorization: `Bearer ${token}`, "anthropic-beta": "oauth-2025-04-20" },
 						signal: AbortSignal.any([controller.signal, AbortSignal.timeout(2500)]),
 					});
-					if (response.ok) usd = parseMonthlySpend(await response.json());
+					if (!response.ok) throw new Error("Monthly usage request failed");
+					usd = parseMonthlySpend(await response.json());
 				}
 			}
 			if (!controller.signal.aborted && controller === sessionController) {
-				monthly = { usd, fetchedAt: Date.now(), month: monthKey() };
+				monthly = { usd, fetchedAt: Date.now(), month };
 			}
 		} catch {
-			if (!controller.signal.aborted && controller === sessionController) {
-				monthly = { usd: undefined, fetchedAt: Date.now(), month: monthKey() };
-			}
+			// Keep the last value after a failed request. The footer marks old values as stale.
 		} finally {
 			if (controller === sessionController) monthlyInFlight = false;
 			requestRender();
@@ -495,6 +499,7 @@ export default function (pi: ExtensionAPI) {
 		sessionController?.abort();
 		sessionController = new AbortController();
 		monthly = undefined;
+		monthlyAttempt = undefined;
 		monthlyInFlight = false;
 		quotaReport = undefined;
 		refreshInFlight = false;
@@ -514,6 +519,7 @@ export default function (pi: ExtensionAPI) {
 				},
 				invalidate() {},
 				render(width: number): string[] {
+					void refreshMonthly(ctx);
 					const model = ctx.model;
 					const usage = ctx.getContextUsage();
 					const context: ContextSnapshot | undefined = usage
@@ -530,7 +536,8 @@ export default function (pi: ExtensionAPI) {
 									provider: model?.provider,
 									// All session entries retain spend across model switches and compaction.
 									claudeSessionUsd: model?.provider === "anthropic" ? claudeSessionCost(ctx.sessionManager.getEntries()) : undefined,
-									claudeMonthUsd: monthly?.month === monthKey() && Date.now() - monthly.fetchedAt < 300_000 ? monthly.usd : undefined,
+									claudeMonthUsd: monthly?.month === monthKey() ? monthly.usd : undefined,
+									claudeMonthStale: monthly !== undefined && Date.now() - monthly.fetchedAt >= monthlyTtl,
 									thinkingLevel: pi.getThinkingLevel(),
 									context,
 									quota: selectQuota(quotaReport, model),
