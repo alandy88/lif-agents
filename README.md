@@ -42,6 +42,7 @@ symlinking; `install.sh` symlinks.
 | `local/pwsh/profile.ps1` | dot-sourced from `$PROFILE` | — |
 | `local/zsh/profile.zsh` | — | `~/.config/lif-shell.zsh`, sourced from `~/.zshrc` |
 | `local/pi/extensions/pi-status-footer.ts` | see [local/README.md](local/README.md#layout) | see [local/README.md](local/README.md#layout) |
+| `local/pi/extensions/quiet-tools.ts` | see [local/README.md](local/README.md#quiet-tools-in-pi) | see [local/README.md](local/README.md#quiet-tools-in-pi) |
 
 Machine-specific values live in a named environment under
 `local/environments/`, applied through overlay files the configs read from fixed
@@ -51,6 +52,13 @@ Prerequisites, the values the installer must be given rather than guess, and the
 post-install verification steps are in
 [local/install/AGENTS.md](local/install/AGENTS.md). What each config file is and
 where it lands: [local/README.md](local/README.md).
+
+### Workflow plugin (lif-workflow)
+
+`plugins/lif-workflow/` is a Claude Code plugin with the skills that must work from any
+repo (session handoff, planning, backlog, issue and PR loops, Codex fanout) plus the
+PreToolUse/PostToolUse safety and formatting hooks. See
+[plugins/AGENTS.md](plugins/AGENTS.md) for install and update commands.
 
 ### Agent dispatcher (lif-dispatch)
 

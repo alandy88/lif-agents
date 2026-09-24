@@ -3,7 +3,7 @@
 **You are here because someone cloned this repo on a machine and asked you to
 install it.** This file is the entrypoint for that. It covers the terminal
 setup: WezTerm, Starship, Herdr, the shell profile, and Pi's managed status
-footer.
+footer and quiet-tools extension.
 
 **Do not run `npm i -D github:alandy88/lif-agents`.** The README's kit section
 belongs to `@lif/sandcastle-kit`, a JavaScript package other repos
@@ -92,8 +92,12 @@ commands. Prefer that over inventing values.
 
 ## 3. Prerequisites
 
-Install these first; the repo installs none of them. macOS commands assume
-[Homebrew](https://brew.sh).
+Starship and Oh My Zsh are both expected to be installed before running this
+installer; it configures the shell but installs neither. Use `ZSH_THEME=""`
+and load the LIF profile after Oh My Zsh so Starship owns the prompt.
+
+Install these prerequisites first; the repo installs none of them. macOS commands
+assume [Homebrew](https://brew.sh).
 
 On a machine running services, prefix the `brew` commands with
 `HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1`. Homebrew otherwise
@@ -140,8 +144,8 @@ optional afterwards -- the installer records the name in
 
 It is idempotent. Regular files and directories it replaces are backed up to
 `<name>.pre-lif-terminal.bak`; an existing symlink is replaced without a backup.
-The managed Pi footer is linked to the checkout on Unix and copied on Windows.
-A regular footer file is backed up before replacement; an unrelated symlink at
+The managed Pi extensions are linked to the checkout on Unix and copied on Windows.
+A regular extension file is backed up before replacement; an unrelated symlink at
 that destination is kept. `--dry-run` / `-WhatIf` previews these changes without
 touching the destination. It:
 
@@ -152,8 +156,11 @@ touching the destination. It:
   including when the old path is gone and the link is dangling. A `lif-host.*`
   symlink pointing anywhere else is treated as the captain's own and kept
 - symlinks the zsh profile to `~/.config/lif-shell.zsh` and appends one marked
-  block to `~/.zshrc` that sources it (`--skip-shell-rc` opts out). It never
-  rewrites an existing `~/.zshrc` — the captain curates that file
+  block to `${ZDOTDIR:-$HOME}/.zshrc` that sources it (`--skip-shell-rc` opts out).
+  Export `ZDOTDIR` when invoking the installer if configured in `.zshenv`; the
+  installer does not execute shell startup files to discover it. An incomplete,
+  modified, or duplicate managed block produces a manual-repair warning rather
+  than an “ok” or another block. It never rewrites the captain's existing rc
 - renders `local/herdr/config.toml` into `$XDG_CONFIG_HOME/herdr/config.toml`,
   substituting this environment's `default_shell`. Herdr 0.7.5 reads that path
   on Linux and, *verified on macOS 26.5.2*, on macOS too: it resolves its config
@@ -164,15 +171,20 @@ touching the destination. It:
   `~/.pi/agent/extensions/pi-status-footer.ts`. The footer shows the model,
   thinking effort, context usage, and applicable quota windows; quota refreshes
   retain only the non-secret display snapshot.
+- installs `local/pi/extensions/quiet-tools.ts` at the same global extension
+  directory. Built-in text tool rows are hidden by default; `/quiet-tools off`
+  reveals them. Coverage and limitations: [Quiet tools](../README.md#quiet-tools-in-pi).
 - records the environment name in `$XDG_CONFIG_HOME/lif-env`, last, so a run
   that failed partway does not record a name it never finished installing
 
 The Starship prompt is wired by the profile (`starship init zsh`), not by
 `~/.zshrc` directly, so it arrives with the rest of the profile. If the existing
 `~/.zshrc` already runs `starship init`, the appended block does not remove it
-and Starship initializes twice per shell — redundant rather than broken. Report
-the duplicate line to the captain instead of deleting it yourself; the rc is
-theirs.
+and Starship initializes twice per shell — redundant rather than broken. The
+installer warns about common literal direct initializations, enabled Oh My Zsh
+themes, and a LIF source line preceding Oh My Zsh. These are static hints, not a
+shell parser: resolve warnings with the captain and verify in a fresh shell.
+For Oh My Zsh integration details, see [the compatibility note](../zsh/oh-my-zsh-starship.md).
 
 If the captain's login shell is bash rather than zsh, add the same source line
 to `~/.bashrc` by hand — the profile detects the shell and works in both.

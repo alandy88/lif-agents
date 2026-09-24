@@ -1,0 +1,58 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/dispatch.js\" pre-bash-check",
+            "timeout": 5,
+            "statusMessage": "Safety check"
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/dispatch.js\" pre-sensitive-check",
+            "timeout": 5,
+            "statusMessage": "Sensitive check"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/dispatch.js\" pre-sensitive-check",
+            "timeout": 5,
+            "statusMessage": "Sensitive check"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/dispatch.js\" biome-format",
+            "timeout": 30,
+            "statusMessage": "Biome format + lint"
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/dispatch.js\" python-post-edit",
+            "timeout": 60,
+            "statusMessage": "Python lint + typecheck"
+          }
+        ]
+      }
+    ]
+  }
+}

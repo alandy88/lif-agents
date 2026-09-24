@@ -510,7 +510,7 @@ export default function (pi: ExtensionAPI) {
 
 		if (ctx.mode !== "tui") return;
 
-		ctx.ui.setFooter((tui, theme) => {
+		ctx.ui.setFooter((tui, theme, footerData) => {
 			const footerRequestRender = () => tui.requestRender();
 			activeRequestRender = footerRequestRender;
 			return {
@@ -529,6 +529,7 @@ export default function (pi: ExtensionAPI) {
 								percent: usage.percent,
 							}
 						: undefined;
+					const statuses = [...footerData.getExtensionStatuses().values()].filter(Boolean);
 					return [
 							formatFooterLine(
 								{
@@ -546,6 +547,7 @@ export default function (pi: ExtensionAPI) {
 								theme,
 								width,
 							),
+							...(statuses.length ? [truncateToWidth(statuses.join(" │ "), Math.max(0, width), "")] : []),
 					];
 				},
 			};
