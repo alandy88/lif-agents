@@ -214,6 +214,157 @@ test("footer uses semantic theme colors and fits a narrow terminal", () => {
   assert.ok(calls.some((call) => call.token === "warning"));
 });
 
+test("live provider switches fetch monthly usage once and refresh Codex quotas", async () => {
+  const handlers: Record<string, Function> = {};
+  let component: any;
+  let requests = 0;
+  let quotaRequests = 0;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => {
+    requests++;
+    return { ok: true, json: async () => ({ extra_usage: { is_enabled: true, used_credits: 450 } }) };
+  }) as any;
+  const ctx: any = {
+    mode: "tui", model: { provider: "anthropic", id: "opus" },
+    modelRegistry: { isUsingOAuth: () => true, getApiKeyForProvider: async () => "test-token" },
+    sessionManager: { getEntries: () => [] }, getContextUsage: () => undefined,
+    ui: { setFooter(factory: any) { if (factory) component = factory({ requestRender() {} }, theme([]), { getExtensionStatuses: () => new Map() }); } },
+  };
+  footer.default({
+    on(name: string, handler: Function) { handlers[name] = handler; },
+    getThinkingLevel: () => "high",
+    exec: async () => { quotaRequests++; return { code: 0, stdout: report() }; },
+  });
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+  try {
+    handlers.session_start!({}, ctx);
+    await settle();
+    assert.match(component.render(200)[0], /Month \$4\.50/);
+    ctx.model = { provider: "openai-codex", id: "sol" };
+    handlers.model_select!({}, ctx);
+    await settle();
+    assert.doesNotMatch(component.render(200)[0], /Month|Session/);
+    assert.equal(quotaRequests, 1);
+    ctx.model = { provider: "anthropic", id: "sonnet" };
+    handlers.model_select!({}, ctx);
+    await settle();
+    assert.match(component.render(200)[0], /Month \$4\.50/);
+    assert.equal(requests, 1);
+    handlers.session_shutdown!({}, ctx);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("monthly spend survives an idle redraw and failed refresh", async () => {
+  const handlers: Record<string, Function> = {};
+  let component: any;
+  let requests = 0;
+  let failure: "network" | "http" | undefined;
+  let enabled = true;
+  let now = Date.parse("2026-09-15T12:00:00Z");
+  const originalNow = Date.now;
+  const originalFetch = globalThis.fetch;
+  Date.now = () => now;
+  globalThis.fetch = (async () => {
+    requests++;
+    if (failure === "network") throw new Error("temporary failure");
+    return { ok: failure !== "http", json: async () => ({ extra_usage: { is_enabled: enabled, used_credits: requests * 450 } }) };
+  }) as any;
+  const ctx: any = {
+    mode: "tui", model: { provider: "anthropic", id: "opus" },
+    modelRegistry: { isUsingOAuth: () => true, getApiKeyForProvider: async () => "test-token" },
+    sessionManager: { getEntries: () => [] }, getContextUsage: () => undefined,
+    ui: { setFooter(factory: any) { if (factory) component = factory({ requestRender() {} }, theme([]), { getExtensionStatuses: () => new Map() }); } },
+  };
+  footer.default({
+    on(name: string, handler: Function) { handlers[name] = handler; },
+    getThinkingLevel: () => "high",
+  });
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+  try {
+    handlers.session_start!({}, ctx);
+    await settle();
+    assert.match(component.render(200)[0], /Month \$4\.50/);
+    now += 300_001;
+    failure = "network";
+    assert.match(component.render(200)[0], /Month \$4\.50 stale/);
+    await settle();
+    assert.match(component.render(200)[0], /Month \$4\.50 stale/);
+    assert.equal(requests, 2);
+    for (let i = 0; i < 10; i++) component.render(200);
+    await settle();
+    assert.equal(requests, 2);
+    now += 300_001;
+    failure = undefined;
+    component.render(200);
+    await settle();
+    assert.match(component.render(200)[0], /Month \$13\.50/);
+    assert.doesNotMatch(component.render(200)[0], /stale/);
+    now += 300_001;
+    failure = "http";
+    component.render(200);
+    await settle();
+    assert.match(component.render(200)[0], /Month \$13\.50 stale/);
+    now = Date.parse("2026-10-01T00:00:00Z");
+    assert.match(component.render(200)[0], /Month unavailable/);
+    await settle();
+    assert.match(component.render(200)[0], /Month unavailable/);
+    now += 300_001;
+    failure = undefined;
+    component.render(200);
+    await settle();
+    assert.match(component.render(200)[0], /Month \$27\.00/);
+    now += 300_001;
+    enabled = false;
+    component.render(200);
+    await settle();
+    assert.match(component.render(200)[0], /Month unavailable/);
+  } finally {
+    handlers.session_shutdown!({}, ctx);
+    Date.now = originalNow;
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("Claude session cost excludes Codex and survives model switches", () => {
+  const message = (provider: string, total: number) => ({ type: "message", message: { role: "assistant", provider, usage: { cost: { total } } } });
+  assert.equal(footer.claudeSessionCost([message("anthropic", 1), message("openai-codex", 20), message("anthropic", 2)]), 3);
+  assert.equal(footer.claudeSessionCost([]), 0);
+  assert.equal(footer.claudeSessionCost([{ type: "message", message: { role: "assistant", provider: "anthropic" } }]), undefined);
+});
+
+test("monthly credits use declared precision and reject unavailable data", () => {
+  const extra = (values: object) => ({ extra_usage: { is_enabled: true, used_credits: 1234, ...values } });
+  assert.equal(footer.parseMonthlySpend(extra({})), 12.34);
+  assert.equal(footer.parseMonthlySpend(extra({ decimal_places: 3 })), 1.234);
+  assert.equal(footer.parseMonthlySpend(extra({ used_credits: 0 })), 0);
+  for (const value of [null, {}, extra({ is_enabled: false }), extra({ used_credits: -1 }), extra({ decimal_places: null })]) {
+    assert.equal(footer.parseMonthlySpend(value), undefined);
+  }
+});
+
+test("switching providers replaces quota with Claude spend without leaking values", () => {
+  const snapshot = { modelId: "opus", thinkingLevel: "high", context: undefined,
+    quota: { fiveHour: { percentRemaining: 80 }, weekly: { percentRemaining: 60 } },
+    claudeSessionUsd: 1.25, claudeMonthUsd: 23.45 };
+  for (const provider of ["anthropic", "openai-codex", "anthropic"]) {
+    const line = footer.formatFooterLine({ ...snapshot, provider }, theme([]), 200).replace(ANSI, "");
+    if (provider === "anthropic") {
+      assert.match(line, /Session \$1\.25.*Month \$23\.45/);
+      assert.doesNotMatch(line, /week|5h/);
+    } else {
+      assert.match(line, /5h 80% left.*week 60% left/);
+      assert.doesNotMatch(line, /Session|Month/);
+    }
+  }
+  const unavailable = footer.formatFooterLine({ ...snapshot, provider: "anthropic", claudeMonthUsd: undefined }, theme([]), 200);
+  assert.match(unavailable, /Month unavailable/);
+  for (const width of [0, 20, 60, 100]) {
+    assert.ok(visibleWidth(footer.formatFooterLine({ ...snapshot, provider: "anthropic" }, theme([]), width)) <= width);
+  }
+});
+
 test("footer omits the five-hour segment when selection has no five-hour window", () => {
   const line = footer.formatFooterLine(
     {

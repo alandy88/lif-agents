@@ -323,7 +323,50 @@ function fitSegments(segments: string[], separator: string, width: number): stri
 	return truncateToWidth(full, width, "");
 }
 
+export function claudeSessionCost(entries: readonly unknown[]): number | undefined {
+	let total = 0;
+	for (const entry of entries) {
+		if (!isRecord(entry) || entry.type !== "message" || !isRecord(entry.message)) continue;
+		const message = entry.message;
+		if (message.role !== "assistant" || message.provider !== "anthropic") continue;
+		const cost = isRecord(message.usage) && isRecord(message.usage.cost)
+			? finiteNumber(message.usage.cost.total) : undefined;
+		if (cost === undefined || cost < 0) return undefined;
+		total += cost;
+	}
+	return total;
+}
+
+export function parseMonthlySpend(value: unknown): number | undefined {
+	if (!isRecord(value) || !isRecord(value.extra_usage)) return undefined;
+	const extra = value.extra_usage;
+	if (extra.is_enabled !== true) return undefined;
+	const credits = finiteNumber(extra.used_credits);
+	const decimals = extra.decimal_places === undefined ? 2 : finiteNumber(extra.decimal_places);
+	if (credits === undefined || credits < 0 || decimals === undefined || !Number.isInteger(decimals) || decimals < 0 || decimals > 10) return undefined;
+	return credits / 10 ** decimals;
+}
+
+function spendSegment(label: string, value: number | undefined, theme: Theme, stale = false): string {
+	return theme.fg("muted", `${label} ${value === undefined ? "unavailable" : `$${value.toFixed(2)}${stale ? " stale" : ""}`}`);
+}
+
+function usageSegments(snapshot: FooterSnapshot, theme: Theme, compact: boolean): string[] {
+	if (snapshot.provider === "anthropic") return [
+		spendSegment("Session", snapshot.claudeSessionUsd, theme),
+		spendSegment("Month", snapshot.claudeMonthUsd, theme, snapshot.claudeMonthStale),
+	];
+	return [
+		...(snapshot.quota.fiveHour ? [quotaSegment("5h", snapshot.quota.fiveHour, theme, compact)] : []),
+		quotaSegment("week", snapshot.quota.weekly, theme, compact),
+	];
+}
+
 export interface FooterSnapshot {
+	provider?: string;
+	claudeSessionUsd?: number;
+	claudeMonthUsd?: number;
+	claudeMonthStale?: boolean;
 	modelId: string | undefined;
 	thinkingLevel: string | undefined;
 	context: ContextSnapshot | undefined;
@@ -348,8 +391,7 @@ export function formatFooterLine(snapshot: FooterSnapshot, theme: Theme, supplie
 			speedSegment("In", snapshot.speed.inputTokensPerSecond, theme),
 			speedSegment("Out", snapshot.speed.outputTokensPerSecond, theme),
 		] : []),
-		...(snapshot.quota.fiveHour ? [quotaSegment("5h", snapshot.quota.fiveHour, theme, false)] : []),
-		quotaSegment("week", snapshot.quota.weekly, theme, false),
+		...usageSegments(snapshot, theme, false),
 	];
 	const full = joinSegments(fullSegments, separator);
 	if (visibleWidth(full) <= width) return full;
@@ -362,8 +404,7 @@ export function formatFooterLine(snapshot: FooterSnapshot, theme: Theme, supplie
 			speedSegment("In", snapshot.speed.inputTokensPerSecond, theme),
 			speedSegment("Out", snapshot.speed.outputTokensPerSecond, theme),
 		] : []),
-		...(snapshot.quota.fiveHour ? [quotaSegment("5h", snapshot.quota.fiveHour, theme, true)] : []),
-		quotaSegment("week", snapshot.quota.weekly, theme, true),
+		...usageSegments(snapshot, theme, true),
 	];
 	const compactSeparator = theme.fg("dim", "│");
 	const compact = joinSegments(compactSegments, compactSeparator);
@@ -385,7 +426,44 @@ export default function (pi: ExtensionAPI) {
 		activeRequestRender?.();
 	};
 
+	let monthly: { usd: number | undefined; fetchedAt: number; month: string } | undefined;
+	let monthlyInFlight = false;
+	let monthlyAttempt: { at: number; month: string } | undefined;
+	const monthlyTtl = 300_000;
+	const monthKey = () => new Date(Date.now()).toISOString().slice(0, 7);
+	const refreshMonthly = async (ctx: ExtensionContext): Promise<void> => {
+		const controller = sessionController;
+		if (!controller || monthlyInFlight || ctx.model?.provider !== "anthropic") return;
+		const month = monthKey();
+		if (monthlyAttempt?.month === month && Date.now() - monthlyAttempt.at < monthlyTtl) return;
+		monthlyAttempt = { at: Date.now(), month };
+		monthlyInFlight = true;
+		try {
+			let usd: number | undefined;
+			if (ctx.modelRegistry.isUsingOAuth(ctx.model)) {
+				const token = await ctx.modelRegistry.getApiKeyForProvider("anthropic");
+				if (token && !controller.signal.aborted) {
+					const response = await fetch("https://api.anthropic.com/api/oauth/usage", {
+						headers: { Authorization: `Bearer ${token}`, "anthropic-beta": "oauth-2025-04-20" },
+						signal: AbortSignal.any([controller.signal, AbortSignal.timeout(2500)]),
+					});
+					if (!response.ok) throw new Error("Monthly usage request failed");
+					usd = parseMonthlySpend(await response.json());
+				}
+			}
+			if (!controller.signal.aborted && controller === sessionController) {
+				monthly = { usd, fetchedAt: Date.now(), month };
+			}
+		} catch {
+			// Keep the last value after a failed request. The footer marks old values as stale.
+		} finally {
+			if (controller === sessionController) monthlyInFlight = false;
+			requestRender();
+		}
+	};
+
 	const refreshQuota = async (ctx: ExtensionContext): Promise<void> => {
+		if (ctx.model?.provider === "anthropic") return refreshMonthly(ctx);
 		const controller = sessionController;
 		if (!controller) return;
 		if (refreshInFlight) {
@@ -420,6 +498,9 @@ export default function (pi: ExtensionAPI) {
 	pi.on("session_start", (_event, ctx) => {
 		sessionController?.abort();
 		sessionController = new AbortController();
+		monthly = undefined;
+		monthlyAttempt = undefined;
+		monthlyInFlight = false;
 		quotaReport = undefined;
 		refreshInFlight = false;
 		refreshQueued = false;
@@ -438,6 +519,7 @@ export default function (pi: ExtensionAPI) {
 				},
 				invalidate() {},
 				render(width: number): string[] {
+					void refreshMonthly(ctx);
 					const model = ctx.model;
 					const usage = ctx.getContextUsage();
 					const context: ContextSnapshot | undefined = usage
@@ -452,6 +534,11 @@ export default function (pi: ExtensionAPI) {
 							formatFooterLine(
 								{
 									modelId: model?.id,
+									provider: model?.provider,
+									// All session entries retain spend across model switches and compaction.
+									claudeSessionUsd: model?.provider === "anthropic" ? claudeSessionCost(ctx.sessionManager.getEntries()) : undefined,
+									claudeMonthUsd: monthly?.month === monthKey() ? monthly.usd : undefined,
+									claudeMonthStale: monthly !== undefined && Date.now() - monthly.fetchedAt >= monthlyTtl,
 									thinkingLevel: pi.getThinkingLevel(),
 									context,
 									quota: selectQuota(quotaReport, model),
@@ -514,11 +601,12 @@ export default function (pi: ExtensionAPI) {
 		}
 		requestRender();
 	});
-	pi.on("model_select", () => {
+	pi.on("model_select", (_event, ctx) => {
 		requestStartedAt = undefined;
 		firstOutputAt = undefined;
 		inferenceSpeed = undefined;
 		requestRender();
+		if (ctx.mode === "tui") void refreshQuota(ctx);
 	});
 	pi.on("thinking_level_select", () => requestRender());
 	pi.on("agent_settled", (event, ctx) => {

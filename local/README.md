@@ -60,6 +60,17 @@ existing session to activate them. Agents installing this on a machine
 should follow [install/AGENTS.md](install/AGENTS.md), which covers the prerequisites and
 the values that must be asked for rather than guessed.
 
+The Pi footer follows the active provider. Codex shows available five-hour and
+weekly quota from `quota-axi`. Anthropic shows `Session $…` (estimated token cost
+summed over Anthropic assistant messages in the current session, across model
+switches and compaction) and `Month $…` (account-wide extra-usage credits consumed,
+not subscription usage). Monthly usage uses Pi's Anthropic OAuth credentials and
+`/api/oauth/usage`, with a five-minute in-memory cache and a 2.5-second timeout.
+API-key-only authentication, disabled extra usage, and failed requests show
+`Month unavailable`; no credentials are logged or written to the cache. Switching
+providers refreshes the appropriate source. Session spend is not an invoice and
+need not match billed extra usage.
+
 Idempotent — re-run after a `git pull`. On Unix the extensions are linked to the
 checkout; on Windows they are copied because the installer does not require
 symlink privileges. A regular extension file is backed up before replacement, and

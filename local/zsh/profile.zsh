@@ -174,7 +174,7 @@ _cc_run() {
         export CLAUDE_CONFIG_DIR
         case "$sub" in
             fable)    claude "${B[@]}" --model claude-fable-5-1 "$@" ;;
-            opus)     claude "${B[@]}" --model claude-opus-5 "${P[@]}" "$@" ;;
+            opus)     claude "${B[@]}" --model claude-opus-5-5 "${P[@]}" "$@" ;;
             sonnet)   claude "${B[@]}" --model claude-sonnet-5 "$@" ;;
             haiku)    claude "${B[@]}" --model claude-haiku-4-5 "$@" ;;
             resume)   claude "${B[@]}" --resume "$@" ;;
@@ -196,7 +196,7 @@ ccpr() { ccp resume "$@"; }
 
 # --- pi ---
 # One dispatcher over pi's providers, the same shape as cc. The optional first
-# word is a model (opus|sonnet|fable|sol|luna|terra|astra|qwen27); anything else --
+# word is a model (opus|sonnet|haiku|fable|sol|luna|terra|astra|qwen27); anything else --
 # a flag, a message, `install`, `update` -- is passed straight through, so bare
 # `pi` and `pi --help` still reach the binary. `command pi` is what breaks the
 # recursion into this function. `opus` carries the same appended system prompt
@@ -207,9 +207,10 @@ pi() {
     local sub=${1:-}
     [ $# -gt 0 ] && shift
     case "$sub" in
-        opus)   command pi --provider anthropic    --model claude-opus-5 "${P[@]}" "$@" ;;
+        opus)   command pi --provider anthropic    --model claude-opus-5-5 "${P[@]}" "$@" ;;
         sonnet) command pi --provider anthropic    --model claude-sonnet-5 "$@" ;;
-        fable)  command pi --provider anthropic    --model claude-fable-5 "$@" ;;
+        haiku)  command pi --provider anthropic    --model claude-haiku-4-5 "$@" ;;
+        fable)  command pi --provider anthropic    --model claude-fable-5-1 "$@" ;;
         sol)    command pi --provider openai-codex --model gpt-5.6-sol "$@" ;;
         luna)   command pi --provider openai-codex --model gpt-5.6-luna "$@" ;;
         terra)  command pi --provider openai-codex --model gpt-5.6-terra "$@" ;;
