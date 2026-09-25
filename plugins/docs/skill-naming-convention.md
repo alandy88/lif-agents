@@ -16,6 +16,7 @@
 | `job-` | Client job lifecycle | (future candidates) |
 | `issue-` | Single-issue execution loops (interactive counterparts to swarm-pi prompts) | `issue-implement`, `issue-review` |
 | `pr-` | Pull-request lifecycle on `alandy88` repos | `pr-shepherd` |
+| `herdr-` | Herdr terminal-workspace layout over the local repos | `herdr-workspace` |
 
 ## Rules
 
@@ -68,6 +69,7 @@ store; skills that must resolve from any repo ship in the `lif-workflow` plugin.
 | `claude-code-reviewer` | — | lif-agents `plugins/lif-workflow/` |
 | `codex` | — | lif-agents `plugins/lif-workflow/` |
 | `handoff` | — | lif-agents `plugins/lif-workflow/` |
+| `herdr-workspace` | herdr | lif-agents `plugins/lif-workflow/` |
 | `issue-implement` | issue | lif-agents `plugins/lif-workflow/` |
 | `issue-review` | issue | lif-agents `plugins/lif-workflow/` |
 | `markdown-to-docx` | — | lif-agents `plugins/lif-workflow/` |
