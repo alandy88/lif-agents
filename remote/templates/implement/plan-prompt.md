@@ -23,11 +23,11 @@ files capture stdin/stdout and a leaked credential is a real incident.
 
 # BLIND SPOT PASS
 
-Read `AGENTS.md` at the repo root first — it documents the project structure, node contracts, and test commands. Explore the code the issue touches just enough to slice confidently.
+Read `AGENTS.md` at the repo root first — it documents the project structure, conventions, and test commands. Explore the code the issue touches just enough to slice confidently.
 
 Before slicing, do a blind spot pass. You are the only session that reads this issue with fresh eyes and the whole codebase in view; every ambiguity you resolve silently here gets decided by a later session that has far less context.
 
-Ask: what does the issue NOT say that would change the implementation? Look for unstated choices about data shapes, public contracts, node IDs, storage format, error behavior, and user-facing wording — and for assumptions the issue makes that the code contradicts.
+Ask: what does the issue NOT say that would change the implementation? Look for unstated choices about data shapes, public contracts, identifiers, storage format, error behavior, and user-facing wording — and for assumptions the issue makes that the code contradicts.
 
 This run is fully autonomous — nobody will answer you. So for each open question, pick the conservative option (the one that is easiest to reverse and changes the least existing behavior), and record both the question and the choice. Then plan as if that choice were settled.
 

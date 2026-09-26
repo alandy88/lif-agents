@@ -158,9 +158,9 @@ Per-phase routing, resolved once per run, in this order: `--profile` →
 
 | name | plan | task | review |
 |---|---|---|---|
-| `mixed` (default) | `claude-opus-5` | `gpt-5.6-sol` | `claude-opus-5` |
-| `claude` | `claude-opus-5` for all three |||
-| `gpt` | `gpt-5.6-sol` for all three |||
+| `mixed` (default) | `claude-opus-5-5` | `claude-opus-5-5` | `gpt-6-astra` |
+| `claude` | `claude-opus-5-5` for all three |||
+| `gpt` | `gpt-6-astra` for all three |||
 
 `--model <id>` overrides the model within a named profile. It is rejected
 against `mixed` (which runs different models per phase) and validated against
