@@ -118,6 +118,15 @@ local font_fallback = {
 if is_macos then
   table.insert(font_fallback, 'Apple Color Emoji')
 end
+-- Chinese falls through JetBrains Mono, which has no CJK glyphs; each OS names
+-- the family it ships by default.
+if is_macos then
+  table.insert(font_fallback, 'PingFang SC')
+elseif is_windows then
+  table.insert(font_fallback, 'Microsoft YaHei')
+else
+  table.insert(font_fallback, 'Maple Mono NF CN')
+end
 config.font = wezterm.font_with_fallback(font_fallback)
 
 -- Display-specific, so the environment owns it: a HiDPI Mac wants more than a
