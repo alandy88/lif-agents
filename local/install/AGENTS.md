@@ -12,7 +12,7 @@ here does nothing the captain asked for.
 
 This repo installs **no software**. It places configuration files. Everything in
 "Prerequisites" has to exist first, and some of it needs the captain's
-credentials or preferences — see "Stop and ask".
+credentials or preferences — see section 2, "Resolve environment values; ask only for gaps".
 
 ---
 
@@ -63,13 +63,14 @@ Mac mini.** `local/environments/macbookpro-work/` ships no overlay files, so the
 installer takes its stale-overlay branch, *deletes* both `lif-host.*` symlinks
 (`lif` stops working) and permanently records the machine as the wrong one.
 
-## 2. Stop and ask the captain
+## 2. Resolve environment values; ask only for gaps
 
-Eight values cannot be inferred and must not be guessed. A plausible-looking
-invented path is worse than no path: the launch menu silently opens agents in
-the wrong directory, and `lif`/`notes`/`imagehub`/`github` fail confusingly.
+Reuse values from this machine's existing environment overlay or explicit user input.
+Validate relevant paths locally; ask about missing, conflicting, or ambiguous values
+rather than guessing. A plausible-looking invented path can silently open agents in
+the wrong directory and break `lif`/`notes`/`imagehub`/`github`.
 
-| Ask for | Goes in |
+| Value to resolve | Goes in |
 |---|---|
 | stable-diffusion checkout path | `host.lua` `stable_diffusion_cwd` |
 | comfyui-lif-nodes checkout path | `host.lua` `lif_node_cwd` |
@@ -85,10 +86,11 @@ at all — only the host that does sets `LIF_FIRSTMATE_DIR` (`~/firstmate` by
 convention) and `LIF_HERDR_PATH` (the herdr binary, absolute) — and whether this
 machine uses BWS.
 
-Ask for all of them in one message, then continue. Every key is optional at
-runtime — an environment with none of them still installs and still gives a
-working terminal, just with an empty launch menu and warning `lif`/`notes`
-commands. Prefer that over inventing values.
+Ask only for unresolved values needed by the requested setup, grouped in one message.
+If the existing configuration resolves them, continue without re-asking. Every key is
+optional at runtime — an environment with none of them still installs and gives a
+working terminal, just with an empty launch menu and warning `lif`/`notes` commands.
+Explain omitted capabilities; prefer leaving optional values unset over inventing them.
 
 ## 3. Prerequisites
 
@@ -124,7 +126,8 @@ footer leaves quota data unavailable.
 
 Create `local/environments/<env>/host.lua` and `local/environments/<env>/host.sh` from
 `local/hosts/lif-host.lua.example` and `local/hosts/lif-host.sh.example`, filled
-in with the answers from step 2. Write paths in this machine's own notation —
+in with the resolved values from step 2. Preserve existing overlay values unless the
+requested setup requires changing them. Write paths in this machine's own notation —
 POSIX on macOS and WSL. Do not copy `windows-5090`'s drive paths.
 
 These files are gitignored on purpose (they hold the captain's real paths and
