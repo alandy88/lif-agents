@@ -17,6 +17,7 @@
 | `issue-` | Single-issue execution loops (interactive counterparts to swarm-pi prompts) | `issue-implement`, `issue-review` |
 | `pr-` | Pull-request lifecycle on `alandy88` repos | `pr-shepherd` |
 | `herdr-` | Herdr terminal-workspace layout over the local repos | `herdr-workspace` |
+| `ui-` | UI and UX design, audit, and enhancement | `ui-hig` |
 
 ## Rules
 
@@ -82,4 +83,5 @@ store; skills that must resolve from any repo ship in the `lif-workflow` plugin.
 | `seed` | — | lif-agents `plugins/lif-workflow/` |
 | `skill-designer` | — | lif-agents `plugins/lif-workflow/` |
 | `structured-planning` | — | lif-agents `plugins/lif-workflow/` |
+| `ui-hig` | ui | lif-agents `plugins/lif-workflow/` |
 | `wechat-auto` | — | lif-agents `plugins/lif-workflow/` |
