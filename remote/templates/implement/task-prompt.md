@@ -43,7 +43,7 @@ If you need to see what earlier tasks changed, run `git log main..HEAD --oneline
 
 # EXPLORATION
 
-Read `AGENTS.md` at the repo root first — it documents the project structure, node contracts, and test commands.
+Read `AGENTS.md` at the repo root first — it documents the project structure, conventions, and test commands.
 
 Explore only what the CURRENT task touches. The checklist exists so each session stays small — do not re-derive the whole issue.
 

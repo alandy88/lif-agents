@@ -126,12 +126,12 @@ test("each phase gets its own agent and shares everything else", async () => {
   // Built for all three phases even when a lifecycle runs only two.
   assert.deepEqual(agentProfiles, [run.phases.plan, run.phases.task, run.phases.review]);
   for (const [index, phase] of (["plan", "task", "review"] as const).entries()) {
-    // Identity, not shape: plan and review resolve to the same model on the
+    // Identity, not shape: plan and task resolve to the same model on the
     // mixed map, so a structural check would pass on a reused handle.
     assert.equal(ctx[phase].agent, agents[index], phase);
     assert.equal(ctx[phase].sandbox, sandbox, phase);
     assert.equal(ctx[phase].branch, "agent/issue-7", phase);
     assert.equal(ctx[phase].prompt, ctx.plan.prompt, phase);
   }
-  assert.notEqual(ctx.plan.agent, ctx.review.agent, "distinct agents, not one reused handle");
+  assert.notEqual(ctx.plan.agent, ctx.task.agent, "distinct agents, not one reused handle");
 });

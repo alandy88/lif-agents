@@ -14,12 +14,12 @@ export type ModelProfile = {
 export const agents = {
   claude: {
     provider: "claude",
-    model: "claude-opus-5",
+    model: "claude-opus-5-5",
     effort: "medium",
   },
   gpt: {
     provider: "codex",
-    model: "gpt-5.6-sol",
+    model: "gpt-6-astra",
     effort: "medium",
   },
 } as const satisfies Record<string, ModelProfile>;
@@ -31,10 +31,10 @@ export type Phase = "plan" | "task" | "review";
 /**
  * Which agent runs which phase. A named agent's route is the degenerate case
  * where all three phases share it; `mixed` (the default) has Opus plan and
- * review while Codex builds.
+ * build while Codex reviews.
  */
 export const routes = {
-  mixed: { plan: "claude", task: "gpt", review: "claude" },
+  mixed: { plan: "claude", task: "claude", review: "gpt" },
   claude: { plan: "claude", task: "claude", review: "claude" },
   gpt: { plan: "gpt", task: "gpt", review: "gpt" },
 } as const satisfies Record<string, Record<Phase, AgentName>>;

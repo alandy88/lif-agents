@@ -87,7 +87,7 @@ export async function runIteration(
   await using opened = await openRun({ config, run, branch }, runDeps);
 
   // The verifier is a reviewer, so it gets the review phase's model — which is
-  // how a mixed run ends up building with Codex and checking with Opus.
+  // how a mixed run ends up building with Opus and checking with Codex.
   const taskCtx = opened.ctx.task;
   const verifyCtx = opened.ctx.review;
 
