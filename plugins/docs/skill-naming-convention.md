@@ -18,6 +18,7 @@
 | `pr-` | Pull-request lifecycle on `alandy88` repos | `pr-shepherd` |
 | `herdr-` | Herdr terminal-workspace layout over the local repos | `herdr-workspace` |
 | `ui-` | UI and UX design, audit, and enhancement | `ui-hig` |
+| `prompt-` | Rewriting prompts and task briefs for agents | `prompt-optimize` |
 
 ## Rules
 
@@ -79,6 +80,7 @@ store; skills that must resolve from any repo ship in the `lif-workflow` plugin.
 | `pickup` | — | lif-agents `plugins/lif-workflow/` |
 | `plan-handoff` | — | lif-agents `plugins/lif-workflow/` |
 | `pr-shepherd` | pr | lif-agents `plugins/lif-workflow/` |
+| `prompt-optimize` | prompt | lif-agents `plugins/lif-workflow/` |
 | `retro` | — | lif-agents `plugins/lif-workflow/` |
 | `seed` | — | lif-agents `plugins/lif-workflow/` |
 | `skill-designer` | — | lif-agents `plugins/lif-workflow/` |
