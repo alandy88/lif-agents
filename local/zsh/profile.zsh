@@ -30,17 +30,17 @@ fi
 # Gray ghost-text hint from history, the PSReadLine PredictionSource analogue.
 # zsh-only; first readable install path wins (apt, Homebrew, manual clone).
 if [ -n "${ZSH_VERSION:-}" ]; then
-    for _lif_zas in \
+    for lif_zas in \
         /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh \
         /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh \
         /usr/local/share/zsh-autosuggestions/zsh-autosuggestions.zsh \
         "$HOME/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh"; do
-        if [ -r "$_lif_zas" ]; then
-            . "$_lif_zas"
+        if [ -r "$lif_zas" ]; then
+            . "$lif_zas"
             break
         fi
     done
-    unset _lif_zas
+    unset lif_zas
 fi
 
 # --- Environment overlay: per-machine paths and ids, kept out of this repo ---
@@ -57,8 +57,8 @@ else
     unset LIF_STUDIO_BWS_PROJECT
 fi
 
-# _lif_need VAR... -> 0 if all are set, else warn once and return 1.
-_lif_need() {
+# lif_need VAR... -> 0 if all are set, else warn once and return 1.
+lif_need() {
     local missing= v
     for v in "$@"; do
         eval "[ -n \"\${$v:-}\" ]" || missing="$missing $v"
@@ -150,7 +150,7 @@ tm() {
 # which differs per machine -- so it is reachable only where LIF_GITHUB_DIR is
 # set and the file is actually there. Missing means launch without it, rather
 # than hand the agent a path that does not resolve.
-_lif_opus_prompt() {
+lif_opus_prompt() {
     [ -n "${LIF_GITHUB_DIR:-}" ] || return 1
     local f="$LIF_GITHUB_DIR/oss/fixing-smartass-opus-5/sr_opus_5_system_prompt.md"
     [ -f "$f" ] || return 1
@@ -166,7 +166,7 @@ _cc_run() {
         B=(--dangerously-skip-permissions)
     fi
     local -a P; P=()
-    local f; f=$(_lif_opus_prompt) && P=(--append-system-prompt-file "$f")
+    local f; f=$(lif_opus_prompt) && P=(--append-system-prompt-file "$f")
     local sub=${1:-}
     [ $# -gt 0 ] && shift
     (
@@ -203,7 +203,7 @@ ccpr() { ccp resume "$@"; }
 # `cc opus` does.
 pi() {
     local -a P; P=()
-    local f; f=$(_lif_opus_prompt) && P=(--append-system-prompt "$f")
+    local f; f=$(lif_opus_prompt) && P=(--append-system-prompt "$f")
     local sub=${1:-}
     [ $# -gt 0 ] && shift
     case "$sub" in
@@ -233,7 +233,7 @@ alias dsh='npx @deepseek-ai/dsh'
 
 # Quote args for the remote shell: ssh joins them with plain spaces, so
 # `fmw --session 'my work'` would otherwise reach herdr as two arguments.
-_lif_shquote() {
+lif_shquote() {
     local a out=
     for a in "$@"; do
         out="$out '$(printf '%s' "$a" | sed "s/'/'\\\\''/g")'"
@@ -242,10 +242,10 @@ _lif_shquote() {
 }
 
 fm() {
-    _lif_need LIF_FIRSTMATE_DIR || return 1
+    lif_need LIF_FIRSTMATE_DIR || return 1
     if [ -n "${LIF_FIRSTMATE_HOST:-}" ]; then
         ssh -t "$LIF_FIRSTMATE_HOST" \
-            "cd '$LIF_FIRSTMATE_DIR' && exec ~/.local/bin/claude --dangerously-skip-permissions$(_lif_shquote "$@")"
+            "cd '$LIF_FIRSTMATE_DIR' && exec ~/.local/bin/claude --dangerously-skip-permissions$(lif_shquote "$@")"
         return
     fi
     # Subshell so the caller's cwd survives.
@@ -253,7 +253,7 @@ fm() {
 }
 
 fmsh() {
-    _lif_need LIF_FIRSTMATE_DIR || return 1
+    lif_need LIF_FIRSTMATE_DIR || return 1
     if [ -n "${LIF_FIRSTMATE_HOST:-}" ]; then
         ssh -t "$LIF_FIRSTMATE_HOST" "cd '$LIF_FIRSTMATE_DIR' && exec zsh -l"
         return
@@ -269,19 +269,19 @@ fmsh() {
 # puts it on PATH, which zsh reads even for the shell ssh spawns.
 fmw() {
     if [ -n "${LIF_FIRSTMATE_HOST:-}" ]; then
-        ssh -t "$LIF_FIRSTMATE_HOST" "exec herdr$(_lif_shquote "$@")"
+        ssh -t "$LIF_FIRSTMATE_HOST" "exec herdr$(lif_shquote "$@")"
         return
     fi
-    _lif_need LIF_HERDR_PATH || return 1
+    lif_need LIF_HERDR_PATH || return 1
     "$LIF_HERDR_PATH" "$@"
 }
 
 # Directory shortcuts. `github` deliberately shadows GitHub Desktop's `github`
 # launcher on PATH, which is what the alias it replaces did too.
-lif()      { _lif_need LIF_STUDIO_DIR   && cd "$LIF_STUDIO_DIR"; }
-notes()    { _lif_need LIF_NOTES_DIR    && cd "$LIF_NOTES_DIR"; }
-imagehub() { _lif_need LIF_IMAGEHUB_DIR && cd "$LIF_IMAGEHUB_DIR"; }
-github()   { _lif_need LIF_GITHUB_DIR   && cd "$LIF_GITHUB_DIR"; }
+lif()      { lif_need LIF_STUDIO_DIR   && cd "$LIF_STUDIO_DIR"; }
+notes()    { lif_need LIF_NOTES_DIR    && cd "$LIF_NOTES_DIR"; }
+imagehub() { lif_need LIF_IMAGEHUB_DIR && cd "$LIF_IMAGEHUB_DIR"; }
+github()   { lif_need LIF_GITHUB_DIR   && cd "$LIF_GITHUB_DIR"; }
 
 # --- BWS access token ---
 # The token is loaded from its at-rest store only inside each `bws` invocation.
@@ -289,7 +289,7 @@ github()   { _lif_need LIF_GITHUB_DIR   && cd "$LIF_GITHUB_DIR"; }
 # command starts. macOS uses Keychain; Linux prefers a systemd-creds host-bound
 # credential, falling back to ~/.bws/token mode 0600 where user-systemd is absent.
 unset BWS_ACCESS_TOKEN
-_lif_read_bws_token() {
+lif_read_bws_token() {
     if [ "$(uname -s)" = Darwin ]; then
         security find-generic-password -s lif-bws-token -w 2>/dev/null
         return
@@ -306,13 +306,13 @@ _lif_read_bws_token() {
     fi
     cat "$f"
 }
-_lif_bws_bin() {
+lif_bws_bin() {
     if [ -n "${ZSH_VERSION:-}" ]; then whence -p bws; else type -P bws; fi
 }
 bws() {
     local exe token
-    exe=$(_lif_bws_bin) || { echo 'bws not found on PATH' >&2; return 127; }
-    token=$(_lif_read_bws_token) || { echo 'lif: BWS access token is not configured' >&2; return 1; }
+    exe=$(lif_bws_bin) || { echo 'bws not found on PATH' >&2; return 127; }
+    token=$(lif_read_bws_token) || { echo 'lif: BWS access token is not configured' >&2; return 1; }
     [ -n "$token" ] || return 1
     # BWS 2.1 removes its authentication token from `run` children before it
     # starts the selected shell. Do not inject shell-specific command text here.
@@ -322,18 +322,18 @@ bws() {
 # Claude is direct and secret-free by default. This explicitly named legacy
 # path injects the configured whole BWS project for tasks that truly need it.
 # Prefer a narrower direct `bws run` selection when the installed CLI offers it.
-_lif_claude_bin() {
+lif_claude_bin() {
     if [ -n "${ZSH_VERSION:-}" ]; then whence -p claude; else type -P claude; fi
 }
 claude() {
     local exe
-    exe=$(_lif_claude_bin) || { echo 'claude not found on PATH' >&2; return 127; }
+    exe=$(lif_claude_bin) || { echo 'claude not found on PATH' >&2; return 127; }
     "$exe" "$@"
 }
 claude-bws() {
-    _lif_need LIF_STUDIO_BWS_PROJECT || return 1
+    lif_need LIF_STUDIO_BWS_PROJECT || return 1
     local exe cmd a
-    exe=$(_lif_claude_bin) || { echo 'claude not found on PATH' >&2; return 127; }
+    exe=$(lif_claude_bin) || { echo 'claude not found on PATH' >&2; return 127; }
     cmd="unset BWS_ACCESS_TOKEN CLAUDE_CODE_OAUTH_TOKEN; $(printf '%q' "$exe")"
     for a in "$@"; do cmd="$cmd $(printf '%q' "$a")"; done
     bws run --project-id "$LIF_STUDIO_BWS_PROJECT" -- "$cmd"
