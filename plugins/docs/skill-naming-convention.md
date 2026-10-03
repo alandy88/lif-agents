@@ -84,6 +84,7 @@ store; skills that must resolve from any repo ship in the `lif-workflow` plugin.
 | `prompt-optimize` | prompt | lif-agents `plugins/lif-workflow/` |
 | `retro` | — | lif-agents `plugins/lif-workflow/` |
 | `seed` | — | lif-agents `plugins/lif-workflow/` |
+| `shipit` | — | lif-agents `plugins/lif-workflow/` |
 | `skill-designer` | — | lif-agents `plugins/lif-workflow/` |
 | `structured-planning` | — | lif-agents `plugins/lif-workflow/` |
 | `ui-hig` | ui | lif-agents `plugins/lif-workflow/` |
