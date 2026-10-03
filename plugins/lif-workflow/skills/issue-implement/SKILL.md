@@ -12,77 +12,50 @@ allowed-tools: Read, Glob, Grep, Edit, Write, Bash, Skill, TodoWrite
 Implement **one** GitHub issue, end to end, on a working branch. This is the
 interactive counterpart to the swarm-pi `implement-prompt` template: same
 explore → test → implement → verify → commit loop, but you gather the issue and
-branch from context instead of receiving them pre-filled, and you finish with a
-normal commit rather than a swarm sentinel.
+branch from context and finish with a normal commit.
 
-**Core rule: work on exactly one issue. Never expand scope mid-task.**
+Work on the one issue only. One issue per branch keeps the diff reviewable and
+the commit revertable on its own.
 
-## When to use
+## Gather context
 
-- The maintainer points you at a specific issue ("fix #142", "do LIF-87").
-- You are about to start coding against a tracked piece of work.
+Resolve these from the conversation and the repo. Ask only when two readings
+would lead to materially different work.
 
-When NOT to use: multi-issue sweeps, exploratory spikes with no ticket, or
-review/cleanup of an existing branch (use `issue-review` for that).
+1. **Issue** — `gh issue view <N> --comments`. If it references a parent PRD,
+   design doc, or plan slice, read that too. If `gh` is not authenticated or the
+   issue lives in another tracker, ask how to read it.
+2. **Branch** — `git branch --show-current`. On the default branch, create a
+   feature branch first, so `main` only changes through review.
+3. **Project commands** — the repo's typecheck and test commands, from
+   `package.json`, `pyproject.toml`, `AGENTS.md`, or CI config.
 
-## Gather context first
+## Steps
 
-Determine these from the conversation and the repo — ask only if genuinely
-unresolved:
+1. **Explore** the code the issue touches, including the tests for that area.
+2. **Implement red-green-refactor**: one failing test, the smallest code that
+   passes it, repeat, then refactor. When the change has nothing testable (docs,
+   config only), say so in the commit body.
+3. **Verify** — run the typecheck and test commands.
+4. **Commit** in the repo's style (Conventional Commits where the log uses
+   them). The body names the issue (`Closes #142` or `Refs #142`), key
+   decisions, and any follow-ups. The `RALPH:` prefix is for swarm runs only.
+5. **Comment** on the issue when the work is incomplete, saying what was done.
+   Leave the issue open; the maintainer closes it.
 
-1. **Issue** — the number/identifier the maintainer named. Read it:
-   `gh issue view <N> --comments` (works for GitHub repos). If it references a
-   parent PRD or design doc, read that too.
-2. **Branch** — the current branch (`git branch --show-current`). If you are on
-   the main/default branch, create a feature branch before making changes; do
-   not commit work to main.
-3. **Project commands** — locate the repo's typecheck and test commands (look in
-   `package.json`, `pyproject.toml`, `AGENTS.md`/`CONTEXT.md`, CI config).
+If you notice an adjacent bug or a better approach, say so in one sentence in
+your report and keep to the issue as written.
 
-If `gh` is not authenticated or the issue lives in another tracker, ask the
-maintainer how to read it rather than guessing the requirements.
+## Done when
 
-## Checklist
+The issue's acceptance criteria are each met, the typecheck and test commands
+exit 0, and the work is committed on a feature branch.
 
-Create a TodoWrite task per step and complete in order:
+## Report
 
-1. **Read the issue** and confirm you understand the single, in-scope deliverable.
-2. **Explore** the repo (Read/Grep/Glob/Bash) for the relevant code. Pay extra
-   attention to test files that touch the affected area.
-3. **Implement with red-green-refactor.** Follow superpowers:test-driven-development:
-   write one failing test (RED), write the minimum implementation to pass it
-   (GREEN), repeat until done, then refactor. Skip RGR only when the change is
-   genuinely untestable (e.g. pure docs) — say so explicitly.
-4. **Verify** — run the project's typecheck and test commands. Do not proceed
-   until they pass. Follow superpowers:verification-before-completion.
-5. **Commit** — a normal, conventional commit (see below).
-6. **Report** — if the task is incomplete, leave a comment on the issue
-   describing what was done. **Do not close the issue.**
-
-## Commit message
-
-Use the repo's normal commit style (Conventional Commits where the repo uses
-them — e.g. `fix:`, `feat:`). The body should cover:
-
-- What was completed + the issue/PRD reference (e.g. `Closes #142` / `Refs #142`).
-- Key decisions made.
-- Any blockers or follow-up notes.
-
-Keep it concise. Do not use the swarm `RALPH:` prefix — that is for AFK swarm
-runs only.
+Lead with what changed and the test result, then any follow-up you noted.
 
 ## Credentials
 
-If `gh` is available, call it directly (`gh issue view`, `gh issue comment`).
-Never prefix a `gh` command with the token or echo any credential in a shell
-command — logs capture stdout and a leaked token is a real incident.
-
-## Common mistakes
-
-| Mistake | Fix |
-|---|---|
-| Fixing adjacent issues you noticed | Stay on the one issue. Note the rest for a separate ticket. |
-| Committing to main | Branch first; never commit work straight to the default branch. |
-| Claiming done without running tests | Run typecheck + tests and confirm output before committing. |
-| Closing the issue | Leave it open; closing is handled later/by the maintainer. |
-| Using `RALPH:` in the commit | That prefix is swarm-only; use the repo's normal style. |
+Call `gh` directly. Never prefix a command with a token or echo a credential:
+logs capture stdout, and a leaked token is a real incident.

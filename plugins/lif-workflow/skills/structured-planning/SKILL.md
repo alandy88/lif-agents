@@ -12,15 +12,15 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent, TodoWrite
 
 Turn an idea into a validated artifact (design, plan, decision record) through a gated pipeline. Depth adapts to scope: trivial tasks run a fast single-pass flow, complex ones run multi-stage reasoning with independent subagent critique and pre-mortem.
 
-The skill is **rigid** where it matters (evidence labeling, gates, alternatives) and **flexible** on section content. Do not skip gates, even if the task "feels simple".
+The skill is fixed on evidence labels, gates, and alternatives, and flexible on section content. Run the gates at every depth: a task that feels simple is where an unchecked assumption slips through.
 
-## Hard Gate
+## Approval gate
 
-Do NOT write implementation code, invoke implementation skills, or commit irreversible actions until the artifact is written, self-reviewed, and the user has approved it. This applies at every depth level.
+Write no implementation code, invoke no implementation skill, and take no irreversible action until the user has approved the written artifact. The plan is cheap to change on paper and expensive once code depends on it.
 
 ## Checklist
 
-Create a TodoWrite task for each step and complete them in order. Steps marked `[moderate+]` or `[complex]` run conditionally based on depth.
+Work the steps in order. Steps marked `[moderate+]` or `[complex]` run conditionally based on depth.
 
 1. **Scope triage** — classify `trivial | moderate | complex`, state reason
 2. **Explore context** — read relevant files, docs, recent commits
@@ -95,14 +95,7 @@ Lead with your recommendation and explain why. Never present a single option as 
 
 ### Self-Critique (moderate+)
 
-Run the four scans in `references/self-critique-checklist.md`:
-
-1. Placeholder scan (TBD, TODO, vague words)
-2. Contradiction hunt
-3. Scope check (one artifact, or decompose further?)
-4. Ambiguity scan (any claim readable two ways?)
-
-Fix inline. No re-review loop — fix and move on.
+Run the four scans in `references/self-critique-checklist.md` (placeholders, contradictions, scope, ambiguity) once. Fix inline and move on.
 
 ### Subagent Critic (complex only)
 
@@ -116,7 +109,7 @@ Answer the three questions in `references/pre-mortem.md` in a dedicated section 
 
 Tell the user:
 
-> "Artifact written and committed to `<path>`. Please review and let me know if you want changes before handoff to `<next-skill-or-none>`."
+> "Artifact written to `<path>`. Please review and let me know if you want changes before handoff to `<next-skill-or-none>`."
 
 Wait for response. If changes requested, apply them and re-run self-critique (and subagent critic + pre-mortem if complex).
 
@@ -124,9 +117,9 @@ Wait for response. If changes requested, apply them and re-run self-critique (an
 
 After approval, invoke the next skill the user specified, or stop. Common handoffs:
 
-- `writing-plans` — when the artifact is a design that needs an implementation plan
-- `/skill-designer` — when the artifact designs a new skill
-- `executing-plans` — when the artifact already contains an actionable plan
+- `plan-handoff` — when the design is settled and needs slices a fresh agent can build
+- `skill-designer` — when the artifact designs a new skill
+- `issue-implement` — when the artifact is already a single buildable change
 - None — when the artifact itself is the deliverable (decision record, research memo)
 
 Ask the user which handoff applies if it is not obvious.
@@ -144,8 +137,8 @@ Ask the user which handoff applies if it is not obvious.
 
 - **Scope first, always** — wrong depth wastes tokens or misses risk
 - **Evidence or assumption** — no bare claims; label every non-obvious statement
-- **One question at a time** — never batch
+- **One question at a time** — the user answers better without a queue
 - **Alternatives mandatory** at moderate+; first-idea bias is the default failure mode
 - **Fresh-eyes critique** — subagent has no prior context, which is the feature
 - **Pre-mortem before approval** — cheaper to revise on paper than in code
-- **Gates are non-negotiable** — even for "obvious" tasks
+- **Gates run at every depth** — obvious tasks hide the unchecked assumption

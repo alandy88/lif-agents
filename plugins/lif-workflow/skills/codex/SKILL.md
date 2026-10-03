@@ -35,15 +35,18 @@ Model selection (override only if the user asks):
 
 | Task | Model | Effort |
 |---|---|---|
-| implement, code review | `gpt-5.3-codex` | high |
-| plan / design / spec review | `gpt-5.4` | high |
+| implement, code review, plan / spec review | `gpt-6-astra` | medium |
+
+These match the `gpt` agent in `remote/src/lib/profiles.mts`; change both together.
+Raise effort to `high` only for a review where `medium` measurably missed findings.
 
 ## Mode: implement
 
 1. **Materialize the plan** into a handoff doc — use
    [references/handoff-implement.md](references/handoff-implement.md) as the
-   template. Acceptance criteria must be runnable commands (tests, typecheck),
-   not prose. If there is no plan yet, stop and say so — this skill fans out
+   template, written to the brief rules in `prompt-optimize`
+   (`references/rewrite-rules.md`). Acceptance criteria are runnable commands
+   (tests, typecheck), not prose. If there is no plan yet, stop and say so — this skill fans out
    existing plans; it does not invent them.
 2. **Isolate by default**: create a worktree and point Codex at it.
    ```bash
@@ -53,7 +56,7 @@ Model selection (override only if the user asks):
 3. **Run** (background):
    ```bash
    codex exec -C "<worktree>" --sandbox workspace-write --full-auto \
-     -m gpt-5.3-codex -c model_reasoning_effort="high" \
+     -m gpt-6-astra -c model_reasoning_effort="medium" \
      --skip-git-repo-check \
      --output-last-message "<scratchpad>/codex-out.md" \
      - < "<scratchpad>/handoff.md"
@@ -81,14 +84,12 @@ Model selection (override only if the user asks):
 3. **Run** (background if the diff is large):
    ```bash
    codex exec -C "<repo>" --sandbox read-only --full-auto \
-     -m gpt-5.3-codex -c model_reasoning_effort="high" \
+     -m gpt-6-astra -c model_reasoning_effort="medium" \
      --skip-git-repo-check \
      --output-schema "<skill-dir>/references/findings-schema.json" \
      --output-last-message "<scratchpad>/codex-findings.json" \
      - < "<scratchpad>/handoff.md"
    ```
-   Use `gpt-5.4` instead when reviewing a plan/design/spec document rather
-   than code.
 4. **Triage before presenting**: read each finding and check it against the
    actual code. Mark each one confirmed / dubious / wrong. Present confirmed
    findings first with file:line references; note the rejected ones in a

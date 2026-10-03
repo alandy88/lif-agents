@@ -1,6 +1,6 @@
 # Self-Critique Checklist
 
-Run these four scans on the drafted artifact with fresh eyes. Fix issues inline. No re-review loop — scan once, fix, move on. If a scan surfaces something you cannot fix without more input, surface it to the user instead of papering over it.
+Run these four scans on the drafted artifact once. Fix issues inline, then move on. If a scan surfaces something you cannot fix without more input, surface it to the user instead of papering over it.
 
 ## Scan 1 — Placeholder Scan
 
@@ -46,15 +46,3 @@ Common ambiguity traps:
 - Pronouns without clear antecedent ("it", "this", "they")
 
 **Fix**: pick one interpretation and make it explicit.
-
-## Red-team Questions (pass over the whole artifact)
-
-Ask these five questions of the draft as if you were a skeptical reviewer:
-
-1. What is the single most likely way a reader misreads this?
-2. Which assumption, if wrong, causes the largest rework?
-3. What is in scope that shouldn't be? What is out of scope that should be in?
-4. Where does the artifact lean on vibes instead of evidence?
-5. If I had to cut this artifact in half, what would I keep?
-
-You do not need to answer these in writing. You do need to revise the artifact if any question reveals a weakness.

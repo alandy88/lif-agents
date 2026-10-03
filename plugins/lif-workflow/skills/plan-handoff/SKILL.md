@@ -11,7 +11,7 @@ Write an implementation instruction for a plan that is already decided, so a fre
 
 The plan is the argument, or the plan settled in this conversation. Before writing, collect from the plan and the repo:
 
-- **Decisions** — every choice the plan resolved. Each is written into the instruction as fixed; the agent must never reopen one.
+- **Decisions** — every choice the plan resolved, written as fixed with its one-line reason. The agent builds on them rather than reopening them, and the reason lets it handle cases the plan did not list.
 - **Baseline** — what the system does today, in a form that can be captured and compared (screenshots, test output, API responses, build artefacts). If nothing capturable exists, capturing it is slice 1.
 - **Gotchas** — environment facts the repo does not confess (harness limits, service paths, known test noise). Copy them from the plan or prior handoff; do not re-derive.
 
@@ -21,15 +21,16 @@ The plan is the argument, or the plan settled in this conversation. Before writi
 2. **Decisions (fixed)** — one line each.
 3. **Rules for every phase** — invariants that apply to all slices: commit granularity, diff discipline, how to verify, known noise to tolerate.
 4. **Phases** in dependency order. Each phase:
-   - one or more **slices**, each a PR-sized commit that leaves `main` shippable;
-   - concrete file paths, commands, and code shape — enough that another developer implements it without reading the plan;
-   - a **Verify** block.
+   - one or more **slices**, each a reviewable commit that leaves the branch green;
+   - each slice written as a standalone brief — **Goal** (what and why), **Scope** (files in, files untouched), **Context** (paths, commands, interfaces it consumes or exposes), **Done when** (the Verify block) — so a fresh agent can build it from that slice alone, without the plan or other slices;
+   - concrete file paths, commands, and code shape — enough that another developer implements it without reading the plan.
 5. **Acceptance test** — the last phase proves the goal end to end (add the second instance, run the new workflow cold). Its gate is the bar the whole project is judged by.
 6. **Done when** — merge state, recorded evidence, closing note.
 
 ## Slicing
 
 - A slice changes one thing. A refactor slice and a behaviour slice never share a commit.
+- A slice fits one agent session: the brief, the files it reads, and its test output stay well inside a 200k-token context. If a slice needs more, split it at an interface.
 - Refactor slices are labelled **no-diff**: the gate is comparison against the baseline, measured (pixel-diff threshold, byte-identical output, test count unchanged), not "looks fine".
 - Order so that risk surfaces early: merges and baselines first, contracts before consumers, the acceptance test last.
 - Forbid speculation inside slices: a token, option, or abstraction exists only if a current consumer reads it. Say so in the rules.

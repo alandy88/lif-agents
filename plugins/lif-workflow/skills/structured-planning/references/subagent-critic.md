@@ -44,12 +44,12 @@ Read the artifact once all the way through, then answer:
 
 6. **Verdict** — one of:
    - approve: minor or no issues
-   - revise: real issues, list the top 3 to fix
+   - revise: real issues that change the design
    - reject: the design has a fundamental problem; state it in one sentence
 
-Keep the total response under 400 words. Be blunt. Do not pad with
-encouragement. Do not suggest tangential improvements. Do not rewrite the
-artifact — only critique it.
+Report every finding with a severity (high, medium, low); the author filters
+afterwards, so a finding left out is lost. Write findings plainly, without
+praise. Critique the artifact; leave rewriting it to the author.
 ```
 
 ## Processing the critique
@@ -60,8 +60,8 @@ For each finding the critic returns:
 - **Reject** → note it in the artifact under `## Rejected critique` with one
   sentence on why you disagree
 
-Never silently ignore a critic finding. If you reject all of them, ask
-yourself whether you actually have the humility to see them.
+Record every finding as accepted or rejected. If you reject all of them,
+re-read the highest-severity one against the code before moving on.
 
 After revising, do NOT dispatch a second critic pass unless the revision was
 structural. Small edits don't need re-review; structural changes do.
