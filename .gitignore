@@ -11,3 +11,13 @@ remote/dist/
 local/environments/*/host.lua
 local/environments/*/host.sh
 local/environments/*/host.ps1
+
+# Python runtime files
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# OS files
+.DS_Store
+Thumbs.db
