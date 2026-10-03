@@ -12,6 +12,11 @@ Every brief ends with:
 > Work only inside `<worktree path>`. Make routine judgment calls yourself. If the
 > brief seems wrong or a better approach exists, say so in one sentence in your
 > report and continue as briefed. Keep working until Done-when holds.
+>
+> When you hit a gotcha or confirm a non-obvious fact, append one line to
+> `<$RUN>/learnings.jsonl` right away: `{"role", "slice", "kind":
+> "gotcha|learning|friction", "text", "evidence"}`. Evidence is a `file:line`,
+> a command and its output, or a link. Skip notes you cannot back with evidence.
 
 ## Builder
 
@@ -150,5 +155,33 @@ high and medium finding is fixed or rejected with a reason, and the PR body exis
 <report>
 Lead with pass/fail per suite. Then findings fixed, findings rejected with
 reasons, and tests removed with reasons.
+</report>
+```
+
+## Retro
+
+```text
+<goal>
+Digest the learnings from the /shipit run "<run title>" into durable knowledge,
+or drop them.
+</goal>
+
+<context>
+Worktree: <integration worktree path>, on shipit/<slug>.
+Learnings: <$RUN>/learnings.jsonl. Repo: <repo name>.
+Vault: $LIF_NOTES_VAULT. Read it; do not edit it.
+</context>
+
+<instructions>
+Follow the `retro` skill up to and including its proposal. Leave its After
+approval section to the Orchestrator.
+</instructions>
+
+<done_when>
+The `retro` skill's Done-when holds.
+</done_when>
+
+<report>
+Lead with the counts the `retro` skill asks for. Then the path to retro.md.
 </report>
 ```

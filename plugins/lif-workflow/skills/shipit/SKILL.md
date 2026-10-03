@@ -14,8 +14,8 @@ pull request, however many slices and worktrees it uses on the way.
 
 ```
 Shape ─▶ Plan ─▶ Gate 1 ─▶ per slice: Build ─▶ Review
-                                   │
-       PR ◀─ Gate 2 ◀─ Test ◀─ Break ◀┘
+                                             │
+  PR ◀─ Gate 2 ◀─ Retro ◀─ Test ◀─ Break ◀──┘
 ```
 
 ## Roles
@@ -28,6 +28,7 @@ Shape ─▶ Plan ─▶ Gate 1 ─▶ per slice: Build ─▶ Review
 | Reviewer | subagent, one per slice, Builder's worktree | yes, the full set | yes, behaviour-preserving |
 | Breaker | subagent, `model: opus`, read-only | no | no |
 | Tester | subagent, integration worktree | test conventions | tests and fixes |
+| Retro | subagent, integration worktree, `retro` skill | `AGENTS.md` and vault notes | `AGENTS.md` only |
 
 Builders skip the repo's full standards so their context goes to the problem;
 the Reviewer applies the standards afterwards. Keep the Orchestrator's own
@@ -43,7 +44,10 @@ RUN="$(git rev-parse --git-common-dir)/shipit/<slug>"
 
 `$RUN/plan.md` follows [assets/plan-template.md](assets/plan-template.md) and is the
 single source of truth: slices, their branches, status, and gate decisions.
-Subagent briefs go to `$RUN/briefs/`, reports to `$RUN/reports/`. Update
+Subagent briefs go to `$RUN/briefs/`, reports to `$RUN/reports/`. Every agent,
+you included, appends gotchas and learnings to `$RUN/learnings.jsonl` in the
+format the `retro` skill defines; the line goes in when the thing is found, not
+saved for the report. Update
 `plan.md` after every dispatch returns, so a resumed run (`/shipit <plan path>`)
 picks up from it.
 
@@ -141,21 +145,33 @@ Breaker findings. The Tester:
 
 Re-run the full suite yourself before Gate 2.
 
+## 6. Retro
+
+Dispatch the Retro subagent into the integration worktree with its brief. It
+runs the `retro` skill: commits repo `AGENTS.md` edits onto the integration
+branch, so they ship in the same PR, and writes `$RUN/retro.md` with the vault
+edits and issues it proposes. Re-run the full suite if it committed anything.
+
 ## Gate 2 — PR approval
 
 Show the user: slice count, test results per suite, Breaker findings fixed and
-rejected with reasons, and the PR title. Wait for an explicit yes.
+rejected with reasons, the PR title, and the Retro proposal. Ask for each part
+separately: the PR, the vault edits, committing and pushing the vault, and the
+issues. Wait for an explicit yes on each.
 
-## 6. Ship
+## 7. Ship
 
-Run `pr-shepherd` on the integration branch with `$RUN/pr-body.md`. It opens the
-one PR, triages review, watches CI, and asks before merging. After merge, remove
-the slice worktrees and branches this run created.
+Apply what the user approved from `$RUN/retro.md` yourself, following the `retro`
+skill's After approval section. Then run `pr-shepherd` on the integration branch
+with `$RUN/pr-body.md`. It opens the one PR, triages review, watches CI, and asks
+before merging. After merge, remove the slice worktrees and branches this run
+created.
 
 ## Done when
 
 One PR from `shipit/<slug>` is merged with CI green on the default branch, every
-slice in `plan.md` is marked done, and no worktree from this run remains.
+slice in `plan.md` is marked done, every Retro proposal is applied or declined,
+and no worktree from this run remains.
 
 ## Report
 
