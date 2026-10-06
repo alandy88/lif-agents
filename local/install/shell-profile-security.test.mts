@@ -113,6 +113,10 @@ ccp opus
 LIF_OPUS_PROMPT_FILE="$HOME/missing.md"
 cc opus
 `, shell).trim().split("\n");
+    assert.ok(output[0] !== undefined, "default prompt output is missing");
+    assert.ok(output[1] !== undefined, "custom prompt output is missing");
+    assert.ok(output[2] !== undefined, "ccp prompt output is missing");
+    assert.ok(output[3] !== undefined, "missing prompt output is missing");
     assert.match(output[0], /--append-system-prompt-file .*\/github\/oss\/fixing-smartass-opus-5\/sr_opus_5_system_prompt\.md/);
     assert.match(output[1], /--append-system-prompt-file .*\/work prompts\/opus\.md/);
     assert.match(output[2], /--append-system-prompt-file .*\/work prompts\/opus\.md/);
