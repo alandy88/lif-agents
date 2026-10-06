@@ -87,6 +87,39 @@ test("zsh preserves permission behavior and injects broadly only explicitly", ()
   assert.match(output, /claude-token= broad=injected args=--version/);
 });
 
+for (const shell of ["bash", "zsh"]) {
+  test(`${shell} keeps Opus auto mode environment-owned`, () => {
+    const defaults = runProfile("cc opus\nccp opus", shell);
+    assert.doesNotMatch(defaults, /--enable-auto-mode/);
+    assert.equal((defaults.match(/--model claude-opus-5-5/g) ?? []).length, 2);
+
+    const enabled = runProfile("LIF_CLAUDE_OPUS_ENABLE_AUTO_MODE=1\ncc opus\nccp opus\ncc sonnet", shell);
+    assert.equal((enabled.match(/--enable-auto-mode --model claude-opus-5-5/g) ?? []).length, 2);
+    assert.doesNotMatch(enabled, /--enable-auto-mode --model claude-sonnet/);
+    assert.doesNotMatch(runProfile("LIF_CLAUDE_OPUS_ENABLE_AUTO_MODE=0 cc opus", shell), /--enable-auto-mode/);
+  });
+
+  test(`${shell} uses the environment-owned Opus prompt path`, () => {
+    const output = runProfile(`
+mkdir -p "$HOME/work prompts" "$HOME/github/oss/fixing-smartass-opus-5"
+printf 'work prompt' > "$HOME/work prompts/opus.md"
+printf 'default prompt' > "$HOME/github/oss/fixing-smartass-opus-5/sr_opus_5_system_prompt.md"
+LIF_GITHUB_DIR="$HOME/github"
+cc opus
+LIF_OPUS_PROMPT_FILE="$HOME/work prompts/opus.md"
+cc opus
+unset LIF_GITHUB_DIR
+ccp opus
+LIF_OPUS_PROMPT_FILE="$HOME/missing.md"
+cc opus
+`, shell).trim().split("\n");
+    assert.match(output[0], /--append-system-prompt-file .*\/github\/oss\/fixing-smartass-opus-5\/sr_opus_5_system_prompt\.md/);
+    assert.match(output[1], /--append-system-prompt-file .*\/work prompts\/opus\.md/);
+    assert.match(output[2], /--append-system-prompt-file .*\/work prompts\/opus\.md/);
+    assert.doesNotMatch(output[3], /--append-system-prompt-file/);
+  });
+}
+
 test("Windows installs a profile-independent native lif-bws entrypoint", () => {
   assert.match(lifBwsCmd, /pwsh -NoProfile -File "%~dp0lif-bws\.ps1" %\*/);
   assert.match(lifBwsCmd, /exit \/b %ERRORLEVEL%/);

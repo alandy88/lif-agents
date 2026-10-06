@@ -146,13 +146,14 @@ tm() {
 # key and pass the result into _cc_run as an argument, read at call time, so it
 # follows the overlay even though the overlay is sourced before these functions
 # are defined.
-# The opus overlay prompt lives in a checkout under the machine's github root,
-# which differs per machine -- so it is reachable only where LIF_GITHUB_DIR is
-# set and the file is actually there. Missing means launch without it, rather
-# than hand the agent a path that does not resolve.
+# Set LIF_OPUS_PROMPT_FILE in the environment overlay to use a custom prompt.
+# Otherwise, use the prompt under LIF_GITHUB_DIR. Ignore missing files.
 lif_opus_prompt() {
-    [ -n "${LIF_GITHUB_DIR:-}" ] || return 1
-    local f="$LIF_GITHUB_DIR/oss/fixing-smartass-opus-5/sr_opus_5_system_prompt.md"
+    local f="${LIF_OPUS_PROMPT_FILE:-}"
+    if [ -z "$f" ]; then
+        [ -n "${LIF_GITHUB_DIR:-}" ] || return 1
+        f="$LIF_GITHUB_DIR/oss/fixing-smartass-opus-5/sr_opus_5_system_prompt.md"
+    fi
     [ -f "$f" ] || return 1
     printf '%s\n' "$f"
 }
@@ -165,6 +166,8 @@ _cc_run() {
     else
         B=(--dangerously-skip-permissions)
     fi
+    local -a A; A=()
+    [ "${LIF_CLAUDE_OPUS_ENABLE_AUTO_MODE:-}" = 1 ] && A=(--enable-auto-mode)
     local -a P; P=()
     local f; f=$(lif_opus_prompt) && P=(--append-system-prompt-file "$f")
     local sub=${1:-}
@@ -174,7 +177,7 @@ _cc_run() {
         export CLAUDE_CONFIG_DIR
         case "$sub" in
             fable)    claude "${B[@]}" --model claude-fable-5-1 "$@" ;;
-            opus)     claude "${B[@]}" --model claude-opus-5-5 "${P[@]}" "$@" ;;
+            opus)     claude "${B[@]}" "${A[@]}" --model claude-opus-5-5 "${P[@]}" "$@" ;;
             sonnet)   claude "${B[@]}" --model claude-sonnet-5 "$@" ;;
             haiku)    claude "${B[@]}" --model claude-haiku-4-5 "$@" ;;
             resume)   claude "${B[@]}" --resume "$@" ;;

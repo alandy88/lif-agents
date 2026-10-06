@@ -30,6 +30,10 @@ LIF_BWS_PROJECT_ID='REPLACE_ME'
 # LIF_CLAUDE_PERMISSION_MODE_PERSONAL=auto   # ccp only
 # LIF_CLAUDE_PERMISSION_MODE=auto            # shared fallback
 
+# Optional Opus settings for the Unix shell profile.
+# LIF_CLAUDE_OPUS_ENABLE_AUTO_MODE=1         # cc opus and ccp opus only
+# LIF_OPUS_PROMPT_FILE='REPLACE_ME'          # prompt file for cc/ccp opus and pi opus
+
 # Shell Herdr opens panes with. install.sh writes this into the installed
 # herdr config.toml; leave unset to take whichever zsh is on PATH (or the login
 # shell if there is none). Never set it empty -- Herdr reads an empty value as
