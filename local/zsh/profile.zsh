@@ -178,8 +178,8 @@ _cc_run() {
         case "$sub" in
             fable)    claude "${B[@]}" --model claude-fable-5-1 "$@" ;;
             opus)     claude "${B[@]}" "${A[@]}" --model claude-opus-5-5 "${P[@]}" "$@" ;;
-            sonnet)   claude "${B[@]}" --model claude-sonnet-5 "$@" ;;
-            haiku)    claude "${B[@]}" --model claude-haiku-4-5 "$@" ;;
+            sonnet)   claude "${B[@]}" --model claude-sonnet-5-5 "$@" ;;
+            haiku)    claude "${B[@]}" --model claude-haiku-5-5 "$@" ;;
             resume)   claude "${B[@]}" --resume "$@" ;;
             remote)   claude "${B[@]}" remote-control --spawn worktree "$@" ;;
             w)        if [ $# -gt 0 ]; then claude "${B[@]}" --worktree "$1"
