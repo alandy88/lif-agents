@@ -70,3 +70,16 @@ test('a new measurement updates the numbers on the next draw', async ($, on) => 
   expect(await ui.find({ type: 'Text', text: /wk / })).toBeUndefined()
   await ui.unmount()
 })
+
+test('the context number turns yellow, orange, then red', async ($, on) => {
+  world(on)
+  status(on)
+  await start($)
+  for (const [percent, color] of [[15, undefined], [16, 'yellow'], [21, '#ff8700'], [31, 'red']] as const) {
+    await $.session.measure({ context: { window: 200000, tokens: percent * 2000, percent }, rateLimits: [], changed: ['context', 'rateLimits'] })
+    const ui = await $.ui.mount({ plugin: 'lif-effort', component: 'AbovePrompt', surface: 'terminal', props: BAND })
+    const node = await ui.find({ type: 'Text', text: new RegExp(`^ · ctx ${percent}%$`) })
+    expect(node?.props?.color).toBe(color)
+    await ui.unmount()
+  }
+})

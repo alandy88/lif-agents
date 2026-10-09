@@ -20,7 +20,8 @@ Sonnet 5.5 · High · Auto     [ Compact ] [ Handoff ] [ Review ] [ Agents (2) ]
 - **Review.** `/lif-effort review` prints a CAFE(S) review of the session, with actions.
 - **Status line.** One dim line above the bar: directory, git branch (`*` when
   uncommitted), context use, and the 5-hour and weekly plan limits with time to reset.
-  Context and limits turn yellow at 70% and red at 90%. Limits show only on a Claude
+  Context turns yellow above 15%, orange above 20%, and red above 30%. Limits turn
+  yellow at 70% and red at 90%. Limits show only on a Claude
   subscription, after the first response.
 - **Agents.** A panel listing the session's subagents, from Claude Code's own
   `$.agent.list()`.

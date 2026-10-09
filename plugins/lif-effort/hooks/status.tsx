@@ -51,6 +51,7 @@ export function resetIn(resetsAt: string | undefined, now: number): string {
 }
 
 const levelColor = (percent: number) => (percent >= 90 ? 'red' : percent >= 70 ? 'yellow' : undefined)
+const ctxColor = (percent: number) => (percent > 30 ? 'red' : percent > 20 ? '#ff8700' : percent > 15 ? 'yellow' : undefined)
 
 type Segment = { text: string; color?: string }
 
@@ -65,7 +66,7 @@ function segments(s: StatusSnapshot, columns: number, now: number, narrow: boole
   const withReset = !narrow && columns >= 96
   return [
     where ? { text: where } : null,
-    s.contextPercent === null ? null : { text: `ctx ${Math.round(s.contextPercent)}%`, color: levelColor(s.contextPercent) },
+    s.contextPercent === null ? null : { text: `ctx ${Math.round(s.contextPercent)}%`, color: ctxColor(Math.round(s.contextPercent)) },
     meter('5h', s.fiveHour, withReset),
     meter('wk', s.sevenDay, withReset),
   ].filter((x): x is Segment => x !== null)
