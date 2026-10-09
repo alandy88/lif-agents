@@ -81,3 +81,11 @@ test('the classifier prompt carries the work types and model rules only when it 
     reason: 'x',
   })
 })
+
+test('a review prints one log line per line, as a document with tools off', async ($, on) => {
+  const w = reviewWorld(on)
+  await runReview($, w)
+  expect(w.logs).toEqual(REVIEW.split('\n'))
+  expect(w.prompts[0]).toContain('not a chat reply')
+  expect(w.prompts[0]).toContain('Tools are off')
+})

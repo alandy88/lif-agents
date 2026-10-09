@@ -37,7 +37,7 @@ export function readConfig(options: PluginOptions): Config {
     allowedModels: allowed.length ? allowed : [...MODEL_KEYS],
     autoEffort: options.autoEffort !== false,
     effortFloor: pick(options.effortFloor, EFFORTS, 'low'),
-    effortCeiling: pick(options.effortCeiling, EFFORTS, 'high'),
+    effortCeiling: pick(options.effortCeiling, EFFORTS, 'xhigh'),
     effortPreference: pick(options.effortPreference, ['cheaper', 'balanced', 'deeper'] as const, 'balanced'),
     compactionModel: pick(options.compactionModel, ['haiku', 'session'] as const, 'haiku'),
     afterHandoff: pick(options.afterHandoff, ['continue', 'wait', 'save'] as const, 'wait'),

@@ -1,7 +1,7 @@
 import { expect, test, type Engine } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { datedHandoffName } from '../hooks/summaries'
+import { datedHandoffName, isUsableHandoff } from '../hooks/summaries'
 import { command, prompt, start, usage, world } from './world'
 
 const HANDOFF = `# Handoff
@@ -146,4 +146,9 @@ test('continue mode submits the continuation and classifies the carried task', {
   expect(judged.prompt).toContain('Write the retry tests in up.test.ts.')
   expect(judged.prompt).not.toContain('Continue the work described')
   expect(judged.system).toContain('"model"')
+})
+
+test('a handoff missing any heading is not saved', async () => {
+  expect(isUsableHandoff(HANDOFF)).toBe(true)
+  expect(isUsableHandoff(HANDOFF.replace('## Files\nup.ts\n', ''))).toBe(false)
 })

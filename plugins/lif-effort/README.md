@@ -48,7 +48,7 @@ in `settings.json` under `pluginConfigs`.
 | Automatic session model | On | Off: the session's own model is used. |
 | Allowed models | All three | Restricts the pick. A disallowed pick moves to the nearest allowed model, the stronger one on a tie. |
 | Automatic effort | On | Off: the session's own effort is used. |
-| Effort floor / ceiling | Low–High | Bounds automatic effort. Not applied to Haiku. |
+| Effort floor / ceiling | Low–Extra high | Bounds automatic effort. Not applied to Haiku. |
 | Effort preference | Balanced | How unclear prompts lean: cheaper, balanced or deeper. |
 | Compaction model | Haiku | `session` always uses the native compaction. |
 | After handoff | Start fresh and wait | `continue`, `wait` or `save`. |

@@ -142,6 +142,11 @@ async function takeCarry($: EngineInterface): Promise<Carry | undefined> {
   return carry
 }
 
+// A log entry is drawn as one row, cut at 2000 characters, so each line gets its own.
+const logLines = ($: EngineInterface, text: string) => {
+  for (const line of text.split('\n')) $.ui.log(line)
+}
+
 const classifyFailed = ($: EngineInterface, reason: string) => {
   $.ui.log(`lif-effort: classifier gave no verdict (${reason}), keeping the current model and effort`)
   return null
@@ -216,7 +221,7 @@ async function onPrompt($: EngineInterface, e: PromptSubmitInput, config: Config
   await setPhase($, 'classifying')
   try {
     const context = await brief($, e.text)
-    if (context) $.ui.log(`lif-effort brief:\n${context.slice(context.indexOf('\n\n') + 2)}`)
+    if (context) logLines($, `lif-effort brief:\n${context.slice(context.indexOf('\n\n') + 2)}`)
     return context
   } finally {
     await setPhase($, 'ready')
@@ -303,7 +308,7 @@ async function review($: EngineInterface, focus?: string) {
     if (!written.isAnswered) return $.ui.toast(`lif-effort: no review written (${written.reason})`)
     const text = written.text.trim()
     if (!isUsableReview(text)) return $.ui.toast('lif-effort: the review came back unusable; nothing was shown')
-    $.ui.log(text)
+    logLines($, text)
   } finally {
     await setPhase($, 'ready')
   }
@@ -474,6 +479,7 @@ export const register: Register = (on, options) => {
           model: 'haiku',
           system: COMPACT_SYSTEM,
           prompt: compactPrompt(renderTranscript(e.messages), e.instructions),
+          effort: 'medium',
           maxTokens: 12_000,
           timeoutMs: COMPACT_TIMEOUT_MS,
         })

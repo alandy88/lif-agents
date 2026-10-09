@@ -78,3 +78,14 @@ test('a long transcript keeps its start and its recent end', async () => {
   const errors = renderTranscript([{ role: 'assistant', text: '', toolUses: [{ tool_use_id: 'b', tool: 'Bash', input: { command: 'make' }, text: 'boom', isError: true }] }])
   expect(errors).toContain('ERROR: boom')
 })
+
+test('the transcript goes in tags, before the extra instructions, at medium effort', async ($, on) => {
+  const w = compactWorld(on)
+  w.judge(GOOD)
+  await start($)
+  await $.session.compact({ trigger: 'manual', messages: TRANSCRIPT, instructions: 'keep the retry policy' })
+  const sent = w.classifier[0]!
+  expect(sent.prompt.startsWith('<transcript>\n')).toBe(true)
+  expect(sent.prompt.indexOf('</transcript>')).toBeLessThan(sent.prompt.indexOf('keep the retry policy'))
+  expect(sent.effort).toBe('medium')
+})

@@ -1,6 +1,6 @@
 {
   "name": "lif-effort",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "description": "Picks the session model and each prompt's effort with one small Haiku call, shows them in a bar above the prompt, and adds Haiku compaction, handoffs, CAFE(S) session reviews, and a subagent panel.",
   "author": {
     "name": "Peter Yu",
@@ -39,7 +39,7 @@
       "type": "string",
       "title": "Effort ceiling",
       "description": "Automatic effort never goes above this. Not applied to Haiku.",
-      "default": "high",
+      "default": "xhigh",
       "options": ["low", "medium", "high", "xhigh", "max"]
     },
     "effortPreference": {

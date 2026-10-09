@@ -55,7 +55,14 @@ export function classifierRequest(text: string, recent: string, pickModel: boole
           'Move any work to haiku only for simple lookups, chat and small edits.',
         ].join(' ')
       : '',
-    'Effort: low for trivial answers, medium for routine work, high for multi-step changes, xhigh or max only for genuinely hard problems.',
+    'Then pick the effort. Examples of each level:',
+    '- low: a factual question, a lookup, a one-line edit such as a typo or a rename, a git command, a go-ahead to commit or push.',
+    '- medium: one clear change and its check, such as a new flag, a unit test, a fix for a named failing test, a dependency bump.',
+    '- high: work across several files or modules, a refactor that moves code and updates callers, a bug with no known cause, a code review.',
+    '- xhigh: a hard problem where a wrong answer is costly, such as a design across several systems, an intermittent concurrency bug, a correctness proof.',
+    '- max: only when xhigh would clearly fall short.',
+    'Any code change bigger than a one-line edit is at least medium, because at low the assistant may skip running its checks.',
+    'For a short reply such as "yes" or "do it", judge the work it approves in the recent conversation, not the reply itself.',
     LEAN[config.effortPreference],
     `Reply with one JSON object and nothing else: ${shape}`,
   ]
