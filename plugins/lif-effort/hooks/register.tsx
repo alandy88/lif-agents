@@ -43,10 +43,12 @@ import {
   renderTranscript,
   summaryMessage,
 } from './summaries'
-import { AGENTS_PANE, AgentsPane, Bar, effective, modeLabel } from './ui'
+import { EMPTY_STATUS, StatusLine, parseGit, tildify, withUsage } from './status'
+import { AGENTS_PANE, AgentsPane, Bar, NARROW_COLUMNS, effective, modeLabel } from './ui'
 
 const session = atom({ plugin: 'lif-effort', key: 'session' } as const, fresh())
 const agents = atom({ plugin: 'lif-effort', key: 'agents' } as const, [])
+const status = atom({ plugin: 'lif-effort', key: 'status' } as const, EMPTY_STATUS)
 
 const SESSIONS = 'sessions'
 const KEEP_SESSIONS = 30
@@ -80,6 +82,23 @@ async function change($: EngineInterface, fn: (s: LifEffortSession) => LifEffort
   const s = await update($, session, fn)
   await save($, s).catch(() => undefined)
   return s
+}
+
+/** Directory and branch; a missing repository or a slow git leaves the branch empty. */
+async function refreshGit($: EngineInterface) {
+  const cwd = await $.session.cwd()
+  const home = await $.env.get('HOME')
+  let git: ReturnType<typeof parseGit> = { branch: null, isDirty: false }
+  try {
+    const r = await $.process.run(['git', '-c', 'core.quotePath=false', '--no-optional-locks', 'status', '--porcelain=v2', '--branch'], {
+      cwd,
+      timeoutMs: 2000,
+    })
+    if (r.exitCode === 0) git = parseGit(r.stdout)
+  } catch {
+    // git missing or too slow: show the directory alone
+  }
+  await update($, status, s => ({ ...s, cwd: tildify(cwd, home), ...git }))
 }
 
 const setPhase = ($: EngineInterface, phase: Phase) => update($, session, s => ({ ...s, phase }))
@@ -341,9 +360,24 @@ export const register: Register = (on, options) => {
       argumentHint: 'status | auto [on|off] | handoff | agents',
     })
     await restore($)
+    if (config.showStatus) {
+      await $.session.usage().then(u => update($, status, s => withUsage(s, u))).catch(() => undefined)
+      await refreshGit($).catch(() => undefined)
+    }
     agentTimer?.cancel()
     agentTimer = $.clock.every(AGENT_POLL_MS, () => void refreshAgents($, config).catch(() => undefined))
     return next(e)
+  })
+
+  on('session.measure', async ($, e, next) => {
+    if (config.showStatus) await update($, status, s => withUsage(s, e))
+    return next(e)
+  })
+
+  on('turn.complete', async ($, e, next) => {
+    const result = await next(e)
+    if (config.showStatus) await refreshGit($).catch(() => undefined)
+    return result
   })
 
   on('classic.SessionStart', async ($, e, next) => {
@@ -449,6 +483,9 @@ export const register: Register = (on, options) => {
     const { Box, Text, Button } = $.ui.resolve(e)
     const s = await read($, session)
     const rows = await read($, agents)
+    const line = config.showStatus
+      ? StatusLine({ Box, Text }, await read($, status), e.props.bodyColumns, await $.clock.now(), NARROW_COLUMNS)
+      : null
     const bar = Bar({ Box, Text, Button }, s, rows.length, e.props.bodyColumns, config, {
       toggleAuto: () => void toggleAuto($),
       compact: () => void compactNow($, config),
@@ -459,6 +496,7 @@ export const register: Register = (on, options) => {
       <Box flexDirection="column">
         {native}
         {bar}
+        {line}
       </Box>
     )
   })

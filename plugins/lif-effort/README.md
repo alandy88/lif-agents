@@ -16,6 +16,10 @@ Sonnet 5.5 · High · Auto     [ Compact ] [ Handoff ] [ Agents (2) ]
   fails or its summary is unusable, the native compaction runs instead.
 - **Handoff.** Writes `HANDOFF.md`, then clears and continues, clears and waits, or only
   saves.
+- **Status line.** One dim line under the bar: directory, git branch (`*` when
+  uncommitted), context use, and the 5-hour and weekly plan limits with time to reset.
+  Context and limits turn yellow at 70% and red at 90%. Limits show only on a Claude
+  subscription, after the first response.
 - **Agents.** A panel listing the session's subagents, from Claude Code's own
   `$.agent.list()`.
 
@@ -47,6 +51,7 @@ in `settings.json` under `pluginConfigs`.
 | After handoff | Start fresh and wait | `continue`, `wait` or `save`. |
 | Agent visibility | Active only | `all` also lists finished agents. |
 | Show classification reason | Off | Shows Haiku's short reason in the bar. |
+| Show status line | On | Turns the line under the bar on or off. |
 | Brief the first prompt | On | On a session's first substantive prompt, when Haiku picks Opus or Sonnet, one more Haiku call (up to 12 seconds) adds a short task brief the model reads beside your words. Your prompt is never replaced. Skipped after a handoff. |
 
 The classifier is always Haiku 5.5, with a 4-second limit. A failed, late or malformed

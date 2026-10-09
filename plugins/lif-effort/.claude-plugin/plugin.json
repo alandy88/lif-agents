@@ -1,6 +1,6 @@
 {
   "name": "lif-effort",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Picks the session model and each prompt's effort with one small Haiku call, shows them in a bar above the prompt, and adds Haiku compaction, handoffs, and a subagent panel.",
   "author": {
     "name": "Peter Yu",
@@ -80,6 +80,12 @@
       "type": "boolean",
       "title": "Brief the first prompt",
       "description": "For a session's first substantive prompt, when the model picked is not Haiku, add a short task brief for the model to read beside your words. Costs one more Haiku call, up to 12 seconds.",
+      "default": true
+    },
+    "showStatus": {
+      "type": "boolean",
+      "title": "Show status line",
+      "description": "Under the bar, show the directory, git branch, context use, and the 5-hour and weekly plan limits.",
       "default": true
     }
   }

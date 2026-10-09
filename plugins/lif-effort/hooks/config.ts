@@ -22,6 +22,7 @@ export type Config = {
   agentVisibility: 'active' | 'all'
   showReason: boolean
   briefFirstPrompt: boolean
+  showStatus: boolean
 }
 
 const pick = <T extends string>(value: unknown, allowed: readonly T[], fallback: T): T =>
@@ -43,6 +44,7 @@ export function readConfig(options: PluginOptions): Config {
     agentVisibility: pick(options.agentVisibility, ['active', 'all'] as const, 'active'),
     showReason: options.showReason === true,
     briefFirstPrompt: options.briefFirstPrompt !== false,
+    showStatus: options.showStatus !== false,
   }
 }
 

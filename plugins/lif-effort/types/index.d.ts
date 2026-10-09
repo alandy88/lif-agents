@@ -34,11 +34,24 @@ export type AgentRow = {
   activity?: string
 }
 
+export type LimitReading = { percent: number; resetsAt?: string }
+
+/** What the status line shows; every field is empty until its source has reported. */
+export type StatusSnapshot = {
+  cwd: string | null
+  branch: string | null
+  isDirty: boolean
+  contextPercent: number | null
+  fiveHour: LimitReading | null
+  sevenDay: LimitReading | null
+}
+
 declare module 'claude-code' {
   interface PluginState {
     'lif-effort': {
       session: LifEffortSession
       agents: AgentRow[]
+      status: StatusSnapshot
     }
   }
 }
