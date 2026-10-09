@@ -96,8 +96,8 @@ function Invoke-LifClaude {
             'opus'     { claude @base --model claude-opus-5 @rest }
             'opus1m'   { claude @base --model 'claude-opus-5[1m]' @rest }
             'opus45'   { claude @base --model claude-opus-4-5-20251101 @rest }
-            'sonnet'   { claude @base --model claude-sonnet-5 @rest }
-            'haiku'    { claude @base --model claude-haiku-4-5 @rest }
+            'sonnet'   { claude @base --model claude-sonnet-5-5 @rest }
+            'haiku'    { claude @base --model claude-haiku-5-5 @rest }
             'resume'   { claude @base --resume @rest }
             'remote'   { claude @base remote-control --spawn worktree @rest }
             'w'        { if ($rest.Count -gt 0) { claude @base --worktree $rest[0] } else { claude @base --worktree } }
