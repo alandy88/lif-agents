@@ -1,6 +1,6 @@
 {
   "name": "lif-effort",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "Picks the session model and each prompt's effort with one small Haiku call, shows them in a bar above the prompt, and adds Haiku compaction, handoffs, CAFE(S) session reviews, and a subagent panel.",
   "author": {
     "name": "Peter Yu",

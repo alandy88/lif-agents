@@ -52,23 +52,31 @@ export function Bar(
       </Box>
     )
   }
-  return (
+  const row = (
     <Box flexDirection="row" justifyContent="space-between">
-      <Box flexDirection="row">
+      <Box flexDirection="row" flexGrow={1}>
         <Text wrap="truncate-end">
           {model} · {effort} ·{' '}
         </Text>
         <Button key="auto" plain hotkey="m" onPress={act.toggleAuto}>
           {modeLabel(s)}
         </Button>
-        {reason}
       </Box>
-      <Box flexDirection="row" gap={1}>
+      <Box flexDirection="row" gap={1} flexShrink={0} marginLeft={2}>
         <Button key="compact" label="Compact" hotkey="c" onPress={act.compact} />
         <Button key="handoff" label="Handoff" hotkey="h" onPress={act.handoff} />
         <Button key="review" label="Review" hotkey="r" onPress={act.review} />
         <Button key="agents" label={`Agents (${agents})`} hotkey="a" onPress={act.agents} />
       </Box>
+    </Box>
+  )
+  if (!reason) return row
+  return (
+    <Box flexDirection="column">
+      {row}
+      <Text dimColor wrap="truncate-end">
+        {s.reason}
+      </Text>
     </Box>
   )
 }
