@@ -2,14 +2,18 @@
 
 Claude Code plugin marketplace for the cross-repository workflow skills. The marketplace
 manifest is `.claude-plugin/marketplace.json` at the repo root so the marketplace installs
-from GitHub; this directory holds the plugin itself, the skill evals, and the naming doc.
+from GitHub; this directory holds the plugins, the skill evals, and the naming doc.
 
-- `lif-workflow/` — the one plugin: `skills/`, `hooks/hooks.json`, `scripts/hooks/`.
+- `lif-workflow/` — the skills plugin: `skills/`, `hooks/hooks.json`, `scripts/hooks/`.
   Skills here are the ones that must resolve from any repo (handoff, pickup, planning,
   backlog, issue and PR loops, Codex fanout). Skills bound to one repo live in that repo's
   `.agents/skills/` (with `.claude/skills` symlinked to it) and are not installed through
   a plugin: `lif-workbench` for character, prompt, image, and LoRA work; `comfyui-lif-nodes`
   for node development; `lif-openclaw-agents` for persona setup.
+- `lif-effort/` — a mod (function hooks, not skills): automatic model and effort, Haiku
+  compaction, handoffs, agents panel. Its own checks are `claude plugin validate`,
+  `claude plugin test` and `bunx tsc -p` on its folder; the root `bun run test` does not
+  cover it. See [lif-effort/README.md](lif-effort/README.md).
 - `evals/` — behavioural evals (`uv run --no-project --with pytest --with pyyaml pytest evals` from `plugins/`, add
   `--full` for the LLM judge). Skill lookup searches this plugin first, then
   `$LIF_WORKBENCH_ROOT/.agents/skills` and `$COMFYUI_LIF_NODES_ROOT/.agents/skills`;
