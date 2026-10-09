@@ -21,7 +21,7 @@ export function world(on: On, options: WorldOptions = {}) {
   mock.store(on, options.store)
   const clock = mock.clock(on)
   const toasts: string[] = []
-  const classifier: { prompt: string; system: string; model: string; timeoutMs?: number }[] = []
+  const classifier: { prompt: string; system: string; model: string; timeoutMs?: number; effort?: string; maxTokens?: number }[] = []
   on('session.id', () => ({ value: id }))
   on('session.model', () => ({ value: options.model ?? 'claude-opus-5-5' }))
   on('session.turns', () => ({ value: options.turns ?? 0 }))
@@ -36,9 +36,14 @@ export function world(on: On, options: WorldOptions = {}) {
   let reply: string | null = null
   let briefReply: string | null = null
   on('model.complete', ($, e) => {
-    classifier.push({ prompt: e.prompt, system: e.system ?? '', model: e.model, timeoutMs: e.timeoutMs })
+    classifier.push({ prompt: e.prompt, system: e.system ?? '', model: e.model, timeoutMs: e.timeoutMs, effort: e.effort, maxTokens: e.maxTokens })
     const text = e.system?.includes('task brief') ? briefReply : reply
     return { value: text === null ? { isAnswered: false, reason: 'aborted', usage } : { isAnswered: true, text, usage } }
+  })
+  const logs: string[] = []
+  on('ui.log', ($, e) => {
+    logs.push(e.text)
+    return { value: undefined }
   })
   on('ui.toast', ($, e) => {
     toasts.push(e.text)
@@ -58,6 +63,7 @@ export function world(on: On, options: WorldOptions = {}) {
   return {
     clock,
     toasts,
+    logs,
     submitted,
     contexts,
     classifier,

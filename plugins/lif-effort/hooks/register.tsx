@@ -142,19 +142,27 @@ async function takeCarry($: EngineInterface): Promise<Carry | undefined> {
   return carry
 }
 
+const classifyFailed = ($: EngineInterface, reason: string) => {
+  $.ui.log(`lif-effort: classifier gave no verdict (${reason}), keeping the current model and effort`)
+  return null
+}
+
 /** One small Haiku call; null on any failure, so the caller leaves settings unchanged. */
 async function classify($: EngineInterface, text: string, recent: string, pickModel: boolean, config: Config) {
   try {
     const reply = await $.model.complete({
       model: CLASSIFIER_MODEL,
       ...classifierRequest(text, recent, pickModel, config),
-      maxTokens: 80,
+      effort: 'low',
+      // Room for brief thinking ahead of the ~30-token verdict; unused tokens cost nothing.
+      maxTokens: 400,
       timeoutMs: CLASSIFIER_TIMEOUT_MS,
     })
-    const verdict = reply.isAnswered ? parseVerdict(reply.text, pickModel) : null
-    return verdict && constrain(verdict, config)
-  } catch {
-    return null
+    if (!reply.isAnswered) return classifyFailed($, reply.reason)
+    const verdict = parseVerdict(reply.text, pickModel)
+    return verdict ? constrain(verdict, config) : classifyFailed($, `unreadable reply: ${reply.text.slice(0, 80)}`)
+  } catch (error) {
+    return classifyFailed($, String(error))
   }
 }
 
@@ -188,6 +196,7 @@ async function brief($: EngineInterface, text: string) {
     const reply = await $.model.complete({
       model: CLASSIFIER_MODEL,
       ...briefRequest(text),
+      effort: 'low',
       maxTokens: BRIEF_MAX_TOKENS,
       timeoutMs: BRIEF_TIMEOUT_MS,
     })
@@ -203,7 +212,7 @@ async function onPrompt($: EngineInterface, e: PromptSubmitInput, config: Config
   const carry = await takeCarry($)
   const verdict = await choose($, carry ? `${carry.task}${e.text.trim() !== carry.prompt ? `\n\n${e.text}` : ''}` : e.text, config)
   // A handoff's carried task is already a brief.
-  if (carry || !config.briefFirstPrompt || !wantsBrief(verdict)) return
+  if (carry || !config.briefFirstPrompt || !wantsBrief(verdict, e.text)) return
   await setPhase($, 'classifying')
   try {
     const context = await brief($, e.text)

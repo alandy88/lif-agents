@@ -1,10 +1,13 @@
 import { expect, test } from 'claude-code/testing'
 
-import { constrain, isContinuation, isSubstantive, parseVerdict } from '../hooks/classify'
+import { constrain, isContinuation, isSubstantive, parseBrief, parseVerdict } from '../hooks/classify'
 import { readConfig } from '../hooks/config'
 import { start, turn, world } from './world'
 
 const SONNET_MEDIUM = '{"model":"sonnet","effort":"medium","reason":"ordinary coding"}'
+const LONG_TASK =
+  'refactor the session store into its own module so the hooks stop reaching into its internals, keep every exported name the same, move its tests along with it, and update the README section that describes where state lives'
+const BRIEF = '<goal>Split the session store.</goal>'
 
 test('the verdict parser accepts one JSON object of known values and nothing else', async () => {
   expect(parseVerdict(SONNET_MEDIUM, true)).toEqual({ model: 'sonnet', effort: 'medium', reason: 'ordinary coding' })
@@ -39,6 +42,8 @@ test('the first substantive prompt picks the session model and effort with one H
   expect(w.classifier).toHaveLength(1)
   expect(w.classifier[0]!.model).toBe('haiku')
   expect(w.classifier[0]!.timeoutMs).toBe(4000)
+  expect(w.classifier[0]!.effort).toBe('low')
+  expect(w.classifier[0]!.maxTokens).toBe(400)
   expect(w.classifier[0]!.system).toContain('"model"')
 })
 
@@ -93,13 +98,13 @@ test('Haiku requests are sent without an effort setting', async ($, on) => {
 test('the first prompt gets a brief block when the model is not Haiku', async ($, on) => {
   const w = world(on)
   w.judge(SONNET_MEDIUM)
-  w.brief('Goal: split the session store.')
+  w.brief(BRIEF)
   await start($)
-  await turn($, 'refactor the session store into its own module', 't1')
+  await turn($, LONG_TASK, 't1')
   const sent = w.contexts.at(-1)
   expect(sent).toHaveLength(1)
-  expect(sent![0]).toContain('Goal: split the session store.')
-  expect(w.submitted.at(-1)).toBe('refactor the session store into its own module')
+  expect(sent![0]).toContain(BRIEF)
+  expect(w.submitted.at(-1)).toBe(LONG_TASK)
 })
 
 test('a Haiku verdict leaves the prompt unchanged even with the brief on by default', async ($, on) => {
@@ -107,7 +112,7 @@ test('a Haiku verdict leaves the prompt unchanged even with the brief on by defa
   w.judge('{"model":"haiku","effort":"low","reason":"small"}')
   w.brief('Goal: nothing.')
   await start($)
-  await turn($, 'what does the session store export right now', 't1')
+  await turn($, LONG_TASK, 't1')
   expect(w.contexts.at(-1)).toBeUndefined()
 })
 
@@ -116,7 +121,7 @@ test('a brief that times out never blocks the prompt', { options: { briefFirstPr
   w.judge(SONNET_MEDIUM)
   w.brief(null)
   await start($)
-  await turn($, 'refactor the session store into its own module', 't1')
+  await turn($, LONG_TASK, 't1')
   expect(w.contexts.at(-1)).toBeUndefined()
   expect(w.classifier.at(-1)!.timeoutMs).toBe(12_000)
 })
@@ -124,8 +129,36 @@ test('a brief that times out never blocks the prompt', { options: { briefFirstPr
 test('turning the setting off leaves the first prompt unchanged', { options: { briefFirstPrompt: false } }, async ($, on) => {
   const w = world(on)
   w.judge(SONNET_MEDIUM)
-  w.brief('Goal: split the session store.')
+  w.brief(BRIEF)
+  await start($)
+  await turn($, LONG_TASK, 't1')
+  expect(w.contexts.at(-1)).toBeUndefined()
+})
+
+test('a short request goes out without a brief', async ($, on) => {
+  const w = world(on)
+  w.judge(SONNET_MEDIUM)
+  w.brief(BRIEF)
   await start($)
   await turn($, 'refactor the session store into its own module', 't1')
   expect(w.contexts.at(-1)).toBeUndefined()
+})
+
+test('a brief cut off mid-tag is dropped', async () => {
+  expect(parseBrief('<goal>Split it.</goal>\n<scope>In: the store.')).toBe(null)
+  expect(parseBrief('Goal: split it.')).toBe(null)
+  expect(parseBrief('<goal>Split it.</goal>\n<done_when>Tests pass.</done_when>')).toContain('<done_when>')
+})
+
+test('a classifier call with no verdict says why in the log and keeps the settings', { options: { briefFirstPrompt: false } }, async ($, on) => {
+  const w = world(on)
+  w.judge(null)
+  await start($)
+  await turn($, 'refactor the session store into its own module', 't1')
+  w.judge('Sure! {"effort":"low"}')
+  await turn($, 'now migrate every caller and update the tests', 't2')
+  expect(w.logs).toEqual([
+    'lif-effort: classifier gave no verdict (aborted), keeping the current model and effort',
+    'lif-effort: classifier gave no verdict (unreadable reply: Sure! {"effort":"low"}), keeping the current model and effort',
+  ])
 })

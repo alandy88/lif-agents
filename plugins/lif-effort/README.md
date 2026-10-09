@@ -55,7 +55,7 @@ in `settings.json` under `pluginConfigs`.
 | Agent visibility | Active only | `all` also lists finished agents. |
 | Show classification reason | Off | Shows Haiku's short reason in the bar. |
 | Show status line | On | Turns the line above the bar on or off. |
-| Brief the first prompt | On | On a session's first substantive prompt, when Haiku picks Opus or Sonnet, one more Haiku call (up to 12 seconds) adds a short task brief the model reads beside your words. Your prompt is never replaced. Skipped after a handoff. |
+| Brief the first prompt | On | On a session's first substantive prompt, when Haiku picks Opus or Sonnet, one more Haiku call (up to 12 seconds) adds a short task brief the model reads beside your words. Requests under 30 words are left as typed. Your prompt is never replaced. Skipped after a handoff. |
 
 The classifier is always Haiku 5.5, with a 4-second limit. A failed, late or malformed
 answer changes nothing: the request goes out as it would without the mod.
