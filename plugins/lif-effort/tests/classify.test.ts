@@ -144,6 +144,29 @@ test('a short request still gets a brief', async ($, on) => {
   expect(w.contexts.at(-1)![0]).toContain(BRIEF)
 })
 
+test('only the first substantive prompt gets a brief', async ($, on) => {
+  const w = world(on)
+  w.judge(SONNET_MEDIUM)
+  w.brief(BRIEF)
+  await start($)
+  await turn($, 'hi there', 't0')
+  expect(w.contexts.at(-1)).toBeUndefined()
+  await turn($, LONG_TASK, 't1')
+  expect(w.contexts.at(-1)![0]).toContain(BRIEF)
+  w.judge('{"effort":"high","reason":"multi-step"}')
+  await turn($, 'now migrate every caller and update the tests', 't2')
+  expect(w.contexts.at(-1)).toBeUndefined()
+})
+
+test('a session that already ran is not briefed on resume', async ($, on) => {
+  const w = world(on, { turns: 3 })
+  w.judge('{"effort":"high","reason":"multi-step"}')
+  w.brief(BRIEF)
+  await start($)
+  await turn($, LONG_TASK, 't1')
+  expect(w.contexts.at(-1)).toBeUndefined()
+})
+
 test('a brief cut off mid-tag is dropped', async () => {
   expect(parseBrief('<goal>Split it.</goal>\n<scope>In: the store.')).toBe(null)
   expect(parseBrief('Goal: split it.')).toBe(null)

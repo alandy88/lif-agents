@@ -11,6 +11,8 @@ export type LifEffortSession = {
   isEffortAuto: boolean
   /** True until the first substantive prompt has been classified. */
   canPickModel: boolean
+  /** True until the first substantive prompt has been seen; only that prompt is briefed. */
+  canBrief: boolean
   /** The session model chosen automatically; null means the native one. */
   model: ModelKey | null
   /** The effort chosen for the next turn; null means the native one. */

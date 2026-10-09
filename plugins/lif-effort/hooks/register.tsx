@@ -117,7 +117,7 @@ async function restore($: EngineInterface, isResume = false) {
   // A session that already ran keeps its model: switching it now would forfeit its cache.
   await update($, session, s => {
     const base = isResume ? fresh() : s
-    return { ...base, phase: 'ready' as const, nativeModel, canPickModel: base.canPickModel && turns === 0 }
+    return { ...base, phase: 'ready' as const, nativeModel, canPickModel: base.canPickModel && turns === 0, canBrief: base.canBrief && turns === 0 }
   })
 }
 
@@ -214,9 +214,11 @@ async function onPrompt($: EngineInterface, e: PromptSubmitInput, config: Config
   // Notifications, peers and other plugins' prompts are not the person's requests.
   if (!CLASSIFIED_ORIGINS.has(e.origin.kind)) return
   const carry = await takeCarry($)
+  const isFirst = (await read($, session)).canBrief && isSubstantive(e.text)
+  if (isFirst) await change($, s => ({ ...s, canBrief: false }))
   await choose($, carry ? `${carry.task}${e.text.trim() !== carry.prompt ? `\n\n${e.text}` : ''}` : e.text, config)
   // A handoff's carried task is already a brief.
-  if (carry || !config.briefFirstPrompt) return
+  if (carry || !isFirst || !config.briefFirstPrompt) return
   await setPhase($, 'classifying')
   try {
     const context = await brief($, e.text)

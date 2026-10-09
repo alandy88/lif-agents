@@ -9,6 +9,7 @@ export const fresh = (): LifEffortSession => ({
   isModelAuto: true,
   isEffortAuto: true,
   canPickModel: true,
+  canBrief: true,
   model: null,
   effort: null,
   turn: null,
