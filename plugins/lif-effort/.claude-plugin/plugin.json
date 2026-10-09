@@ -75,6 +75,12 @@
       "title": "Show classification reason",
       "description": "Show the classifier's short reason in the bar.",
       "default": false
+    },
+    "briefFirstPrompt": {
+      "type": "boolean",
+      "title": "Brief the first prompt",
+      "description": "For a session's first substantive prompt, when the model picked is not Haiku, add a short task brief for the model to read beside your words. Costs one more Haiku call, up to 12 seconds.",
+      "default": true
     }
   }
 }

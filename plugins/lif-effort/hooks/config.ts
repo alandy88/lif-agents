@@ -21,6 +21,7 @@ export type Config = {
   afterHandoff: 'continue' | 'wait' | 'save'
   agentVisibility: 'active' | 'all'
   showReason: boolean
+  briefFirstPrompt: boolean
 }
 
 const pick = <T extends string>(value: unknown, allowed: readonly T[], fallback: T): T =>
@@ -41,6 +42,7 @@ export function readConfig(options: PluginOptions): Config {
     afterHandoff: pick(options.afterHandoff, ['continue', 'wait', 'save'] as const, 'wait'),
     agentVisibility: pick(options.agentVisibility, ['active', 'all'] as const, 'active'),
     showReason: options.showReason === true,
+    briefFirstPrompt: options.briefFirstPrompt !== false,
   }
 }
 

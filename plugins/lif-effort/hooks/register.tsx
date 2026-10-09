@@ -5,13 +5,18 @@ import type { AgentRow, LifEffortSession, Phase } from '../types'
 import { activityOf, agentRows, type AgentDetail } from './agents'
 import {
   CLASSIFIER_MODEL,
+  BRIEF_MAX_TOKENS,
+  BRIEF_TIMEOUT_MS,
   CLASSIFIER_TIMEOUT_MS,
+  briefRequest,
   classifierRequest,
   constrain,
   isContinuation,
   isSubstantive,
+  parseBrief,
   parseVerdict,
   recentConversation,
+  wantsBrief,
   type Verdict,
 } from './classify'
 import { readConfig, type Config } from './config'
@@ -133,13 +138,13 @@ async function classify($: EngineInterface, text: string, recent: string, pickMo
 }
 
 /** Picks the session model (first substantive prompt) and the effort for the next turn. */
-async function choose($: EngineInterface, text: string, config: Config) {
+async function choose($: EngineInterface, text: string, config: Config): Promise<Verdict | null> {
   const s = await read($, session)
   const pickModel = config.autoModel && s.isModelAuto && s.canPickModel && isSubstantive(text)
   const pickEffort = config.autoEffort && s.isEffortAuto
-  if (!s.isAuto || (!pickModel && !pickEffort)) return
+  if (!s.isAuto || (!pickModel && !pickEffort)) return null
   // "continue" and the like keep the effort already chosen.
-  if (!pickModel && isContinuation(text)) return
+  if (!pickModel && isContinuation(text)) return null
 
   await setPhase($, 'classifying')
   let verdict: Verdict | null = null
@@ -153,13 +158,37 @@ async function choose($: EngineInterface, text: string, config: Config) {
       phase: 'ready',
     }))
   }
+  return verdict
+}
+
+/** One Haiku call; null on any failure, so the prompt goes out as typed. */
+async function brief($: EngineInterface, text: string) {
+  try {
+    const reply = await $.model.complete({
+      model: CLASSIFIER_MODEL,
+      ...briefRequest(text),
+      maxTokens: BRIEF_MAX_TOKENS,
+      timeoutMs: BRIEF_TIMEOUT_MS,
+    })
+    return reply.isAnswered ? parseBrief(reply.text) : null
+  } catch {
+    return null
+  }
 }
 
 async function onPrompt($: EngineInterface, e: PromptSubmitInput, config: Config) {
   // Notifications, peers and other plugins' prompts are not the person's requests.
   if (!CLASSIFIED_ORIGINS.has(e.origin.kind)) return
   const carry = await takeCarry($)
-  await choose($, carry ? `${carry.task}${e.text.trim() !== carry.prompt ? `\n\n${e.text}` : ''}` : e.text, config)
+  const verdict = await choose($, carry ? `${carry.task}${e.text.trim() !== carry.prompt ? `\n\n${e.text}` : ''}` : e.text, config)
+  // A handoff's carried task is already a brief.
+  if (carry || !config.briefFirstPrompt || !wantsBrief(verdict)) return
+  await setPhase($, 'classifying')
+  try {
+    return await brief($, e.text)
+  } finally {
+    await setPhase($, 'ready')
+  }
 }
 
 async function toggleAuto($: EngineInterface) {
@@ -335,8 +364,8 @@ export const register: Register = (on, options) => {
   })
 
   on('prompt.submit', async ($, e, next) => {
-    await onPrompt($, e, config).catch(() => setPhase($, 'ready'))
-    return next(e)
+    const context = await onPrompt($, e, config).catch(() => setPhase($, 'ready'))
+    return next(typeof context === 'string' ? { ...e, context: [...(e.context ?? []), context] } : e)
   })
 
   on('turn.start', async ($, e, next) => {

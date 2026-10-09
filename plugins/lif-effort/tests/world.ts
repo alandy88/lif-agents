@@ -34,17 +34,21 @@ export function world(on: On, options: WorldOptions = {}) {
   on('classic.SessionStart', () => ({}))
   on('classic.PostModelSwitch', () => ({}))
   let reply: string | null = null
+  let briefReply: string | null = null
   on('model.complete', ($, e) => {
     classifier.push({ prompt: e.prompt, system: e.system ?? '', model: e.model, timeoutMs: e.timeoutMs })
-    return { value: reply === null ? { isAnswered: false, reason: 'aborted', usage } : { isAnswered: true, text: reply, usage } }
+    const text = e.system?.includes('task brief') ? briefReply : reply
+    return { value: text === null ? { isAnswered: false, reason: 'aborted', usage } : { isAnswered: true, text, usage } }
   })
   on('ui.toast', ($, e) => {
     toasts.push(e.text)
     return { value: undefined }
   })
   const submitted: string[] = []
+  const contexts: (readonly string[] | undefined)[] = []
   on('prompt.submit', ($, e) => {
     submitted.push(e.text)
+    contexts.push(e.context)
     return { text: e.text }
   })
   on('turn.start', ($, e) => ({ turnId: e.turnId }))
@@ -55,10 +59,13 @@ export function world(on: On, options: WorldOptions = {}) {
     clock,
     toasts,
     submitted,
+    contexts,
     classifier,
     setId: (next: string) => (id = next),
     /** Answers every later model.complete with this text, or times out on null. */
     judge: (text: string | null) => (reply = text),
+    /** Answers the task-brief call with this text, or times out on null. */
+    brief: (text: string | null) => (briefReply = text),
   }
 }
 
