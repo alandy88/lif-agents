@@ -1,0 +1,80 @@
+{
+  "name": "lif-effort",
+  "version": "0.1.0",
+  "description": "Picks the session model and each prompt's effort with one small Haiku call, shows them in a bar above the prompt, and adds Haiku compaction, handoffs, and a subagent panel.",
+  "author": {
+    "name": "Peter Yu",
+    "email": "hyu067@gmail.com"
+  },
+  "keywords": ["lif", "effort", "model", "compaction", "handoff", "agents"],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "autoModel": {
+      "type": "boolean",
+      "title": "Automatic session model",
+      "description": "Pick Opus, Sonnet or Haiku 5.5 from the first substantive prompt and keep it for the session. Off: the session's own model is used.",
+      "default": true
+    },
+    "allowedModels": {
+      "type": "string",
+      "title": "Allowed models",
+      "description": "The models automatic selection may pick.",
+      "default": "opus,sonnet,haiku",
+      "options": ["opus,sonnet,haiku", "opus,sonnet", "sonnet,haiku", "opus,haiku"]
+    },
+    "autoEffort": {
+      "type": "boolean",
+      "title": "Automatic effort",
+      "description": "Pick the effort for each prompt. Off: the session's own effort is used.",
+      "default": true
+    },
+    "effortFloor": {
+      "type": "string",
+      "title": "Effort floor",
+      "description": "Automatic effort never goes below this. Not applied to Haiku.",
+      "default": "low",
+      "options": ["low", "medium", "high", "xhigh", "max"]
+    },
+    "effortCeiling": {
+      "type": "string",
+      "title": "Effort ceiling",
+      "description": "Automatic effort never goes above this. Not applied to Haiku.",
+      "default": "high",
+      "options": ["low", "medium", "high", "xhigh", "max"]
+    },
+    "effortPreference": {
+      "type": "string",
+      "title": "Effort preference",
+      "description": "How ambiguous prompts lean: cheaper and faster, deeper reasoning, or neither.",
+      "default": "balanced",
+      "options": ["cheaper", "balanced", "deeper"]
+    },
+    "compactionModel": {
+      "type": "string",
+      "title": "Compaction model",
+      "description": "haiku: Haiku 5.5 writes the summary, with the native compaction as fallback. session: always the native compaction.",
+      "default": "haiku",
+      "options": ["haiku", "session"]
+    },
+    "afterHandoff": {
+      "type": "string",
+      "title": "After a handoff",
+      "description": "continue: clear and carry on. wait: clear and leave the continuation in the prompt box. save: only save HANDOFF.md.",
+      "default": "wait",
+      "options": ["continue", "wait", "save"]
+    },
+    "agentVisibility": {
+      "type": "string",
+      "title": "Agent visibility",
+      "description": "Which subagents the panel and the bar count.",
+      "default": "active",
+      "options": ["active", "all"]
+    },
+    "showReason": {
+      "type": "boolean",
+      "title": "Show classification reason",
+      "description": "Show the classifier's short reason in the bar.",
+      "default": false
+    }
+  }
+}

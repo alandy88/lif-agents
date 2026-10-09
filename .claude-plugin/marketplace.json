@@ -13,6 +13,11 @@
       "name": "lif-workflow",
       "source": "./plugins/lif-workflow",
       "description": "Session handoff, planning, backlog, issue and PR loops, Codex fanout, and safety hooks. Repo-bound skills live in each repo's .agents/skills instead."
+    },
+    {
+      "name": "lif-effort",
+      "source": "./plugins/lif-effort",
+      "description": "Picks the session model and each prompt's effort with one small Haiku call, shows them in a bar above the prompt, and adds Haiku compaction, handoffs, and a subagent panel."
     }
   ]
 }

@@ -6,9 +6,9 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   the package other repos install. They share nothing but the repository.
 - **The one shipped skill is `skills/lif-dispatch/`** (`SKILL.md` plus `references/`); it
   fronts `local/dispatch/`.
-- **`plugins/lif-workflow/` is the Claude Code plugin** carrying the cross-repo workflow
-  skills and the safety hooks; the marketplace manifest sits at `.claude-plugin/` in the
-  repo root. See [plugins/AGENTS.md](plugins/AGENTS.md). Repo-bound skills do not go here;
+- **`plugins/lif-workflow/` is the Claude Code skills plugin** carrying the cross-repo
+  workflow skills and the safety hooks; `plugins/lif-effort/` is a separate function-hooks
+  mod. The marketplace manifest for both sits at `.claude-plugin/` in the repo root. See [plugins/AGENTS.md](plugins/AGENTS.md). Repo-bound skills do not go here;
   they live in `.agents/skills/` of the repo they operate on.
 - **Asked to "install this" on a machine? Read
   [local/install/AGENTS.md](local/install/AGENTS.md) — not the README's kit section.**

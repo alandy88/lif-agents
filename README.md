@@ -60,6 +60,13 @@ repo (session handoff, planning, backlog, issue and PR loops, Codex fanout) plus
 PreToolUse/PostToolUse safety and formatting hooks. See
 [plugins/AGENTS.md](plugins/AGENTS.md) for install and update commands.
 
+### Model and effort mod (lif-effort)
+
+`plugins/lif-effort/` is a Claude Code mod that picks the session model and each
+prompt's effort with one small Haiku call, shows them in a bar above the prompt, and adds
+Haiku compaction, handoffs and a subagent panel. See
+[plugins/lif-effort/README.md](plugins/lif-effort/README.md).
+
 ### Agent dispatcher (lif-dispatch)
 
 `local/dispatch/` dispatches coding agents into disposable git worktrees inside
