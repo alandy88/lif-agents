@@ -1,0 +1,6 @@
+{
+  "name": "lif-effort-spike",
+  "version": "0.0.1",
+  "description": "Unshipped compatibility probe for lif-agents issue 55, not the lif-effort plugin.",
+  "author": { "name": "Peter Yu" }
+}
