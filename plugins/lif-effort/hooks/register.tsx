@@ -204,7 +204,9 @@ async function onPrompt($: EngineInterface, e: PromptSubmitInput, config: Config
   if (carry || !config.briefFirstPrompt || !wantsBrief(verdict)) return
   await setPhase($, 'classifying')
   try {
-    return await brief($, e.text)
+    const context = await brief($, e.text)
+    if (context) $.ui.toast(`lif-effort brief:\n${context.slice(context.indexOf('\n\n') + 2)}`)
+    return context
   } finally {
     await setPhase($, 'ready')
   }
