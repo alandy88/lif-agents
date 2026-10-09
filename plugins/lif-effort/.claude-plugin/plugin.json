@@ -1,6 +1,6 @@
 {
   "name": "lif-effort",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Picks the session model and each prompt's effort with one small Haiku call, shows them in a bar above the prompt, and adds Haiku compaction, handoffs, CAFE(S) session reviews, and a subagent panel.",
   "author": {
     "name": "Peter Yu",
@@ -79,7 +79,7 @@
     "briefFirstPrompt": {
       "type": "boolean",
       "title": "Brief the first prompt",
-      "description": "For a session's first substantive prompt, when the model picked is not Haiku, add a short task brief for the model to read beside your words. Requests under 30 words are left as typed. Costs one more Haiku call, up to 12 seconds.",
+      "description": "For a session's first substantive prompt, add a short task brief for the model to read beside your words. Costs one more Haiku call, up to 12 seconds.",
       "default": true
     },
     "showStatus": {

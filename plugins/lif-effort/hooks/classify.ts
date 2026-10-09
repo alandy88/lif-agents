@@ -9,8 +9,6 @@ export const CLASSIFIER_MODEL = 'haiku'
 export const CLASSIFIER_TIMEOUT_MS = 4000
 export const BRIEF_TIMEOUT_MS = 12_000
 export const BRIEF_MAX_TOKENS = 1500
-// A shorter request comes out longer as a brief than as typed.
-const BRIEF_MIN_WORDS = 30
 const BRIEF_CHARS = 3000
 const PROMPT_CHARS = 4000
 const RECENT_MESSAGES = 6
@@ -99,10 +97,6 @@ export function parseVerdict(raw: string, pickModel: boolean): Verdict | null {
     reason: typeof reason === 'string' ? reason.trim().slice(0, 60) : '',
   }
 }
-
-/** A brief only helps a long request for work worth a stronger model. */
-export const wantsBrief = (verdict: Verdict | null | undefined, text: string) =>
-  !!verdict?.model && verdict.model !== 'haiku' && text.trim().split(/\s+/).length >= BRIEF_MIN_WORDS
 
 const BRIEF_TAGS = ['goal', 'scope', 'done_when']
 

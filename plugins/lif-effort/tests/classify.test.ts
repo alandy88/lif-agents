@@ -107,13 +107,13 @@ test('the first prompt gets a brief block when the model is not Haiku', async ($
   expect(w.submitted.at(-1)).toBe(LONG_TASK)
 })
 
-test('a Haiku verdict leaves the prompt unchanged even with the brief on by default', async ($, on) => {
+test('a Haiku verdict still gets a brief', async ($, on) => {
   const w = world(on)
   w.judge('{"model":"haiku","effort":"low","reason":"small"}')
-  w.brief('Goal: nothing.')
+  w.brief(BRIEF)
   await start($)
   await turn($, LONG_TASK, 't1')
-  expect(w.contexts.at(-1)).toBeUndefined()
+  expect(w.contexts.at(-1)![0]).toContain(BRIEF)
 })
 
 test('a brief that times out never blocks the prompt', { options: { briefFirstPrompt: true } }, async ($, on) => {
@@ -135,13 +135,13 @@ test('turning the setting off leaves the first prompt unchanged', { options: { b
   expect(w.contexts.at(-1)).toBeUndefined()
 })
 
-test('a short request goes out without a brief', async ($, on) => {
+test('a short request still gets a brief', async ($, on) => {
   const w = world(on)
   w.judge(SONNET_MEDIUM)
   w.brief(BRIEF)
   await start($)
   await turn($, 'refactor the session store into its own module', 't1')
-  expect(w.contexts.at(-1)).toBeUndefined()
+  expect(w.contexts.at(-1)![0]).toContain(BRIEF)
 })
 
 test('a brief cut off mid-tag is dropped', async () => {

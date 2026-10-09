@@ -16,7 +16,6 @@ import {
   parseBrief,
   parseVerdict,
   recentConversation,
-  wantsBrief,
   type Verdict,
 } from './classify'
 import { readConfig, type Config } from './config'
@@ -215,9 +214,9 @@ async function onPrompt($: EngineInterface, e: PromptSubmitInput, config: Config
   // Notifications, peers and other plugins' prompts are not the person's requests.
   if (!CLASSIFIED_ORIGINS.has(e.origin.kind)) return
   const carry = await takeCarry($)
-  const verdict = await choose($, carry ? `${carry.task}${e.text.trim() !== carry.prompt ? `\n\n${e.text}` : ''}` : e.text, config)
+  await choose($, carry ? `${carry.task}${e.text.trim() !== carry.prompt ? `\n\n${e.text}` : ''}` : e.text, config)
   // A handoff's carried task is already a brief.
-  if (carry || !config.briefFirstPrompt || !wantsBrief(verdict, e.text)) return
+  if (carry || !config.briefFirstPrompt) return
   await setPhase($, 'classifying')
   try {
     const context = await brief($, e.text)
