@@ -55,7 +55,7 @@ const ctxColor = (percent: number) => (percent > 30 ? 'red' : percent > 20 ? '#f
 
 type Segment = { text: string; color?: string }
 
-function segments(s: StatusSnapshot, columns: number, now: number, narrow: boolean): Segment[] {
+function segments(s: StatusSnapshot, columns: number, now: number, narrow: boolean): { meters: Segment[]; where: string } {
   const place = s.cwd ? (narrow ? s.cwd.split('/').filter(Boolean).pop() ?? s.cwd : s.cwd) : ''
   const where = [place, s.branch ? s.branch + (s.isDirty ? '*' : '') : ''].filter(Boolean).join(narrow ? ' ' : '  ')
   const meter = (label: string, r: LimitReading | null, withReset: boolean): Segment | null => {
@@ -64,28 +64,33 @@ function segments(s: StatusSnapshot, columns: number, now: number, narrow: boole
     return { text: `${label} ${Math.round(r.percent)}%${left ? ` (${left})` : ''}`, color: levelColor(r.percent) }
   }
   const withReset = !narrow && columns >= 96
-  return [
-    where ? { text: where } : null,
-    s.contextPercent === null ? null : { text: `ctx ${Math.round(s.contextPercent)}%`, color: ctxColor(Math.round(s.contextPercent)) },
-    meter('5h', s.fiveHour, withReset),
-    meter('wk', s.sevenDay, withReset),
-  ].filter((x): x is Segment => x !== null)
+  const ctx = Math.round(s.contextPercent ?? 0)
+  const meters = [{ text: `ctx ${ctx}%`, color: ctxColor(ctx) }, meter('5h', s.fiveHour, withReset), meter('wk', s.sevenDay, withReset)]
+  return { meters: meters.filter((x): x is Segment => x !== null), where }
 }
 
-/** One dim line: directory, branch, context, and the two plan windows; null when there is nothing to show. */
+/** One dim line: context and the two plan windows on the left, directory and branch on the right. */
 export function StatusLine({ Box, Text }: Table, s: StatusSnapshot, columns: number, now: number, narrowAt: number) {
-  const parts = segments(s, columns, now, columns < narrowAt)
-  if (parts.length === 0) return null
+  const { meters, where } = segments(s, columns, now, columns < narrowAt)
   return (
-    <Box flexDirection="row">
-      <Text wrap="truncate-end">
-        {parts.map((p, i) => (
-          <Text key={String(i)} dimColor={!p.color} color={p.color}>
-            {i > 0 ? ' · ' : ''}
-            {p.text}
+    <Box flexDirection="row" justifyContent="space-between">
+      <Box flexShrink={0}>
+        <Text wrap="truncate-end">
+          {meters.map((p, i) => (
+            <Text key={String(i)} dimColor={!p.color} color={p.color}>
+              {i > 0 ? ' · ' : ''}
+              {p.text}
+            </Text>
+          ))}
+        </Text>
+      </Box>
+      {where ? (
+        <Box marginLeft={2}>
+          <Text dimColor wrap="truncate-start">
+            {where}
           </Text>
-        ))}
-      </Text>
+        </Box>
+      ) : null}
     </Box>
   )
 }

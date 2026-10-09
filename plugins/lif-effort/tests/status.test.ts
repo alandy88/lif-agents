@@ -55,6 +55,19 @@ test('the status line can be turned off', { options: { showStatus: false } }, as
   await ui.unmount()
 })
 
+test('the context number reads 0% before any measurement', async ($, on) => {
+  world(on)
+  on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
+  on('session.measure', ($, e) => ({ changed: e.changed }))
+  on('env.get', () => ({ value: '/home/me' }))
+  on('process.run', () => ({ value: { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
+  on('ui.render', () => ({ type: 'Text', props: {}, children: ['native'] }))
+  await start($)
+  const ui = await $.ui.mount({ plugin: 'lif-effort', component: 'AbovePrompt', surface: 'terminal', props: BAND })
+  expect(await ui.find({ type: 'Text', text: /ctx 0%/ })).toBeDefined()
+  await ui.unmount()
+})
+
 test('a new measurement updates the numbers on the next draw', async ($, on) => {
   world(on)
   status(on)
@@ -76,9 +89,9 @@ test('the context number turns yellow, orange, then red', async ($, on) => {
   status(on)
   await start($)
   for (const [percent, color] of [[15, undefined], [16, 'yellow'], [21, '#ff8700'], [31, 'red']] as const) {
-    await $.session.measure({ context: { window: 200000, tokens: percent * 2000, percent }, rateLimits: [], changed: ['context', 'rateLimits'] })
+    await $.session.measure({ context: { window: 200000, tokens: percent * 2000, percent }, rateLimits: [{ kind: 'five_hour', percentUsed: 10 }], changed: ['context', 'rateLimits'] })
     const ui = await $.ui.mount({ plugin: 'lif-effort', component: 'AbovePrompt', surface: 'terminal', props: BAND })
-    const node = await ui.find({ type: 'Text', text: new RegExp(`^ · ctx ${percent}%$`) })
+    const node = await ui.find({ type: 'Text', text: new RegExp(`^ctx ${percent}%$`) })
     expect(node?.props?.color).toBe(color)
     await ui.unmount()
   }
