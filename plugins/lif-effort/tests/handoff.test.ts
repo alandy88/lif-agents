@@ -2,7 +2,7 @@ import { expect, test, type Engine } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
 import { datedHandoffName } from '../hooks/summaries'
-import { command, start, usage, world } from './world'
+import { command, prompt, start, usage, world } from './world'
 
 const HANDOFF = `# Handoff
 ## Goal
@@ -45,6 +45,7 @@ function handoffWorld(on: On, setup: Setup = {}) {
   }))
   on('command.run', { command: 'clear' }, () => {
     commands.push('clear')
+    w.setId('s2')
     return { text: '' }
   })
   on('prompt.fill', ($, e) => {
@@ -94,6 +95,24 @@ test('an existing HANDOFF.md is never overwritten unasked', async ($, on) => {
   const w = handoffWorld(on, { exists: ['HANDOFF.md'], answers: ['Keep both', 'Keep this conversation'] })
   await runHandoff($, w)
   expect(w.writes).toEqual([`/repo/${datedHandoffName(w.clock.now())}`])
+})
+
+test('dismissing the existing-file question saves nothing', async ($, on) => {
+  const w = handoffWorld(on, { exists: ['HANDOFF.md'], answers: [''] })
+  await runHandoff($, w)
+  expect(w.writes).toHaveLength(0)
+})
+
+test('a waiting handoff\'s task goes only to the session it cleared into', async ($, on) => {
+  const w = handoffWorld(on, { answers: ['Start fresh'] })
+  w.judge('{"effort":"medium","reason":"tests"}')
+  await runHandoff($, w)
+  w.setId('other')
+  await prompt($, w.filled[0]!)
+  expect(w.classifier.at(-1)?.prompt ?? '').not.toContain('Write the retry tests')
+  w.setId('s2')
+  await prompt($, w.filled[0]!)
+  expect(w.classifier.at(-1)!.prompt).toContain('Write the retry tests in up.test.ts.')
 })
 
 test('cancelling at the existing file saves nothing', async ($, on) => {

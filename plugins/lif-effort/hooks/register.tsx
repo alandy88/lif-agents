@@ -52,7 +52,8 @@ const COMPACT_TIMEOUT_MS = 120_000
 const CLASSIFIED_ORIGINS = new Set(['composer', 'bridge', 'sdk', 'scheduled-trigger'])
 
 type Stored = Record<string, { at: number; s: LifEffortSession }>
-type Carry = { at: number; isAuto: boolean; isEffortAuto: boolean; task?: string; prompt?: string }
+// The store is shared by every session, so a carried task names the session it belongs to.
+type Carry = { at: number; isAuto: boolean; isEffortAuto: boolean; task?: string; prompt?: string; session?: string }
 
 // Subagent model, effort and activity seen on their own requests and tool calls; "when available".
 const details = new Map<string, AgentDetail>()
@@ -109,8 +110,8 @@ async function startCycle($: EngineInterface) {
 /** A waiting handoff's task, taken once, by the first prompt of the new cycle. */
 async function takeCarry($: EngineInterface): Promise<Carry | undefined> {
   const carry = (await $.store.get(CARRY)) as Carry | undefined
-  if (!carry?.task || (await $.clock.now()) - carry.at > CARRY_MS) return undefined
-  const { task: _task, prompt: _prompt, ...rest } = carry
+  if (!carry?.task || carry.session !== (await $.session.id()) || (await $.clock.now()) - carry.at > CARRY_MS) return undefined
+  const { task: _task, prompt: _prompt, session: _session, ...rest } = carry
   await $.store.set(CARRY, rest)
   return carry
 }
@@ -228,8 +229,8 @@ async function handoffFile($: EngineInterface, cwd: string): Promise<string | un
     'Cancel',
   ])
   if (choice === 'Overwrite') return 'HANDOFF.md'
-  if (choice === 'Cancel') return undefined
-  return datedHandoffName(await $.clock.now())
+  if (choice === 'Keep both') return datedHandoffName(await $.clock.now())
+  return undefined
 }
 
 async function handoff($: EngineInterface, config: Config) {
@@ -259,14 +260,12 @@ async function handoff($: EngineInterface, config: Config) {
     const prompt = continuationPrompt(file)
     const task = carriedTask(text)
     const isWaiting = config.afterHandoff === 'wait'
-    await $.store.set(CARRY, {
-      at: await $.clock.now(),
-      isAuto: s.isAuto,
-      isEffortAuto: s.isEffortAuto,
-      ...(isWaiting ? { task, prompt } : {}),
-    } satisfies Carry)
+    await $.store.set(CARRY, { at: await $.clock.now(), isAuto: s.isAuto, isEffortAuto: s.isEffortAuto } satisfies Carry)
     await $.command.run({ command: 'clear', args: '' })
     if (isWaiting) {
+      // After the clear, $.session.id() is the new session's id.
+      const carry = (await $.store.get(CARRY)) as Carry
+      await $.store.set(CARRY, { ...carry, at: await $.clock.now(), task, prompt, session: await $.session.id() } satisfies Carry)
       await $.prompt.fill({ text: prompt })
       return
     }
