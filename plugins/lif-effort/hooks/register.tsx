@@ -497,8 +497,8 @@ export const register: Register = (on, options) => {
     return (
       <Box flexDirection="column">
         {native}
-        {bar}
         {line}
+        {bar}
       </Box>
     )
   })
