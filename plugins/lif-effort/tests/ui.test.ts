@@ -26,7 +26,7 @@ test('the bar shows the model and effort requests use, with its controls, on eve
     const ui = await $.ui.mount({ plugin: 'lif-effort', component: 'AbovePrompt', surface, props: BAND })
     expect(await ui.find({ type: 'Text', text: 'native content' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /Sonnet 5\.5 · Medium/ })).toBeDefined()
-    for (const key of ['auto', 'compact', 'handoff', 'agents']) expect(await ui.find({ key })).toBeDefined()
+    for (const key of ['auto', 'compact', 'handoff', 'review', 'agents']) expect(await ui.find({ key })).toBeDefined()
     await ui.unmount()
   }
 })
@@ -51,7 +51,7 @@ test('a narrow terminal shows command equivalents instead of buttons', async ($,
   native(on)
   await start($)
   const ui = await $.ui.mount({ plugin: 'lif-effort', component: 'AbovePrompt', surface: 'terminal', props: { ...BAND, bodyColumns: 40 } })
-  expect(await ui.find({ type: 'Text', text: /\/compact · \/lif-effort auto · handoff · agents/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /\/compact · \/lif-effort auto · handoff · review · agents/ })).toBeDefined()
   expect(await ui.find({ key: 'compact' })).toBeUndefined()
   await ui.unmount()
 })

@@ -38,6 +38,8 @@ import {
   continuationPrompt,
   datedHandoffName,
   handoffPrompt,
+  isUsableReview,
+  reviewPrompt,
   isUsableHandoff,
   isUsableSummary,
   renderTranscript,
@@ -283,6 +285,21 @@ async function handoffFile($: EngineInterface, cwd: string): Promise<string | un
   return undefined
 }
 
+/** A CAFE(S) review of the session so far, printed in the transcript; nothing is saved. */
+async function review($: EngineInterface, focus?: string) {
+  if ((await read($, session)).phase !== 'ready') return $.ui.toast('lif-effort: busy, try again in a moment')
+  await setPhase($, 'review')
+  try {
+    const written = await $.model.fork({ prompt: reviewPrompt(focus) })
+    if (!written.isAnswered) return $.ui.toast(`lif-effort: no review written (${written.reason})`)
+    const text = written.text.trim()
+    if (!isUsableReview(text)) return $.ui.toast('lif-effort: the review came back unusable; nothing was shown')
+    $.ui.log(text)
+  } finally {
+    await setPhase($, 'ready')
+  }
+}
+
 async function handoff($: EngineInterface, config: Config) {
   if ((await read($, session)).phase !== 'ready') return $.ui.toast('lif-effort: busy, try again in a moment')
   await setPhase($, 'handoff')
@@ -358,8 +375,8 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'lif-effort',
-      description: 'Model and effort automation: status, auto, handoff, agents. Compact with /compact.',
-      argumentHint: 'status | auto [on|off] | handoff | agents',
+      description: 'Model and effort automation: status, auto, handoff, review, agents. Compact with /compact.',
+      argumentHint: 'status | auto [on|off] | handoff | review [focus] | agents',
     })
     await restore($)
     if (config.showStatus) {
@@ -472,11 +489,16 @@ export const register: Register = (on, options) => {
       $.clock.after(0, () => void handoff($, config))
       return { text: 'Writing a handoff.' }
     }
+    if (action === 'review') {
+      const focus = e.args.trim().replace(/^review\s*/i, '')
+      $.clock.after(0, () => void review($, focus))
+      return { text: 'Reviewing the session with CAFE(S).' }
+    }
     if (action === 'agents') {
       await toggleAgents($)
       return { text: 'Toggled the agents panel.' }
     }
-    return { text: 'Usage: /lif-effort status | auto [on|off] | handoff | agents. Compact with /compact.' }
+    return { text: 'Usage: /lif-effort status | auto [on|off] | handoff | review [focus] | agents. Compact with /compact.' }
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
@@ -492,6 +514,7 @@ export const register: Register = (on, options) => {
       toggleAuto: () => void toggleAuto($),
       compact: () => void compactNow($, config),
       handoff: () => void $.clock.after(0, () => void handoff($, config)),
+      review: () => void $.clock.after(0, () => void review($)),
       agents: () => void toggleAgents($),
     })
     return (

@@ -1,12 +1,12 @@
 {
   "name": "lif-effort",
-  "version": "0.3.2",
-  "description": "Picks the session model and each prompt's effort with one small Haiku call, shows them in a bar above the prompt, and adds Haiku compaction, handoffs, and a subagent panel.",
+  "version": "0.4.0",
+  "description": "Picks the session model and each prompt's effort with one small Haiku call, shows them in a bar above the prompt, and adds Haiku compaction, handoffs, CAFE(S) session reviews, and a subagent panel.",
   "author": {
     "name": "Peter Yu",
     "email": "hyu067@gmail.com"
   },
-  "keywords": ["lif", "effort", "model", "compaction", "handoff", "agents"],
+  "keywords": ["lif", "effort", "model", "compaction", "handoff", "review", "agents"],
   "types": "./types/index.d.ts",
   "userConfig": {
     "autoModel": {

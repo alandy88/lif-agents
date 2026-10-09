@@ -73,6 +73,24 @@ export function carriedTask(handoff: string): string {
   return (task || handoff).slice(0, 2000)
 }
 
+export const REVIEW_SECTIONS = ['## Verdict', '## Clarity', '## Actionability', '## Fidelity', '## Efficiency', '## Security', '## Do next time'] as const
+
+export const reviewPrompt = (focus?: string) =>
+  [
+    'Review how well this session gave the agent its context, using the CAFE(S) framework. Judge the session as it happened; never invent events.',
+    `Start with "# Session review", then use exactly these headings: ${REVIEW_SECTIONS.join(', ')}.`,
+    'Under "## Verdict" write two sentences: how the session went and its biggest context gap.',
+    'For each CAFE(S) heading give a rating (good, mixed or weak), then evidence from this session: a quoted prompt, a file, a retry, a correction. If there is no evidence, write "No evidence."',
+    'Clarity: did the agent read each request as meant, or pick one of several readings? Actionability: were the goal, limits and finish line stated, and did the work run on or expand without a stop? Fidelity: did the agent act on stale, wrong or unverified facts? Efficiency: was context scoped to the task, or was there too much, too little, or rules in the wrong place? Security: did secrets, untrusted text or too-wide tool access reach the agent?',
+    'Under "## Do next time" list at most five actions, each starting with a verb, each naming the exact prompt wording, file or setting to change, and tagged with the CAFE(S) letter it fixes. Put the highest-impact action first.',
+    focus?.trim() ? `Also weigh this: ${focus.trim()}` : '',
+    'Reply with the document only.',
+  ]
+    .filter(Boolean)
+    .join('\n')
+
+export const isUsableReview = (text: string) => text.trim().length >= 200 && text.includes('## Do next time')
+
 export const continuationPrompt = (file: string) =>
   `Continue the work described in ${file}. Read it first, then start with its "Next step".`
 
