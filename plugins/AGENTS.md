@@ -4,7 +4,7 @@ Claude Code plugin marketplace for the cross-repository workflow skills. The mar
 manifest is `.claude-plugin/marketplace.json` at the repo root so the marketplace installs
 from GitHub; this directory holds the plugins, the skill evals, and the naming doc.
 
-- `lif-workflow/` — the skills plugin: `skills/`, `agents/` (the four shipit role agents), `hooks/hooks.json`, `scripts/hooks/`.
+- `lif-workflow/` — the skills plugin: `skills/`, `agents/` (the four shipit role agents and the eight `factory-*` agents of the `factory` skill), `hooks/hooks.json`, `scripts/hooks/`.
   Skills here are the ones that must resolve from any repo (handoff, pickup, planning,
   backlog, issue and PR loops, Codex fanout). Skills bound to one repo live in that repo's
   `.agents/skills/` (with `.claude/skills` symlinked to it) and are not installed through
