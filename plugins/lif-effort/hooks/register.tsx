@@ -256,8 +256,10 @@ async function compactNow($: EngineInterface, config: Config) {
 
 async function toggleAgents($: EngineInterface) {
   const panes = await $.ui.panes().catch(() => [])
-  if (panes.some(p => p.id === AGENTS_PANE)) await $.ui.close({ id: AGENTS_PANE })
-  else await $.ui.open({ id: AGENTS_PANE, title: 'Agents' })
+  // A pane that waits undrawn is not up: the next press must seat it, not close it.
+  if (panes.some(p => p.id === AGENTS_PANE && p.isPlaced)) return $.ui.close({ id: AGENTS_PANE })
+  const opened = await $.ui.open({ id: AGENTS_PANE, title: 'Agents' })
+  if (!opened.isPlaced) $.ui.toast(`lif-effort: agents panel not shown. ${opened.reason}`)
 }
 
 async function refreshAgents($: EngineInterface, config: Config) {
