@@ -107,6 +107,31 @@ export const reviewPrompt = (focus?: string) =>
 
 export const isUsableReview = (text: string) => text.trim().length >= 200 && text.includes('## Do next time')
 
+const GIT_RULES = [
+  'Run git status and git diff first, then stage files by name. Never stage secrets such as .env files or credentials.',
+  'Write a short commit message in the style of git log --oneline -5, about why the change was made.',
+  'Never force-push, never skip hooks, and never rewrite history. If a hook fails, fix the cause and make a new commit.',
+  'When you finish, reply with one or two lines: what you did and any link or error. Do nothing else.',
+]
+
+export const commitPrompt = () =>
+  [
+    'Commit the working-tree changes in this repository and push them to the remote.',
+    'Stay on the current branch. If it is main or master, push to main or master.',
+    'If there is nothing to commit, push any commits not yet on the remote. If nothing is pending, say so.',
+    'Push with git push, or git push -u origin <branch> when the branch has no upstream.',
+    ...GIT_RULES,
+  ].join('\n')
+
+export const pullRequestPrompt = () =>
+  [
+    'Open a pull request for the working-tree changes in this repository.',
+    'If the current branch is main or master, first create and switch to a new branch named for the change, such as feat/<short-topic>. Otherwise stay on the current branch.',
+    'Commit the changes, then push with git push -u origin <branch>.',
+    'Then run gh pr create against the default branch, with a short title and a body that has a Summary and a Test plan. Reply with the PR link.',
+    ...GIT_RULES,
+  ].join('\n')
+
 export const continuationPrompt = (file: string) =>
   `Continue the work described in ${file}. Read it first, then start with its "Next step".`
 

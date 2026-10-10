@@ -4,7 +4,7 @@ A Claude Code mod that picks the model and effort for you, with a small status l
 
 ```text
 ~/repo  main*  ·  ctx 42%  ·  5h 31% (2h10m)  ·  wk 12% (Thu)
-Sonnet 5.5 · High · Auto     [ Compact ] [ Handoff ] [ Review ] [ Agents (2) ]
+Sonnet 5.5 · High · Auto     [ Compact ] [ Handoff ] [ Review ] [ Commit ] [ Open PR ] [ Agents (2) ]
 ```
 
 - **Session model.** The first substantive prompt (four words or more, not "continue")
@@ -17,6 +17,10 @@ Sonnet 5.5 · High · Auto     [ Compact ] [ Handoff ] [ Review ] [ Agents (2) ]
   fails or its summary is unusable, the native compaction runs instead.
 - **Handoff.** Writes `HANDOFF.md`, then clears and continues, clears and waits, or only
   saves.
+- **Commit and Open PR.** Each starts its own Haiku 5.5 subagent, so the session's model
+  and context stay out of the git work. Commit commits the changes and pushes the current
+  branch, `main` included. Open PR starts a branch first when you are on `main`, then
+  commits, pushes and runs `gh pr create`. The result shows as a toast when it ends.
 - **Review.** `/lif-effort review` prints a CAFE(S) review of the session, with actions.
 - **Status line.** One dim line above the bar: directory, git branch (`*` when
   uncommitted), context use, and the 5-hour and weekly plan limits with time to reset.
@@ -68,6 +72,8 @@ answer changes nothing: the request goes out as it would without the mod.
 | Compact | `c` | `/compact` |
 | Handoff | `h` | `/lif-effort handoff` |
 | Review | `r` | `/lif-effort review` |
+| Commit | `g` | `/lif-effort commit` |
+| Open PR | `p` | `/lif-effort pr` |
 | Agents (n) | `a` | `/lif-effort agents` |
 
 Press `ctrl+x` then `tab` to move the keyboard to the bar, then press a hotkey. On a

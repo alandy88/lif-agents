@@ -34,6 +34,7 @@ import {
 import {
   COMPACT_SYSTEM,
   carriedTask,
+  commitPrompt,
   compactPrompt,
   continuationPrompt,
   datedHandoffName,
@@ -41,6 +42,7 @@ import {
   isUsableReview,
   reviewPrompt,
   isUsableHandoff,
+  pullRequestPrompt,
   isUsableSummary,
   renderTranscript,
   summaryMessage,
@@ -67,6 +69,9 @@ type Carry = { at: number; isAuto: boolean; isEffortAuto: boolean; task?: string
 // Subagent model, effort and activity seen on their own requests and tool calls; "when available".
 const details = new Map<string, AgentDetail>()
 let agentTimer: Timer | undefined
+
+// Haiku's git subagents by id, so their final answer is shown when they finish.
+const gitJobs = new Map<string, string>()
 
 const noteAgent = (id: string, detail: AgentDetail) => details.set(id, { ...details.get(id), ...detail })
 
@@ -367,6 +372,14 @@ async function handoff($: EngineInterface, config: Config) {
   }
 }
 
+/** Haiku does the git work in its own subagent, so the session's model and context stay out of it. */
+async function gitJob($: EngineInterface, label: string, prompt: string) {
+  const started = await $.agent.spawn({ model: 'haiku', subagentType: 'general-purpose', description: label, prompt }).catch((error: unknown) => ({ deny: String(error) }))
+  if ('deny' in started && started.deny !== undefined) return $.ui.toast(`lif-effort: ${label} did not start (${started.deny})`)
+  if ('agentId' in started && started.agentId) gitJobs.set(started.agentId, label)
+  $.ui.toast(`lif-effort: Haiku started: ${label}`)
+}
+
 function statusText(s: LifEffortSession, config: Config) {
   const { model, effort } = effective(s, config)
   const modelAuto = !config.autoModel
@@ -399,7 +412,7 @@ export const register: Register = (on, options) => {
     await $.command.register({
       name: 'lif-effort',
       description: 'Model and effort automation: status, auto, handoff, review, agents. Compact with /compact.',
-      argumentHint: 'status | auto [on|off] | handoff | review [focus] | agents',
+      argumentHint: 'status | auto [on|off] | handoff | commit | pr | review [focus] | agents',
     })
     await restore($)
     if (config.showStatus) {
@@ -418,6 +431,11 @@ export const register: Register = (on, options) => {
 
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
+    const job = e.agentId === undefined ? undefined : gitJobs.get(e.agentId)
+    if (job) {
+      gitJobs.delete(e.agentId!)
+      $.ui.toast(`lif-effort: ${job}: ${e.answer.trim().slice(0, 200) || e.reason}`)
+    }
     if (config.showStatus) await refreshGit($).catch(() => undefined)
     return result
   })
@@ -513,6 +531,14 @@ export const register: Register = (on, options) => {
       $.clock.after(0, () => void handoff($, config))
       return { text: 'Writing a handoff.' }
     }
+    if (action === 'commit') {
+      $.clock.after(0, () => void gitJob($, 'commit and push', commitPrompt()))
+      return { text: 'Haiku is committing and pushing.' }
+    }
+    if (action === 'pr') {
+      $.clock.after(0, () => void gitJob($, 'open PR', pullRequestPrompt()))
+      return { text: 'Haiku is opening a pull request.' }
+    }
     if (action === 'review') {
       const focus = e.args.trim().replace(/^review\s*/i, '')
       $.clock.after(0, () => void review($, focus))
@@ -522,7 +548,7 @@ export const register: Register = (on, options) => {
       await toggleAgents($)
       return { text: 'Toggled the agents panel.' }
     }
-    return { text: 'Usage: /lif-effort status | auto [on|off] | handoff | review [focus] | agents. Compact with /compact.' }
+    return { text: 'Usage: /lif-effort status | auto [on|off] | handoff | commit | pr | review [focus] | agents. Compact with /compact.' }
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
@@ -538,6 +564,8 @@ export const register: Register = (on, options) => {
       toggleAuto: () => void toggleAuto($),
       compact: () => void compactNow($, config),
       handoff: () => void $.clock.after(0, () => void handoff($, config)),
+      commit: () => void gitJob($, 'commit and push', commitPrompt()),
+      pullRequest: () => void gitJob($, 'open PR', pullRequestPrompt()),
       review: () => void $.clock.after(0, () => void review($)),
       agents: () => void toggleAgents($),
     })

@@ -8,7 +8,7 @@ export const NARROW_COLUMNS = 64
 export const AGENTS_PANE = 'lif-effort-agents'
 
 type Table = Pick<Elements['terminal'], 'Box' | 'Text' | 'Button'>
-export type BarActions = { toggleAuto: () => void; compact: () => void; handoff: () => void; review: () => void; agents: () => void }
+export type BarActions = { toggleAuto: () => void; compact: () => void; handoff: () => void; commit: () => void; pullRequest: () => void; review: () => void; agents: () => void }
 
 const PHASE_LABEL = { classifying: 'Classifying…', compacting: 'Compacting…', handoff: 'Writing handoff…', review: 'Reviewing session…' } as const
 const title = (word: string) => word.charAt(0).toUpperCase() + word.slice(1)
@@ -47,7 +47,7 @@ export function Bar(
           {reason}
         </Text>
         <Text dimColor wrap="truncate-end">
-          /compact · /lif-effort auto · handoff · review · agents
+          /compact · /lif-effort auto · handoff · commit · pr · review · agents
         </Text>
       </Box>
     )
@@ -66,6 +66,8 @@ export function Bar(
         <Button key="compact" label="Compact" hotkey="c" onPress={act.compact} />
         <Button key="handoff" label="Handoff" hotkey="h" onPress={act.handoff} />
         <Button key="review" label="Review" hotkey="r" onPress={act.review} />
+        <Button key="commit" label="Commit" hotkey="g" onPress={act.commit} />
+        <Button key="pr" label="Open PR" hotkey="p" onPress={act.pullRequest} />
         <Button key="agents" label={`Agents (${agents})`} hotkey="a" onPress={act.agents} />
       </Box>
     </Box>
