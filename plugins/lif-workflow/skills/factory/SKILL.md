@@ -65,6 +65,8 @@ agent reads it when present.
 
 - **Pages:** how to serve the app from a worktree on a given port, with safe data.
   Or "none".
+- **Checks:** one shell command that must exit 0 on a good branch, run from the
+  root of a checkout. You run it yourself after every build.
 - **Watch for:** review hot spots for this codebase.
 - **Always escalate:** changes a human must see before they land.
 - **Land:** `pr` or `merge`. Absent: ask before each push.
@@ -208,8 +210,26 @@ project is already ready.
 
 Read the first line of `build.md`.
 
-- `STATUS: READY`: start the next review round.
 - `STATUS: BLOCKED`: go to **Needs human**.
+- `STATUS: READY`: run the **Checks gate**, then start the next review round.
+
+**Checks gate.** The builder's word is not proof. Read the `Checks` line from the
+base branch, with `git -C <repo> show <base>:AGENTS.md`, so a job cannot weaken
+its own gate. No such line: skip this gate. Otherwise run the command in the
+background and wait for it:
+
+```bash
+cd <worktree> && <the Checks command>
+```
+
+- Exit 0: carry on.
+- Any other exit, resumes left: set `stage: "build"` and send the builder
+  `The project's Checks command failed: <command>. Its last lines: <the last 30 lines it printed>. Fix the cause, commit, and update build.md.`
+  Resume it or spawn it fresh as in **Review round N**. It counts against
+  `MAX_RESUMES`. When it finishes, run **Build check** again.
+- Any other exit, no resumes left: write `decision.md` yourself, reading
+  `ESCALATE`, then a blank line, then
+  `The project's Checks command still fails: <command>.` Go to **Needs human**.
 
 ### Review round N
 

@@ -48,7 +48,10 @@ mode that rewrites files, such as `--fix`.
 - **Conventions**: the repo's style as AGENTS.md and the neighbouring code show
   it, and comment density like the neighbouring code.
 - **Tests**: each new test pins a behaviour the spec asks for. Flag tests that
-  restate the code or duplicate another test.
+  restate the code or duplicate another test. build.md must show each new test
+  failing without the change, for a reason that matches the test. A new test
+  with no such record is a finding. Judge it by reading: the worktree is shared
+  with the other reviewers, so never undo the change to try it.
 - **Docs**: AGENTS.md and any docs it lists are updated where the change
   requires it.
 - **Commits**: short one-line messages and nothing stray committed.

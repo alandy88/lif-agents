@@ -59,6 +59,10 @@ command you ran and its result, or what the page showed.
 
 - Run the validation commands AGENTS.md lists (tests, build, lint, type-check)
   for the areas you changed. They must pass.
+- Prove every new test can fail. Run it once without the change it covers
+  (write the test first, or `git stash` the fix) and see it fail for the right
+  reason. Record each test and its failing line under Validation in build.md.
+  A test that passes either way pins nothing: fix it or drop it.
 - Lint only the files you changed. Never run a command that rewrites files
   across the repo, such as a lint `--fix` over everything.
 - For criteria you can see on a page, start the server the project's `Pages`
@@ -104,7 +108,8 @@ What the branch does now, in a few lines. List the files changed.
 2. [x] ...
 
 ## Validation
-The commands you ran and whether each one passed.
+The commands you ran and whether each one passed. For each new test: its name
+and the failure it gave without the change.
 
 ## Log
 ### Round <N>

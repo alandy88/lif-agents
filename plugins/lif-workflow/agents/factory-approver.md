@@ -42,6 +42,9 @@ APPROVE only if all of these hold:
   orchestrator wrote for a review it did not run. Its reason must hold: the
   project has no pages, the review passed in the round it names, or `pi` is not
   installed.
+- The change holds nothing the spec did not ask for. Read the diff against the
+  spec's requirements: an unasked feature, option, refactor or file is a reason
+  to escalate, however good it looks. The retro's `AGENTS.md` edits are exempt.
 - Every `AGENTS.md` edit `retro.md` lists is true, and backed by the evidence it
   cites.
 - `git merge-tree --write-tree <base> <branch>` reports no conflicts.
