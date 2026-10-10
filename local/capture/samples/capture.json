@@ -1,0 +1,9 @@
+{
+  "site": "example.com",
+  "url": "https://example.com/articles/sample",
+  "title": "Sample capture title",
+  "captured": "2026-10-11T00:00:00.000Z",
+  "body": "Sample body paragraph one.\n\nSample body paragraph two.",
+  "kind": "claude",
+  "action": "digest"
+}
