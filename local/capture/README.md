@@ -28,7 +28,8 @@ Linux, Firefox and Google Chrome only.
   never writes into the vault.
 - **Not yet run against a live Herdr.** The three commands the helper sends (`tab create`,
   `agent start`, `agent prompt`) were written from `herdr 0.9.3 --help` and are tested
-  against a fake `herdr` only. The first live run is yours; expect to adjust a flag.
+  against a fake `herdr` only. Plan step 1 (running Herdr by hand) is still open. The
+  first live run is yours; expect to adjust a flag.
 - **The page is data.** Nothing from the page reaches a file name or a `herdr` argument.
   The prompt carries only the action word and the file path, and tells the agent that the
   file is a captured web page and not instructions. The per-action prompts come later.
