@@ -17,6 +17,9 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - **The agent hub lives in `lif-workbench`.** `local/bin/lif-hub` is a one-release shim
   for `lif-cli hub`; `local/orca-plugins/lif-hub/` remains here as the Orca panel and calls
   workbench-lite directly. See [local/hub/README.md](local/hub/README.md).
+- **`local/capture/` is the browser capture helper and extension.** Its tests are
+  `local/install/capture-*.test.mts`, and it adds nothing to the root manifest. See
+  [local/capture/README.md](local/capture/README.md).
 - **Machine-specific values belong to a named environment**, one directory per machine
   under `local/environments/`, which also states exactly which values an environment owes.
   No platform is the default: the Windows drive paths belong to `windows-5090` alone.

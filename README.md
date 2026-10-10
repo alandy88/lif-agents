@@ -88,6 +88,18 @@ So that agents know when and how to invoke the dispatcher, install the
 npx skills add alandy88/lif-agents
 ```
 
+### Browser capture
+
+`local/capture/` sends the page open in Firefox or Chrome to an agent in the notes
+vault: an extension reads the page, a native helper writes it to a temp file and
+opens a Herdr tab for the agent. The helper also runs from the shell:
+
+```bash
+bun local/capture/host.mts --plain < local/capture/samples/capture.json
+```
+
+Install and limits: [local/capture/README.md](local/capture/README.md).
+
 ## Remote environments (Sandcastle)
 
 `@lif/sandcastle-kit` runs `.sandcastle/` agent pipelines: the agent loop,
