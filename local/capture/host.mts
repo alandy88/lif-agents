@@ -128,7 +128,8 @@ async function capture(plain: boolean): Promise<Reply> {
   // the error and the human decides.
   const ctx: HerdrCtx = { session: "default" };
   const tab = await tabCreate(ctx, { cwd: vault, label: `capture-${message.action}` });
-  const agent = `capture-${id}`;
+  // Herdr agent names: lowercase letters, digits, - or _, at most 32 characters.
+  const agent = `cap-${id.toLowerCase()}`;
   await agentStart(ctx, { paneId: tab.paneId, name: agent, kind: message.kind });
   await agentPrompt(ctx, { target: agent, text: prompt(message.action, file) });
   return { ok: true, file, tab: tab.tabId, agent };

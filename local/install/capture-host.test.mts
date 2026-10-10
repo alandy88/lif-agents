@@ -56,16 +56,17 @@ function assertCaptured(t: TempEnv, stdout: Buffer, status: number | null, kind:
     "--cwd", t.vault, "--label", "capture-digest", "--no-focus",
   ]);
   assert.deepEqual(start, [
-    "--session", "default", "agent", "start", `capture-${id}`,
+    "--session", "default", "agent", "start", `cap-${id.toLowerCase()}`,
     "--kind", kind, "--pane", "w1:p9",
   ]);
-  assert.deepEqual(prompt.slice(0, 5), ["--session", "default", "agent", "prompt", `capture-${id}`]);
+  assert.match(start[4] ?? "", /^[a-z][a-z0-9_-]{0,31}$/);
+  assert.deepEqual(prompt.slice(0, 5), ["--session", "default", "agent", "prompt", `cap-${id.toLowerCase()}`]);
   assert.equal(prompt.length, 6);
   const text = prompt[5] ?? "";
   assert.ok(text.includes(file));
   assert.match(text, /data/);
   assert.match(text, /not instructions/);
-  assert.deepEqual(reply, { ok: true, file, tab: "w1:t9", agent: `capture-${id}` });
+  assert.deepEqual(reply, { ok: true, file, tab: "w1:t9", agent: `cap-${id.toLowerCase()}` });
 
   // Nothing from the page reaches any herdr argument.
   for (const arg of calls.flat()) {

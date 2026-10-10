@@ -41,7 +41,7 @@ line:
 
 ```bash
 bun local/capture/host.mts --plain < local/capture/samples/capture.json
-# {"ok":true,"file":"/tmp/lif-capture/20261011T093000Z-1a2b3c4d.md","tab":"w1:t9","agent":"capture-20261011T093000Z-1a2b3c4d"}
+# {"ok":true,"file":"/tmp/lif-capture/20261011T093000Z-1a2b3c4d.md","tab":"w1:t9","agent":"cap-20261011t093000z-1a2b3c4d"}
 ```
 
 This opens a real tab and starts a real agent. A failure prints
