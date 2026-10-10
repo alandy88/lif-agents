@@ -24,11 +24,16 @@ Shape ─▶ Plan ─▶ Gate 1 ─▶ per wave: Build ∥ ─▶ Review ∥ ─
 |---|---|---|---|
 | Orchestrator | this session | what happens next | plan, merges, PR body |
 | Architect | this session, `structured-planning` | what are the slices | `plan.md` |
-| Builder | subagent per slice, own worktree | does it work | slice code and its tests |
-| Reviewer | subagent per slice, Builder's worktree | is the code right, by reading | code fixes, test asks |
-| Breaker | subagent, `model: opus`, read-only | how does it break | findings only |
-| Tester | subagent, integration worktree | does the branch work, by running | tests, code fixes |
-| Retro | subagent, integration worktree, `retro` skill | what did we learn | `AGENTS.md` only |
+| Builder | `lif-workflow:builder`, per slice, own worktree | does it work | slice code and its tests |
+| Reviewer | `lif-workflow:reviewer`, per slice, Builder's worktree | is the code right, by reading | code fixes, test asks |
+| Breaker | `lif-workflow:breaker`, read-only | how does it break | findings only |
+| Tester | `lif-workflow:tester`, integration worktree | does the branch work, by running | tests, code fixes |
+| Retro | subagent with `model: "sonnet"`, integration worktree, `retro` skill | what did we learn | `AGENTS.md` only |
+
+The four `lif-workflow:` agent files under `agents/` set each role's model and effort
+and hold its standing rules, so dispatch them by type and pass no `model`. A
+dispatch without an agent type, Retro or the merge-conflict subagent, gets a `model`
+on the `Agent` call.
 
 The Reviewer and the Tester split by method. The Reviewer **reads**: one slice,
 before merge, against the slice's intent, its planned interfaces, and the repo's
@@ -41,20 +46,13 @@ Builders skip the repo's full standards so their context goes to the problem;
 the Reviewer applies them afterwards. Keep the Orchestrator's own context for
 decisions: it reads subagent reports, not their diffs.
 
-## Fix ladder
+## Large findings
 
-The Reviewer and the Tester fix what they find, sized by this ladder:
-
-- **Small** — a local, obvious fix. Fix it in place; the Reviewer commits standards
-  fixes as `refactor: <what was aligned>`.
-- **Medium** — a real bug or gap inside the agent's own scope (the slice's files for
-  the Reviewer, the branch for the Tester) that keeps every interface and decision in
-  `plan.md`. Fix it, commit it on its own as `fix: <finding>`, and report it.
-- **Large** — crosses a slice boundary, changes a planned interface or decision, or
-  needs a redesign. Report it with a severity and leave the code as it is.
-
-For each large finding, dispatch a fix Builder with the finding and the reporter's
-evidence, into the slice worktree before merge or the integration worktree after, or bring it to the user when it changes a decision they approved.
+The Reviewer and the Tester fix what they find, sized small, medium or large by the
+fix ladder in their agent files. For each large finding, dispatch a fix Builder with
+the finding and the reporter's evidence, into the slice worktree before merge or the
+integration worktree after, or bring it to the user when it changes a decision they
+approved.
 
 ## State
 
@@ -151,16 +149,15 @@ For each wave, in order:
    each Reviewer's test asks and large findings into `plan.md`.
 4. Merge each reviewed slice into the integration worktree in plan order:
    `git -C <integration worktree> merge --no-ff shipit/<slug>-<n>`. On a conflict,
-   run `git merge --abort` and dispatch a fresh subagent into the integration
-   worktree with both slices' reports to resolve it.
+   run `git merge --abort` and dispatch a fresh subagent (`model: "opus"`) into the
+   integration worktree with both slices' reports to resolve it.
 5. Run the typecheck and unit command in the integration worktree. A failure here
    is a cross-slice break: treat it as a large finding.
 
-A slice gets two retries in total. A retry is a fresh fix Builder in the slice's
-worktree, given the failing output and the previous report; a fix the Reviewer
-makes itself is not a retry. After the second failure, stop and bring the user the
-slice, the failure, and your best guess at the cause. Other slices in the wave
-carry on.
+A slice gets two retries, each a fresh fix Builder given the failing output and the
+previous report; a fix the Reviewer makes itself is not one. After the second
+failure, bring the user the slice, the failure, and your best guess at the cause.
+Other slices carry on.
 
 ## 4. Break and Test, side by side
 
