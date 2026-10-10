@@ -2,7 +2,7 @@ import { expect, test, type Engine } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
 import { datedHandoffName, isUsableHandoff } from '../hooks/summaries'
-import { command, prompt, start, usage, world } from './world'
+import { command, prompt, start, step, usage, world } from './world'
 
 const HANDOFF = `# Handoff
 ## Goal
@@ -146,6 +146,17 @@ test('continue mode submits the continuation and classifies the carried task', {
   expect(judged.prompt).toContain('Write the retry tests in up.test.ts.')
   expect(judged.prompt).not.toContain('Continue the work described')
   expect(judged.system).toContain('"model"')
+  await $.turn.start({ text: w.submitted[0]!, turnId: 't1' })
+  expect(await step($, 't1')).toBe('claude-opus-5-5:medium')
+})
+
+test('a waiting handoff never starts on a weaker model than the one that wrote it', async ($, on) => {
+  const w = handoffWorld(on, { answers: ['Start fresh'] })
+  w.judge('{"model":"haiku","effort":"low","reason":"one small step"}')
+  await runHandoff($, w)
+  await prompt($, w.filled[0]!)
+  await $.turn.start({ text: w.filled[0]!, turnId: 't1' })
+  expect(await step($, 't1')).toBe('claude-opus-5-5:low')
 })
 
 test('a handoff missing any heading is not saved', async () => {

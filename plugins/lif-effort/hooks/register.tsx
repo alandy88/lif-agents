@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, PromptSubmitInput, Register, SessionMessage, Timer } from 'claude-code'
 
-import type { AgentRow, LifEffortSession, Phase } from '../types'
+import type { AgentRow, LifEffortSession, ModelKey, Phase } from '../types'
 import { activityOf, agentRows, type AgentDetail } from './agents'
 import {
   CLASSIFIER_MODEL,
@@ -16,9 +16,10 @@ import {
   parseBrief,
   parseVerdict,
   recentConversation,
+  withModelFloor,
   type Verdict,
 } from './classify'
-import { readConfig, type Config } from './config'
+import { modelKeyOf, readConfig, type Config } from './config'
 import {
   applyVerdict,
   bindTurn,
@@ -61,7 +62,7 @@ const CLASSIFIED_ORIGINS = new Set(['composer', 'bridge', 'sdk', 'scheduled-trig
 
 type Stored = Record<string, { at: number; s: LifEffortSession }>
 // The store is shared by every session, so a carried task names the session it belongs to.
-type Carry = { at: number; isAuto: boolean; isEffortAuto: boolean; task?: string; prompt?: string; session?: string }
+type Carry = { at: number; isAuto: boolean; isEffortAuto: boolean; task?: string; prompt?: string; session?: string; model?: ModelKey }
 
 // Subagent model, effort and activity seen on their own requests and tool calls; "when available".
 const details = new Map<string, AgentDetail>()
@@ -136,7 +137,7 @@ async function startCycle($: EngineInterface) {
 async function takeCarry($: EngineInterface): Promise<Carry | undefined> {
   const carry = (await $.store.get(CARRY)) as Carry | undefined
   if (!carry?.task || carry.session !== (await $.session.id()) || (await $.clock.now()) - carry.at > CARRY_MS) return undefined
-  const { task: _task, prompt: _prompt, session: _session, ...rest } = carry
+  const { task: _task, prompt: _prompt, session: _session, model: _model, ...rest } = carry
   await $.store.set(CARRY, rest)
   return carry
 }
@@ -216,7 +217,11 @@ async function onPrompt($: EngineInterface, e: PromptSubmitInput, config: Config
   const carry = await takeCarry($)
   const isFirst = (await read($, session)).canBrief && isSubstantive(e.text)
   if (isFirst) await change($, s => ({ ...s, canBrief: false }))
-  await choose($, carry ? `${carry.task}${e.text.trim() !== carry.prompt ? `\n\n${e.text}` : ''}` : e.text, config)
+  await choose(
+    $,
+    carry ? `${carry.task}${e.text.trim() !== carry.prompt ? `\n\n${e.text}` : ''}` : e.text,
+    withModelFloor(config, carry?.model),
+  )
   // A handoff's carried task is already a brief.
   if (carry || !isFirst || !config.briefFirstPrompt) return
   await setPhase($, 'classifying')
@@ -341,18 +346,19 @@ async function handoff($: EngineInterface, config: Config) {
     const s = await read($, session)
     const prompt = continuationPrompt(file)
     const task = carriedTask(text)
+    const model = isModelRouted(s, config) ? s.model! : modelKeyOf(s.nativeModel)
     const isWaiting = config.afterHandoff === 'wait'
     await $.store.set(CARRY, { at: await $.clock.now(), isAuto: s.isAuto, isEffortAuto: s.isEffortAuto } satisfies Carry)
     await $.command.run({ command: 'clear', args: '' })
     if (isWaiting) {
       // After the clear, $.session.id() is the new session's id.
       const carry = (await $.store.get(CARRY)) as Carry
-      await $.store.set(CARRY, { ...carry, at: await $.clock.now(), task, prompt, session: await $.session.id() } satisfies Carry)
+      await $.store.set(CARRY, { ...carry, at: await $.clock.now(), task, prompt, session: await $.session.id(), ...(model ? { model } : {}) } satisfies Carry)
       await $.prompt.fill({ text: prompt })
       return
     }
     // The plugin's own prompt skips its own hooks: the carried task is classified here instead.
-    await choose($, task, config)
+    await choose($, task, withModelFloor(config, model))
     await $.prompt.submit({ text: prompt, asUser: true })
   } finally {
     await setPhase($, 'ready')

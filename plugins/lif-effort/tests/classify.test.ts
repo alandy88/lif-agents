@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { constrain, isContinuation, isSubstantive, parseBrief, parseVerdict } from '../hooks/classify'
+import { constrain, isContinuation, isSubstantive, parseBrief, parseVerdict, withModelFloor } from '../hooks/classify'
 import { readConfig } from '../hooks/config'
 import { start, turn, world } from './world'
 
@@ -25,6 +25,14 @@ test('allowed models and the effort floor and ceiling restrict every verdict', a
   expect(constrain({ model: 'opus', effort: 'max', reason: '' }, onlyOpusSonnet)).toEqual({ model: 'opus', effort: 'high', reason: '' })
   const noSonnet = readConfig({ allowedModels: 'opus,haiku' })
   expect(constrain({ model: 'sonnet', effort: 'low', reason: '' }, noSonnet).model).toBe('opus')
+})
+
+test('a model floor drops weaker models, unless that would leave none', async () => {
+  const all = readConfig({})
+  expect(withModelFloor(all, 'sonnet').allowedModels).toEqual(['sonnet', 'opus'])
+  expect(withModelFloor(all, undefined)).toBe(all)
+  const noOpus = readConfig({ allowedModels: 'haiku,sonnet' })
+  expect(withModelFloor(noOpus, 'opus')).toBe(noOpus)
 })
 
 test('greetings and continuations are not substantive', async () => {

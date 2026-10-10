@@ -148,6 +148,12 @@ const allowedModel = (model: ModelKey, config: Config): ModelKey =>
       MODELS[b].rank - MODELS[a].rank,
   )[0]!
 
+/** The classifier sees one section of a handoff, so it may not pick below the model that wrote it. */
+export function withModelFloor(config: Config, floor: ModelKey | undefined): Config {
+  const strong = floor ? config.allowedModels.filter(key => MODELS[key].rank >= MODELS[floor].rank) : []
+  return strong.length ? { ...config, allowedModels: strong } : config
+}
+
 export function constrain(verdict: Verdict, config: Config): Verdict {
   return {
     ...verdict,

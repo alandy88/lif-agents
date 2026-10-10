@@ -106,7 +106,7 @@ effort setter, and no way to read the app's effort before the first request.
 | A prompt typed while a turn runs | Its effort applies from the next turn. The running turn keeps its own. |
 | Reload or `--resume` | The session's selection comes back. Each session keeps its own. |
 | Compaction | The model and effort stay. |
-| `/clear` or a handoff | A new selection cycle. Your Auto on or off choice carries over. |
+| `/clear` or a handoff | A new selection cycle. Your Auto on or off choice carries over. After a handoff the model is never weaker than the one that wrote it, within the models you allow. |
 | The mod loaded into a session that already ran | The session's model stays. Effort is still automatic. |
 
 Prompts from notifications, peers, channels and other plugins are not classified.
@@ -129,6 +129,9 @@ rated review and up to five actions for next time in the transcript. It saves no
 4. Unless the setting is `save`, it asks before clearing the conversation. Nothing is
    cleared if writing or saving failed.
 5. The new cycle classifies the handoff's "Next step", not the instruction to continue.
+   That one section can look small, so the pick is never weaker than the model that
+   wrote the handoff, within the models you allow. It is a floor only: the pick can
+   still match that model when the work has grown harder.
 
 ## Checks
 
