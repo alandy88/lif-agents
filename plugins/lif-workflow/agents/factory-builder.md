@@ -34,11 +34,18 @@ the user and to other jobs.
    taking over the job: do that before you touch the code.
 5. When you are started for a rework, the `rework-*.md` file the prompt names,
    plus the existing `build.md` and every round folder, so you know the history.
+6. When the message starts `Base sync:`, there is nothing new to build. Do the
+   base merge under **Build**, rerun the validation commands, and add a
+   `Base sync` entry to the Log.
 
 ## Build
 
 - Run `cd <worktree> && git branch --show-current` first. It must print the
   branch from your prompt. If it doesn't, stop and write a BLOCKED build.md.
+- Start every round on the current base. When
+  `cd <worktree> && git merge-base --is-ancestor <base> HEAD` fails, other work
+  has landed: run `git merge <base>`, resolve any conflicts, and say so in this
+  round's Log entry. Merge, never rebase: the branch may already be pushed.
 - Match the surrounding code: its idioms, formatting, naming and imports. Keep
   comment density like the neighbouring code.
 - Make the simplest change that fully meets the spec. No fallbacks, hidden

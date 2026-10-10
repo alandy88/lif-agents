@@ -120,6 +120,7 @@
     border: 1px solid transparent; color: var(--changes);
     background: color-mix(in srgb, var(--changes) 16%, transparent);
   }
+  .chip.SKIPPED { opacity: .45; text-decoration: line-through; }
   .chip.bad { border: 1px solid var(--human); color: var(--human); }
   .hint {
     margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line);
@@ -268,14 +269,15 @@ const POLL_MS = 2000
 const STAGES = [
   { key: 'spec', label: 'Spec', who: 'spec-writer · opus' },
   { key: 'build', label: 'Build', who: 'builder · opus' },
-  { key: 'review', label: 'Review', who: 'sec · ux · ui · code' },
+  { key: 'review', label: 'Review', who: 'sec · ux · ui · code · 2nd' },
   { key: 'approve', label: 'Approve', who: 'approver · opus' },
   { key: 'pr-open', label: 'PR open', who: 'pr-shepherd' },
   { key: 'merged', label: 'Merged', who: 'main', cls: 'merged-col' },
   { key: 'needs-human', label: 'Needs human', who: 'approve · rework', cls: 'human' },
 ]
 const LIVE = new Set(['spec', 'build', 'review', 'approve'])
-const REVIEWERS = [['security', 'sec'], ['ux', 'ux'], ['ui', 'ui'], ['code', 'code']]
+const REVIEWERS = [['security', 'sec'], ['ux', 'ux'], ['ui', 'ui'], ['code', 'code'], ['second', '2nd']]
+const VERDICTS = new Set(['PASS', 'CHANGES', 'SKIPPED'])
 
 const $ = (id) => document.getElementById(id)
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
@@ -297,7 +299,7 @@ async function fetchText(url) {
 // ---- Board ---------------------------------------------------------------
 
 function verdictOf(text) {
-  const m = text.split('\n')[0].trim().match(/^VERDICT:\s*(PASS|CHANGES)$/)
+  const m = text.split('\n')[0].trim().match(/^VERDICT:\s*(PASS|CHANGES|SKIPPED)$/)
   return m ? m[1] : 'invalid'
 }
 
@@ -315,7 +317,7 @@ async function pastRounds(job) {
           verdicts[k] = 'missing'
         }
       }))
-      if (Object.values(verdicts).every((v) => v === 'PASS' || v === 'CHANGES')) {
+      if (Object.values(verdicts).every((v) => VERDICTS.has(v))) {
         roundCache.set(key, verdicts)
       } else {
         rounds.push(verdicts)
@@ -330,7 +332,7 @@ async function pastRounds(job) {
 function chips(n, verdicts, waiting) {
   const cells = REVIEWERS.map(([k, short]) => {
     const v = verdicts[k]
-    const cls = v === 'PASS' || v === 'CHANGES' ? v : v === 'pending' ? (waiting ? 'wait' : '') : 'bad'
+    const cls = VERDICTS.has(v) ? v : v === 'pending' ? (waiting ? 'wait' : '') : 'bad'
     const label = v === 'missing' || v === 'invalid' ? `${short}?` : short
     return `<span class="chip ${cls}" title="${k}: ${esc(v)}">${label}</span>`
   }).join('')

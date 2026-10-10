@@ -1,7 +1,7 @@
 ---
 name: factory
 disable-model-invocation: true
-description: "Run the software factory on the current project: one job goes through spec, build on its own branch and worktree, four parallel review lenses, a retro, and an approver that lands it or hands it to a human. The session that runs it becomes the orchestrator. Triggers: /factory <feature>, /factory next, /factory approve <job-id>, /factory rework <job-id> <note>."
+description: "Run the software factory on the current project: one job goes through spec, build on its own branch and worktree, parallel review lenses, a second-model review, a retro, and an approver that lands it or hands it to a human. The session that runs it becomes the orchestrator. Triggers: /factory <feature>, /factory next, /factory approve <job-id>, /factory rework <job-id> <note>."
 argument-hint: "<feature> | next | approve <job-id> | rework <job-id> <note>"
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent, Skill, SendMessage
 ---
@@ -24,8 +24,10 @@ move the job along and keep `job.json` current.
 ```
 feature → spec-writer → builder → [security, ux, ui, code] → WAIT FOR ALL
                            ▲                                      │
-                           └──── any CHANGES: resume builder ◄────┤
-                                                                  ▼ all PASS
+                           ├──── any CHANGES: resume builder ◄────┤
+                           │                                      ▼ all PASS
+                           └──── CHANGES ◄─────────────── second model (pi)
+                                                                  ▼ PASS
                                                                 retro
                                                                   ▼
                                               land ◄─ APPROVE ─ approver ─ ESCALATE → needs-human
@@ -39,6 +41,7 @@ feature → spec-writer → builder → [security, ux, ui, code] → WAIT FOR AL
 |         | `lif-workflow:factory-reviewer-ux`      | `round-N/review-ux.md`                               |
 |         | `lif-workflow:factory-reviewer-ui`      | `round-N/review-ui.md`                               |
 |         | `lif-workflow:factory-reviewer-code`    | `round-N/review-code.md`                             |
+|         | none: the `pi` CLI, run by you          | `round-N/review-second.md`                           |
 | retro   | `lif-workflow:factory-retro`            | `retro.md` + `AGENTS.md` commits on `factory/<job-id>` |
 | approve | `lif-workflow:factory-approver`         | `decision.md`                                        |
 
@@ -114,14 +117,15 @@ worktrees.
   "worktree": "/home/you/code/my-app-factory/worktrees/003-rate-limiting",
   "ports": { "builder": 41873, "ux": 39897, "ui": 45081 },
   "stage": "review", "round": 2,
-  "reviews": { "security": "CHANGES", "ux": "PASS", "ui": "pending", "code": "PASS" } }
+  "reviews": { "security": "CHANGES", "ux": "PASS", "ui": "pending", "code": "PASS",
+               "second": "pending" } }
 ```
 
 - `stage` is one of `spec`, `build`, `review`, `approve`, `pr-open`, `merged`,
   `needs-human`. Worktree setup counts as `spec`. The retro counts as `approve`.
 - `round` is the current review round (0 until the first round starts).
-- `reviews` holds the current round only. Each value is `pending`, `PASS` or
-  `CHANGES`. Earlier rounds live in their `round-<N>/` folders, which the
+- `reviews` holds the current round only. Each value is `pending`, `PASS`,
+  `CHANGES` or `SKIPPED`. Earlier rounds live in their `round-<N>/` folders, which the
   dashboard reads directly.
 - `base` is the branch the job was cut from and lands on.
 - Rewrite the whole file on every change. `worktree` is always an absolute path.
@@ -209,19 +213,43 @@ Read the first line of `build.md`.
 
 ### Review round N
 
-1. Set `stage: "review"`, `round: N` and all four reviews to `pending`. Create
-   `<factory>/jobs/<job-id>/round-<N>/`.
-2. Spawn all four reviewers **in one message**, so they run in parallel. Each
+The reviews are four lenses, `security`, `ux`, `ui` and `code`, then the
+second-model review, `second`.
+
+**Which lenses run.** The full set is `security` and `code`, plus `ux` and `ui`
+unless the project's `Pages` line reads `none`.
+
+- Round 1, and the first round after a `/factory rework`: the full set.
+- Any other round: the lenses that said `CHANGES` in the round before, plus
+  `code`, which reruns the project's checks.
+
+**Stubs.** Every review that does not run this round still gets its file, so
+each round folder holds all five. You write the stub yourself:
+
+```markdown
+VERDICT: SKIPPED
+
+<why: "The project has no pages." or "Passed in round <k>; not rerun.">
+```
+
+1. Set `stage: "review"`, `round: N`, the lenses that run and `second` to
+   `pending`, and the rest to `SKIPPED`. Create
+   `<factory>/jobs/<job-id>/round-<N>/` and write the stubs.
+2. Spawn every lens that runs **in one message**, so they run in parallel. Each
    gets the prompt `<paths> Review round N.`, plus its port for
    `factory-reviewer-ux` and `factory-reviewer-ui`.
 3. **WAIT FOR ALL.** Each time a reviewer finishes, read the first line of its
    file (`VERDICT: PASS` or `VERDICT: CHANGES`) and write that verdict to
    `job.json` straight away, so the dashboard chips fill in as they land. The
-   round is done only when all four `review-*.md` files exist in `round-<N>/`.
-   Never resume the builder mid-round. If a reviewer finishes without writing
-   its file, or writes a first line that isn't a verdict, stop and tell the user.
-4. Decide:
-   - **All PASS**: go to **Retro**.
+   lenses are done only when every one you spawned has written its file in
+   `round-<N>/`. Never resume the builder mid-round. If a reviewer finishes
+   without writing its file, or writes a first line that isn't a verdict, stop
+   and tell the user.
+4. **Second-model review.** Any lens `CHANGES`: write the stub for `second`
+   (`A lens asked for changes this round.`) and set it to `SKIPPED`. All lenses
+   `PASS`: run the **Second-model review** below and record its verdict.
+5. Decide:
+   - **All PASS** (a `SKIPPED` counts as a pass): go to **Retro**.
    - **Any CHANGES, resumes left**: set `stage: "build"`, then send the builder
      this message:
      `Round N reviews are in <factory>/jobs/<job-id>/round-<N>/. Address every review with VERDICT: CHANGES, commit, and update build.md for round N+1.`
@@ -235,6 +263,41 @@ Read the first line of `build.md`.
      `ESCALATE`, then a blank line, then
      `Review rounds exhausted. Outstanding CHANGES in round-<N>/ from: <reviewers>.`
      Go to **Needs human**.
+
+### Second-model review
+
+A model from another vendor reads the change after the lenses pass, to find
+what they share a blind spot for. It runs through the `pi` CLI, with no agent.
+Its prompt is [assets/second-review.md](assets/second-review.md) and its reply
+is the review file.
+
+When `command -v pi` prints nothing, write the stub for `second`
+(`pi is not installed on this machine.`), set it to `SKIPPED`, and say so in
+your report line. Otherwise run this in the background and wait for it:
+
+```bash
+cd <worktree> && pi -p --provider openai --model gpt-6.1-sol --thinking medium \
+  --no-session --tools read,grep,find,ls,bash \
+  "<paths> Review round N." "@<this skill's folder>/assets/second-review.md" \
+  < /dev/null > <factory>/jobs/<job-id>/round-<N>/review-second.md
+```
+
+- Keep `< /dev/null`: without it `pi -p` waits on its input and never starts.
+- The tool list leaves out `edit` and `write`. `bash` stays so it can run `git`
+  and the project's checks, so read-only is asked for, not enforced. Afterwards
+  `git -C <worktree> status --porcelain` must print nothing; if it prints
+  anything, go to **Needs human** and quote it.
+- To use another model, change `--provider` and `--model` on that one line.
+  `openai` bills the OpenAI API key; `openai-codex` uses the subscription sign-in.
+- Read the first line of the file, as for a lens, and write the verdict to
+  `job.json`.
+- If `pi` exits with an error, or the first line isn't a verdict: replace the
+  file with a stub that quotes what `pi` printed, set `second` to `SKIPPED`,
+  write `decision.md` yourself, reading `ESCALATE`, then a blank line, then
+  `The second-model review did not run: <what pi printed>.`, and go to
+  **Needs human**. The user fixes `pi` and runs
+  `/factory rework <job-id> rerun the reviews`, or lands without it with
+  `/factory approve <job-id>`.
 
 ### Retro
 
@@ -251,6 +314,29 @@ When it finishes, read the first line of `decision.md`:
 - `ESCALATE`: go to **Needs human**.
 
 ### Land
+
+**Base check, first.** Other jobs may have landed since the last build round:
+
+```bash
+git -C <repo> merge-base --is-ancestor <base> factory/<job-id>
+```
+
+- Exit 0: the branch holds everything on the base. Carry on.
+- Otherwise the base has moved. Run
+  `git -C <repo> merge-tree --write-tree <base> factory/<job-id>`.
+  - It reports conflicts: go to **Needs human**, and tell the user to run
+    `/factory rework <job-id> merge <base> and resolve the conflicts`, so the
+    fix goes through review.
+  - No conflicts: set `stage: "build"` and send the builder
+    `Base sync: <base> has moved. Merge it into the job branch, rerun the project's checks, commit, and add a "Base sync" entry to the Log in build.md.`
+    Resume it or spawn it fresh as in **Review round N**, without counting
+    against `MAX_RESUMES`. When it finishes, read the first line of `build.md`:
+    `STATUS: BLOCKED` goes to **Needs human**. `STATUS: READY`: set
+    `stage: "approve"` and carry on. A clean merge with passing checks is not
+    reviewed again.
+
+The check reads the local base branch. In a `Land: pr` project that is only as
+fresh as the user's last pull; the pull request's own checks cover the rest.
 
 Read the project's `Land` line from the base branch, never from the job branch,
 so a job cannot grant itself a push:
@@ -348,7 +434,8 @@ The job must be in `needs-human`.
 3. Spawn a fresh `lif-workflow:factory-builder`, named `builder-<job-id>` where
    the `Agent` tool takes a name, with the prompt
    `<paths> Rework: read rework-<k>.md and address it, then update build.md for round N+1. Port: <port>.`
-   (`N` is the job's last round.) A rework run gets a fresh `MAX_RESUMES`.
+   (`N` is the job's last round.) A rework run gets a fresh `MAX_RESUMES`, and
+   its first review round runs the full set of lenses.
 4. Continue from **Build check**, exactly like a new job.
 
 ## Reporting

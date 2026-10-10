@@ -37,8 +37,11 @@ APPROVE only if all of these hold:
 
 - Every acceptance criterion in the spec is met, with evidence in build.md that
   you find convincing. Spot-check at least one criterion yourself.
-- All four reviews in the final round are `VERDICT: PASS`, and no Note in them
-  describes a real problem.
+- Every review in the final round is `VERDICT: PASS` or `VERDICT: SKIPPED`, and
+  no Note in them describes a real problem. A `SKIPPED` file is a stub the
+  orchestrator wrote for a review it did not run. Its reason must hold: the
+  project has no pages, the review passed in the round it names, or `pi` is not
+  installed.
 - Every `AGENTS.md` edit `retro.md` lists is true, and backed by the evidence it
   cites.
 - `git merge-tree --write-tree <base> <branch>` reports no conflicts.
