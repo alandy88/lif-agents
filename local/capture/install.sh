@@ -62,7 +62,8 @@ for value in "$home" "$vault" "$herdr_dir" "$bun" "$host"; do
     *) die "not an absolute path: $value" ;;
   esac
   case $value in
-    *[\'\"\\]* | *$'\n'*) die "path holds a quote, backslash or newline: $value" ;;
+    *[\'\"\\]*) die "path holds a quote or backslash: $value" ;;
+    *[[:cntrl:]]*) die "path holds a control character: $value" ;;
   esac
 done
 
@@ -77,16 +78,26 @@ done
 
 mkdir -p "$(dirname "$launcher")" "$(dirname "$firefox")" "$(dirname "$chrome")"
 
-cat > "$launcher" <<LAUNCHER
+# Write stdin to a new file and rename it over <target>: an existing target that
+# is a hard link (or a symlink) is replaced, never written through.
+render() {
+  local target=$1 mode=$2 tmp
+  tmp=$(mktemp -- "$(dirname -- "$target")/.lif-capture.XXXXXX")
+  cat > "$tmp" && chmod "$mode" "$tmp" && mv -fT -- "$tmp" "$target" || {
+    rm -f -- "$tmp"
+    exit 1
+  }
+}
+
+render "$launcher" 755 <<LAUNCHER
 #!/bin/sh
 # Rendered by local/capture/install.sh. Rerun it when the vault, herdr or bun moves.
 export LIF_NOTES_VAULT='$vault'
 export PATH='$herdr_dir'"\${PATH:+:\$PATH}"
 exec '$bun' '$host' "\$@"
 LAUNCHER
-chmod 755 "$launcher"
 
-cat > "$firefox" <<MANIFEST
+render "$firefox" 644 <<MANIFEST
 {
   "name": "lif_capture",
   "description": "LIF browser capture helper",
@@ -96,7 +107,7 @@ cat > "$firefox" <<MANIFEST
 }
 MANIFEST
 
-cat > "$chrome" <<MANIFEST
+render "$chrome" 644 <<MANIFEST
 {
   "name": "lif_capture",
   "description": "LIF browser capture helper",

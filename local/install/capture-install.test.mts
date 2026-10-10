@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import {
   accessSync,
   constants,
+  linkSync,
   mkdirSync,
   readdirSync,
   readFileSync,
@@ -117,4 +118,37 @@ test("install refuses a launcher symlink that leads outside --home", () => {
   assert.equal(readFileSync(outside, "utf8"), "keep");
   assert.equal(statSync(outside).mode & 0o777, 0o600);
   assert.deepEqual(readdirSync(t.home), [".local"]);
+});
+
+test("install replaces a hard-linked target instead of writing through it", () => {
+  const t = tempEnv();
+  const outside = path.join(t.vault, "keep.md");
+  writeFileSync(outside, "keep", { mode: 0o600 });
+  const launcher = path.join(t.home, ".local/share/lif-capture/lif-capture-host");
+  const chrome = path.join(t.home, ".config/google-chrome/NativeMessagingHosts/lif_capture.json");
+  for (const target of [launcher, chrome]) {
+    mkdirSync(path.dirname(target), { recursive: true });
+    linkSync(outside, target);
+  }
+
+  const result = install(t, ["--home", t.home, "--chrome-id", chromeId]);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(readFileSync(outside, "utf8"), "keep");
+  assert.equal(statSync(outside).mode & 0o777, 0o600);
+  accessSync(launcher, constants.X_OK);
+  assert.equal(hostManifest(t, ".config/google-chrome/NativeMessagingHosts/lif_capture.json")["path"], launcher);
+  assert.deepEqual(readdirSync(path.dirname(launcher)), ["lif-capture-host"]);
+});
+
+test("install refuses a --home holding a control character", () => {
+  const t = tempEnv();
+  const home = path.join(t.home, "a\tb");
+  mkdirSync(home);
+
+  const result = install(t, ["--home", home, "--chrome-id", chromeId]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /control character/);
+  assert.deepEqual(readdirSync(home), []);
 });
