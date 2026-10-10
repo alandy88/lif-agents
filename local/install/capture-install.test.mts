@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { accessSync, constants, readdirSync, readFileSync } from "node:fs";
+import {
+  accessSync,
+  constants,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
@@ -80,4 +89,32 @@ test("install refuses bad input and writes nothing", () => {
     assert.match(result.stderr, /usage:/, name);
     assert.deepEqual(readdirSync(t.home), [], name);
   }
+});
+
+test("install refuses a folder symlink that leads outside --home", () => {
+  const t = tempEnv();
+  symlinkSync(t.vault, path.join(t.home, ".config"));
+
+  const result = install(t, ["--home", t.home, "--chrome-id", chromeId]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /outside --home/);
+  assert.deepEqual(readdirSync(t.vault), []);
+  assert.deepEqual(readdirSync(t.home), [".config"]);
+});
+
+test("install refuses a launcher symlink that leads outside --home", () => {
+  const t = tempEnv();
+  const outside = path.join(t.vault, "keep.md");
+  writeFileSync(outside, "keep", { mode: 0o600 });
+  mkdirSync(path.join(t.home, ".local/share/lif-capture"), { recursive: true });
+  symlinkSync(outside, path.join(t.home, ".local/share/lif-capture/lif-capture-host"));
+
+  const result = install(t, ["--home", t.home, "--chrome-id", chromeId]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /outside --home/);
+  assert.equal(readFileSync(outside, "utf8"), "keep");
+  assert.equal(statSync(outside).mode & 0o777, 0o600);
+  assert.deepEqual(readdirSync(t.home), [".local"]);
 });

@@ -47,11 +47,13 @@ done
 herdr=$(command -v herdr) || die "herdr is not on PATH"
 bun=$(command -v bun) || die "bun is not on PATH"
 
-home=$(cd -- "$home" && pwd)
+home=$(cd -- "$home" && pwd -P)
 vault=$(cd -- "$LIF_NOTES_VAULT" && pwd)
 herdr_dir=$(cd -- "$(dirname -- "$herdr")" && pwd)
 host=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/host.mts
 launcher=$home/.local/share/lif-capture/lif-capture-host
+firefox=$home/.mozilla/native-messaging-hosts/lif_capture.json
+chrome=$home/.config/google-chrome/NativeMessagingHosts/lif_capture.json
 
 # The values go into single-quoted sh and into JSON strings unescaped.
 for value in "$home" "$vault" "$herdr_dir" "$bun" "$host"; do
@@ -64,8 +66,15 @@ for value in "$home" "$vault" "$herdr_dir" "$bun" "$host"; do
   esac
 done
 
-firefox=$home/.mozilla/native-messaging-hosts/lif_capture.json
-chrome=$home/.config/google-chrome/NativeMessagingHosts/lif_capture.json
+# A symlink under --home must not send a write outside it.
+# shortcut: checked once before the writes, not held; harden if --home is ever a folder others can write.
+for target in "$launcher" "$firefox" "$chrome"; do
+  case $(realpath -m -- "$target") in
+    "$home"/*) ;;
+    *) die "resolves outside --home: $target" ;;
+  esac
+done
+
 mkdir -p "$(dirname "$launcher")" "$(dirname "$firefox")" "$(dirname "$chrome")"
 
 cat > "$launcher" <<LAUNCHER
