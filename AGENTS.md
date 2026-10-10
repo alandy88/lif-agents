@@ -77,6 +77,18 @@ inconsistent. The JS emit rewrites `.mts` imports to `.mjs`; declarations keep `
 resolve to the sibling `.d.mts`, so a consumer typechecking against `remote/dist/` sees
 real types.
 
+## Factory
+
+- **Pages:** none.
+- **Checks:** `bun install --frozen-lockfile && bun run typecheck && bun run build && bun run test && bun run test:integration`
+- **Watch for:** anything added to the root `package.json` ships to all
+  three kit consumers, so new tools keep their own manifest outside
+  `remote/`. A prompt that hands an agent scraped or outside text must
+  mark that text as data, not instructions.
+- **Always escalate:** writes into the vault; installing files outside
+  the repo (browser profile folders, home config); new root dependencies.
+- **Land:** pr
+
 ## Maintaining this file
 
 Keep this file for knowledge useful to almost every future agent session in this project.
