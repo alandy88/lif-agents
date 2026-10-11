@@ -11,7 +11,14 @@ test("the manifest is MV3 for both browsers and asks for nothing extra", () => {
   const manifest = JSON.parse(read("manifest.json")) as Record<string, any>;
 
   assert.equal(manifest["manifest_version"], 3);
-  assert.deepEqual(manifest["permissions"], ["nativeMessaging", "activeTab", "scripting"]);
+  assert.deepEqual(manifest["permissions"], [
+    "nativeMessaging",
+    "activeTab",
+    "scripting",
+    "contextMenus",
+    "storage",
+  ]);
+  assert.equal(manifest["options_ui"].page, "options.html");
   assert.equal("host_permissions" in manifest, false);
   assert.equal("content_scripts" in manifest, false);
   assert.equal(manifest["background"].service_worker, manifest["background"].scripts[0]);
@@ -19,20 +26,216 @@ test("the manifest is MV3 for both browsers and asks for nothing extra", () => {
   assert.equal(manifest["browser_specific_settings"].gecko.id, "lif-capture@alandy88.github");
 
   const popup = manifest["action"].default_popup as string;
+  const options = manifest["options_ui"].page as string;
   const referenced = [
     manifest["background"].service_worker as string,
     popup,
-    ...[...read(popup).matchAll(/(?:src|href)="([^"]+)"/g)].map((match) => match[1] ?? ""),
+    options,
+    ...[popup, options].flatMap((page) =>
+      [...read(page).matchAll(/(?:src|href)="([^"]+)"/g)].map((match) => match[1] ?? ""),
+    ),
     // The files the background script injects.
     ...[...read("background.js").matchAll(/"([\w/.-]+\.js)"/g)].map((match) => match[1] ?? ""),
   ];
   assert.ok(referenced.includes("popup.js"));
+  assert.ok(referenced.includes("options.js"));
   assert.ok(referenced.includes("vendor/Readability.js"));
   assert.ok(referenced.includes("reader.js"));
   for (const file of referenced) {
     assert.ok(existsSync(path.join(extension, file)), `${file} is referenced but missing`);
   }
   assert.ok(existsSync(path.join(extension, "vendor/LICENSE")));
+});
+
+test("the popup has the three actions and no agent choice", () => {
+  const html = read("popup.html");
+
+  assert.equal(html.includes('name="kind"'), false);
+  assert.equal(html.includes("fieldset"), false);
+  assert.deepEqual(
+    [...html.matchAll(/<button[^>]*data-action="(\w+)"/g)].map((match) => match[1]),
+    ["digest", "explain", "note"],
+  );
+  assert.equal(read("popup.js").includes("localStorage"), false);
+  assert.equal(read("popup.js").includes("kind"), false);
+});
+
+/** Lets the promises a fired listener started run to their end. */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+/** Evaluates options.js against a fake document holding the two radios and a fake `storage.local`. */
+async function openOptions(stored: Record<string, unknown>) {
+  const sets: unknown[] = [];
+  const radio = (value: string) => ({
+    value,
+    checked: false,
+    change: () => {},
+    addEventListener(type: string, listener: () => void) {
+      if (type === "change") this.change = listener;
+    },
+  });
+  const inputs = { claude: radio("claude"), pi: radio("pi") };
+  const chrome = {
+    storage: {
+      local: {
+        get: async () => ({ ...stored }),
+        set: async (items: object) => void sets.push({ ...items }),
+      },
+    },
+  };
+  const document = {
+    querySelectorAll: (selector: string) => (selector === "input[name=kind]" ? Object.values(inputs) : []),
+  };
+  await vm.runInContext(read("options.js"), vm.createContext({ chrome, document }));
+  return { inputs, sets };
+}
+
+test("the settings page shows the saved agent and saves a change at once", async () => {
+  const html = read("options.html");
+  for (const kind of ["claude", "pi"]) {
+    assert.match(html, new RegExp(`<input type="radio" name="kind" value="${kind}"`));
+  }
+
+  const saved = await openOptions({ kind: "pi" });
+  assert.equal(saved.inputs.pi.checked, true);
+  assert.equal(saved.inputs.claude.checked, false);
+
+  const fresh = await openOptions({});
+  assert.equal(fresh.inputs.claude.checked, true);
+  assert.equal(fresh.inputs.pi.checked, false);
+  assert.deepEqual(fresh.sets, []);
+
+  fresh.inputs.pi.change();
+  await settle();
+  assert.deepEqual(fresh.sets, [{ kind: "pi" }]);
+});
+
+describe("the background script", () => {
+  const page = {
+    site: "example.com",
+    url: "https://example.com/a",
+    title: "Page title",
+    captured: "2026-10-11T09:30:00.000Z",
+    body: "page text",
+  };
+  const sent = { ok: true, file: "/tmp/lif-capture/x.md", agent: "cap-x" };
+
+  /** Evaluates background.js against a fake `chrome` and records, in order, what it called. */
+  function load(stored: Record<string, unknown>, reply: unknown = sent) {
+    const calls: [string, ...any[]][] = [];
+    const listeners: Record<string, (...args: any[]) => unknown> = {};
+    const on = (name: string) => ({ addListener: (listener: (...args: any[]) => unknown) => (listeners[name] = listener) });
+    // Through JSON, so an argument built inside the script compares equal to one built here.
+    const record =
+      (name: string, result?: unknown) =>
+      (...args: unknown[]) => {
+        calls.push([name, ...JSON.parse(JSON.stringify(args))]);
+        return result;
+      };
+    const chrome = {
+      runtime: {
+        onMessage: on("message"),
+        onInstalled: on("installed"),
+        sendNativeMessage: record("native", Promise.resolve(reply)),
+      },
+      contextMenus: {
+        onClicked: on("clicked"),
+        removeAll: record("removeAll", Promise.resolve()),
+        create: record("create"),
+      },
+      storage: { local: { get: async () => ({ ...stored }) } },
+      tabs: { query: record("query", Promise.resolve([{ id: 3 }])) },
+      scripting: { executeScript: record("inject", Promise.resolve([{ result: page }])) },
+      action: { setBadgeText: record("badge") },
+    };
+    vm.runInContext(read("background.js"), vm.createContext({ chrome }));
+    const fire = async (name: string, ...args: unknown[]) => {
+      listeners[name]?.(...args);
+      await settle();
+    };
+    const made = (name: string) => calls.filter((call) => call[0] === name).map((call) => call.slice(1));
+    return { calls, fire, made };
+  }
+
+  test("creates the three menu items when installed, and only then", async () => {
+    const { calls, fire } = load({});
+    assert.equal(calls.length, 0);
+
+    await fire("installed", { reason: "install" });
+
+    assert.deepEqual(calls[0], ["removeAll"]);
+    assert.equal(calls.length, 4);
+    assert.deepEqual(
+      calls.slice(1).map(([name, item]) => [name, item.id, item.title, item.contexts]),
+      [
+        ["create", "digest", "Digest", ["page", "selection"]],
+        ["create", "explain", "Explain", ["page", "selection"]],
+        ["create", "note", "Note", ["page", "selection"]],
+      ],
+    );
+  });
+
+  test("a menu click captures the clicked tab for the saved agent", async () => {
+    const { fire, made } = load({ kind: "pi" });
+
+    await fire("clicked", { menuItemId: "note" }, { id: 7 });
+
+    assert.deepEqual(made("inject"), [[{ target: { tabId: 7 }, files: ["vendor/Readability.js", "reader.js"] }]]);
+    assert.deepEqual(made("query"), []);
+    assert.deepEqual(made("native"), [["lif_capture", { ...page, kind: "pi", action: "note" }]]);
+  });
+
+  test("a menu click on a selection inside a frame reads that frame, and a plain click there reads the page", async () => {
+    const { fire, made } = load({});
+
+    await fire("clicked", { menuItemId: "note", frameId: 4, selectionText: "picked" }, { id: 7 });
+    await fire("clicked", { menuItemId: "note", frameId: 4 }, { id: 7 });
+
+    assert.deepEqual(
+      made("inject").map(([injection]) => injection.target),
+      [{ tabId: 7, frameIds: [4] }, { tabId: 7 }],
+    );
+  });
+
+  for (const [name, stored] of [
+    ["nothing is saved", {}],
+    ["the saved agent is not one of the two", { kind: "rogue" }],
+  ] as const) {
+    test(`the agent is claude when ${name}`, async () => {
+      const { fire, made } = load(stored);
+
+      await fire("clicked", { menuItemId: "digest" }, { id: 7 });
+
+      assert.deepEqual(made("native"), [["lif_capture", { ...page, kind: "claude", action: "digest" }]]);
+    });
+  }
+
+  test("a popup message cannot set the agent and gets the helper's reply", async () => {
+    const { fire, made } = load({ kind: "claude" });
+    const replies: unknown[] = [];
+
+    await fire("message", { action: "digest", kind: "pi" }, {}, (reply: unknown) => replies.push(reply));
+
+    assert.deepEqual(made("native"), [["lif_capture", { ...page, kind: "claude", action: "digest" }]]);
+    assert.deepEqual(made("query"), [[{ active: true, lastFocusedWindow: true }]]);
+    assert.deepEqual(made("inject")[0]?.[0].target, { tabId: 3 });
+    assert.deepEqual(replies, [sent]);
+  });
+
+  test("a failed menu capture sets the badge, the next click clears it, and an unknown item does nothing", async () => {
+    const { calls, fire, made } = load({}, { ok: false });
+
+    await fire("clicked", { menuItemId: "note" }, { id: 7 });
+    assert.deepEqual(made("badge"), [[{ text: "" }], [{ text: "!" }]]);
+
+    await fire("clicked", { menuItemId: "note" }, { id: 7 });
+    assert.deepEqual(made("badge").slice(2), [[{ text: "" }], [{ text: "!" }]]);
+    assert.equal(made("native").length, 2);
+
+    const before = calls.length;
+    await fire("clicked", { menuItemId: "other" }, { id: 7 });
+    assert.equal(calls.length, before);
+  });
 });
 
 interface Element {

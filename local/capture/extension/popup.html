@@ -5,19 +5,12 @@
     <title>LIF Capture</title>
     <style>
       body { font: 13px system-ui, sans-serif; margin: 10px; min-width: 240px; }
-      fieldset { margin: 0 0 10px; padding: 4px 8px; }
-      label { margin-right: 10px; }
       #actions { display: flex; gap: 6px; }
       #actions button { flex: 1; padding: 6px 0; }
       #status { margin: 10px 0 0; min-height: 1.2em; overflow-wrap: anywhere; }
     </style>
   </head>
   <body>
-    <fieldset>
-      <legend>Agent</legend>
-      <label><input type="radio" name="kind" value="claude" checked> claude</label>
-      <label><input type="radio" name="kind" value="pi"> pi</label>
-    </fieldset>
     <div id="actions">
       <button type="button" data-action="digest">Digest</button>
       <button type="button" data-action="explain">Explain</button>
