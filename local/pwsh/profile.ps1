@@ -127,7 +127,7 @@ function ccpr { ccp resume @args }
 # One dispatcher over pi's providers. Mirrors `pi` in zsh/profile.zsh -- keep
 # the two in step.
 #   pi [word] [args...]
-# The optional first word is a model (opus|sonnet|fable|sol|luna|terra|astra|qwen27);
+# The optional first word is a model (opus|sonnet|haiku|fable|sol|luna|terra|astra|qwen27);
 # anything else -- a flag, a message, `install`, `update` -- is passed straight
 # through, so bare `pi` and `pi --help` still reach the binary. The binary is
 # resolved through Get-Command so this function does not call itself.
@@ -150,9 +150,10 @@ function pi {
     $rest = @(if ($args.Count -gt 1) { $args[1..($args.Count - 1)] } else { @() })
     $P = @(if ($p = Get-LifOpusPrompt) { @('--append-system-prompt', $p) } else { @() })
     switch -Exact ($sub) {
-        'opus'   { & $exe --provider anthropic    --model claude-opus-5 @P @rest }
-        'sonnet' { & $exe --provider anthropic    --model claude-sonnet-5 @rest }
-        'fable'  { & $exe --provider anthropic    --model claude-fable-5 @rest }
+        'opus'   { & $exe --provider anthropic    --model claude-opus-5-5 @P @rest }
+        'sonnet' { & $exe --provider anthropic    --model claude-sonnet-5-5 @rest }
+        'haiku'  { & $exe --provider anthropic    --model claude-haiku-5-5 @rest }
+        'fable'  { & $exe --provider anthropic    --model claude-fable-5-1 @rest }
         'sol'    { & $exe --provider openai-codex --model gpt-5.6-sol @rest }
         'luna'   { & $exe --provider openai-codex --model gpt-5.6-luna @rest }
         'terra'  { & $exe --provider openai-codex --model gpt-5.6-terra @rest }
