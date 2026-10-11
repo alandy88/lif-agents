@@ -163,6 +163,12 @@ describe("the Reddit reader", () => {
     delete pick(json)[field];
     return json;
   };
+  /** The sample thread after `change` has edited it. */
+  const changed = (change: (json: any[]) => void) => {
+    const json = sample();
+    change(json);
+    return json;
+  };
 
   test("puts the post before its comments", async () => {
     const { result, given, fetched } = await readPage({
@@ -254,6 +260,9 @@ describe("the Reddit reader", () => {
     ["a comment has no author", reply(without((json) => json[1].data.children[1].data, "author"))],
     ["a reply has no text", reply(without((json) => json[1].data.children[0].data.replies.data.children[0].data, "body"))],
     ["a comment has no replies field", reply(without((json) => json[1].data.children[1].data, "replies"))],
+    ["the comments are not a list", reply(changed((json) => (json[1].data.children = "")))],
+    ["a comment's replies are not a list", reply(changed((json) => (json[1].data.children[0].data.replies.data.children = "")))],
+    ["a comment is not an entry", reply(changed((json) => (json[1].data.children[1] = "corrupted")))],
     ["the post has no author", reply(without((json) => json[0].data.children[0].data, "author"))],
     ["the post has no text field", reply(without((json) => json[0].data.children[0].data, "selftext"))],
     ["the post has no subreddit", reply(without((json) => json[0].data.children[0].data, "subreddit_name_prefixed"))],

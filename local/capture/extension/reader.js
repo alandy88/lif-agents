@@ -27,9 +27,11 @@
 
     const comments = [];
     const walk = (listing, parent) => {
+      // A string is iterable too, so an empty one would read as a thread with no comments.
+      if (!Array.isArray(listing.data.children)) throw new Error("not a Reddit thread");
       for (const { kind, data } of listing.data.children) {
         // The other kind is "more": a stub for comments Reddit did not send.
-        if (kind !== "t1") continue;
+        if (text(kind) !== "t1") continue;
         comments.push(`**u/${text(data.author)}**${parent ? ` (reply to u/${parent})` : ""}`, text(data.body));
         // A comment with no replies carries "" in place of a Listing.
         if (data.replies !== "") walk(data.replies, data.author);
