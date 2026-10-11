@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import {
   agentGet,
+  agentPrompt,
   agentStart,
   HerdrError,
   paneRead,
@@ -219,6 +220,24 @@ test("tabCreate parses ids from the response and never focuses", async () => {
   ]);
 });
 
+test("tabCreate without a workspace passes no --workspace", async () => {
+  const { exec, calls } = fakeExec({
+    "tab create": ok({ tab: { tab_id: "w1:t9" }, root_pane: { pane_id: "w1:p9" } }),
+  });
+
+  await tabCreate(ctxWith(exec), { cwd: "/vault", label: "capture-digest" });
+
+  assert.deepEqual(calls[0]?.args.slice(2), [
+    "tab",
+    "create",
+    "--cwd",
+    "/vault",
+    "--label",
+    "capture-digest",
+    "--no-focus",
+  ]);
+});
+
 test("tabCreate refuses a response missing the root pane id", async () => {
   const { exec } = fakeExec({ "tab create": ok({ tab: { tab_id: "w8:t9" } }) });
 
@@ -245,6 +264,22 @@ test("agentStart passes harness args after the -- separator", async () => {
     "w8:p9",
     "--",
     "--dangerously-skip-permissions",
+    "read the brief",
+  ]);
+});
+
+test("agentPrompt sends the text as one argument and does not wait", async () => {
+  // `agent prompt` output is not parsed, so a reply without `.result` is fine.
+  const { exec, calls } = fakeExec({ "agent prompt task-1 read the brief": "" });
+
+  await agentPrompt(ctxWith(exec), { target: "task-1", text: "read the brief" });
+
+  assert.deepEqual(calls[0]?.args, [
+    "--session",
+    "default",
+    "agent",
+    "prompt",
+    "task-1",
     "read the brief",
   ]);
 });

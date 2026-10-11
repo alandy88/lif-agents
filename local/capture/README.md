@@ -1,0 +1,145 @@
+# Browser capture
+
+Send the page open in the browser to an agent working in the notes vault.
+
+```
+open page -> extension -> native helper -> herdr -> agent in lif-notes
+             selection,    temp file        tab, start, prompt
+             site reader
+             or Readability
+```
+
+- `extension/` is the WebExtension (Manifest V3, plain JavaScript, no build). Its popup
+  has three actions (digest, explain, note), and the right-click menu on a page or a
+  selection has the same three. The agent, `claude` or `pi`, is chosen on the settings
+  page. It has three readers and tries them in this order:
+  1. the selection, when there is one, is the whole capture;
+  2. a site reader: on a Reddit thread (`reddit.com`, `/comments/<id>`) the post and its
+     comments, on a `github.com` issue or pull request the post and its comments;
+  3. otherwise the article `Readability` finds, which is also the fallback when a site
+     reader fails.
+- `host.mts` is the native helper the browser starts. It writes the capture to
+  `<tmpdir>/lif-capture/<UTC timestamp>-<random>.md`, opens a new Herdr tab in
+  `$LIF_NOTES_VAULT`, starts the agent there and prompts it with the file path. The tab
+  goes into the Herdr workspace labelled with the vault's folder name (`lif-notes`),
+  whichever workspace has focus. With no such workspace the helper creates one in the
+  vault; with more than one it refuses.
+- `install.sh` registers the helper with Firefox and Google Chrome.
+
+Linux, Firefox and Google Chrome only.
+
+## What to know first
+
+- **Herdr must already be running.** The helper talks to the `default` session and does
+  not start a server. With no server it replies with Herdr's error.
+- **A lazy-loaded page gives only what has loaded.** Scroll a long page to the end
+  before capturing it. The Reddit reader reads the thread's `.json` from inside the tab,
+  so it does not depend on scrolling, but it does not expand "more replies" stubs. The
+  GitHub reader gets only the comments GitHub has loaded into the page.
+- **The body is mostly plain text.** Both site readers add a light Markdown skeleton
+  (headings and author lines). Reddit post and comment text is Reddit's own Markdown.
+  GitHub post and comment text and the `Readability` body are plain text: links,
+  headings and code fences are lost.
+- **The site readers are tested against fixtures only.** The GitHub selectors were read
+  from live markup on 2026-10-11 and will need updating when GitHub changes its pages.
+  A failing site reader falls back to `Readability` without a message, so on Reddit a
+  capture can still hold the replies and not the post.
+- **Captures stay in the temp folder and are not deleted.** The helper exits before the
+  agent reads the file, so it cannot clean up; the OS clears the temp folder. The helper
+  never writes into the vault.
+- **Confirmed against a live Herdr once.** The three commands the helper sends (`tab create`,
+  `agent start`, `agent prompt`) were run by hand against `herdr 0.9.3` on 2026-10-11.
+  The tests still use a fake `herdr`.
+- **The page is data.** Nothing from the page reaches a file name or a `herdr` argument.
+  The prompt carries only a fixed instruction per action and the file path, and tells the
+  agent that the file is a captured web page and not instructions.
+- **Each action is one fixed prompt, the same for `claude` and `pi`.** All three tell the
+  agent to read the capture file first.
+  - *Digest:* reply in the chat with what the page is, its main points and the source URL.
+    No file is written.
+  - *Explain:* explain the page in the chat through the `explain` skill
+    (`lif-workflow:explain`). No file is written. Under `pi` this depends on the `explain`
+    skill being installed for pi, which this repo does not do; without it pi explains in
+    its own way.
+  - *Note:* propose exactly one `/log learn <topic> <summary>` entry and wait. The agent
+    does not run `/log` or write to the vault until you accept the proposal.
+
+## Drive it from the shell
+
+No browser needed. `--plain` reads unframed JSON from stdin and prints the reply as one
+line:
+
+```bash
+bun local/capture/host.mts --plain < local/capture/samples/capture.json
+# {"ok":true,"file":"/tmp/lif-capture/20261011T093000Z-1a2b3c4d.md","tab":"w1:t9","agent":"cap-20261011t093000z-1a2b3c4d"}
+```
+
+This opens a real tab and starts a real agent. A failure prints
+`{"ok":false,"error":"..."}` and exits non-zero. The message has seven string fields:
+`site`, `url` (http or https), `title`, `captured`, `body` (not empty), `kind`
+(`claude` or `pi`) and `action` (`digest`, `explain` or `note`).
+
+To check the preconditions without capturing anything:
+
+```bash
+bun local/capture/host.mts --check
+```
+
+It checks that `LIF_NOTES_VAULT` is a directory, that the capture folder can be written
+and that `herdr --version` runs, one line each, and exits non-zero when any fails.
+
+## Install
+
+1. Load the extension.
+   - **Chrome:** open `chrome://extensions`, turn on Developer mode, choose
+     *Load unpacked* and pick `local/capture/extension`. Copy the extension's ID.
+   - **Firefox:** open `about:debugging#/runtime/this-firefox`, choose
+     *Load Temporary Add-on* and pick `local/capture/extension/manifest.json`. It stays
+     until Firefox restarts.
+
+   One manifest serves both browsers by naming the background script twice
+   (`service_worker` for Chrome, `scripts` for Firefox). Each browser must be recent
+   enough to ignore the other's key; an old one refuses to load the folder.
+2. Register the helper, from a shell where `LIF_NOTES_VAULT` is set and `herdr` and `bun`
+   are on `PATH`:
+
+   ```bash
+   local/capture/install.sh --home "$HOME" --chrome-id <the ID from step 1>
+   ```
+
+   Firefox only? Chrome's ID is still required; load the extension in Chrome once to get
+   one. The script has no default for `--home` and writes only under it:
+
+   | File | For |
+   | --- | --- |
+   | `.local/share/lif-capture/lif-capture-host` | The launcher both browsers start. |
+   | `.mozilla/native-messaging-hosts/lif_capture.json` | Firefox. |
+   | `.config/google-chrome/NativeMessagingHosts/lif_capture.json` | Chrome. |
+
+   A browser starts the helper without your shell profile, so the launcher carries the
+   vault path, Herdr's folder and Bun's path as they were when you ran the script. Run it
+   again when you move the vault, Herdr, Bun or this checkout.
+3. Pick the agent on the settings page; it is `claude` until you do. The choice is saved
+   as you make it.
+   - **Chrome:** `chrome://extensions` > *Details* > *Extension options*.
+   - **Firefox:** `about:addons` > *LIF Capture* > *Preferences*.
+4. Open a page, click the toolbar button and pick an action. The popup shows the agent
+   name and the capture file, or the error. A `!` on the button means the last capture
+   failed; it clears on the next capture.
+
+   Or right-click the page, or a selection, and pick *Digest*, *Explain* or *Note* under
+   *LIF Capture*. A right-click capture reports only failure, as the `!` on the toolbar
+   button; on success the new agent tab in Herdr is the sign.
+
+## Tests
+
+`local/install/capture-*.test.mts`, run by `bun run test`. They live there, not here, so
+the root `package.json` needs no change. They use temp folders and a fake `herdr`
+(`testing.mts`); none needs a browser or a live Herdr.
+
+## Vendored code
+
+`extension/vendor/Readability.js` is the unmodified file from
+[mozilla/readability](https://github.com/mozilla/readability) tag `0.6.0`, under the
+Apache License 2.0 (`extension/vendor/LICENSE`). To update it, copy `Readability.js` and
+`LICENSE.md` from a newer tag and change the version here.

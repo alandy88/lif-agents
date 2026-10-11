@@ -60,6 +60,13 @@ repo (session handoff, planning, backlog, issue and PR loops, Codex fanout) plus
 PreToolUse/PostToolUse safety and formatting hooks. See
 [plugins/AGENTS.md](plugins/AGENTS.md) for install and update commands.
 
+### Model and effort mod (lif-effort)
+
+`plugins/lif-effort/` is a Claude Code mod that picks the session model and each
+prompt's effort with one small Haiku call, shows them in a bar above the prompt, and adds
+Haiku compaction, handoffs and a subagent panel. See
+[plugins/lif-effort/README.md](plugins/lif-effort/README.md).
+
 ### Agent dispatcher (lif-dispatch)
 
 `local/dispatch/` dispatches coding agents into disposable git worktrees inside
@@ -80,6 +87,18 @@ So that agents know when and how to invoke the dispatcher, install the
 ```bash
 npx skills add alandy88/lif-agents
 ```
+
+### Browser capture
+
+`local/capture/` sends the page open in Firefox or Chrome to an agent in the notes
+vault: an extension reads the page, a native helper writes it to a temp file and
+opens a Herdr tab for the agent. The helper also runs from the shell:
+
+```bash
+bun local/capture/host.mts --plain < local/capture/samples/capture.json
+```
+
+Install and limits: [local/capture/README.md](local/capture/README.md).
 
 ## Remote environments (Sandcastle)
 

@@ -201,7 +201,7 @@ export async function workspaceResolve(ctx: HerdrCtx): Promise<WorkspaceResoluti
   if (env["HERDR_ENV"] === "1") {
     return resolveFromIdentity(ctx, env);
   }
-  return resolveFromLabel(ctx);
+  return workspaceByLabel(ctx, DISPATCH_LABEL);
 }
 
 async function resolveFromIdentity(
@@ -253,14 +253,19 @@ async function resolveFromIdentity(
   return { workspaceId, source: "identity", raw: workspace };
 }
 
-async function resolveFromLabel(ctx: HerdrCtx): Promise<WorkspaceResolution> {
+/** The one workspace with this label, created (in `cwd`, when given) if there is none. */
+export async function workspaceByLabel(
+  ctx: HerdrCtx,
+  label: string,
+  cwd?: string,
+): Promise<WorkspaceResolution> {
   const result = await herdrJson(ctx, ["workspace", "list"]);
   const workspaces = (result["workspaces"] ?? []) as WorkspaceInfo[];
-  const matches = workspaces.filter((w) => w?.label === DISPATCH_LABEL);
+  const matches = workspaces.filter((w) => w?.label === label);
 
   if (matches.length > 1) {
     throw new Error(
-      `refusing to dispatch: ${matches.length} workspaces are labeled "${DISPATCH_LABEL}" ` +
+      `refusing to dispatch: ${matches.length} workspaces are labeled "${label}" ` +
         `(${matches.map((w) => w.workspace_id).join(", ")}) — placement is ambiguous`,
     );
   }
@@ -274,7 +279,8 @@ async function resolveFromLabel(ctx: HerdrCtx): Promise<WorkspaceResolution> {
     "workspace",
     "create",
     "--label",
-    DISPATCH_LABEL,
+    label,
+    ...(cwd ? ["--cwd", cwd] : []),
     "--no-focus",
   ]);
   return {
@@ -292,9 +298,10 @@ export interface TabEndpoint {
 
 export async function tabCreate(
   ctx: HerdrCtx,
-  opts: { workspaceId: string; cwd?: string; label?: string },
+  opts: { workspaceId?: string; cwd?: string; label?: string },
 ): Promise<TabEndpoint> {
-  const args = ["tab", "create", "--workspace", opts.workspaceId];
+  const args = ["tab", "create"];
+  if (opts.workspaceId) args.push("--workspace", opts.workspaceId);
   if (opts.cwd) args.push("--cwd", opts.cwd);
   if (opts.label) args.push("--label", opts.label);
   args.push("--no-focus");
@@ -321,6 +328,13 @@ export async function agentStart(
   if (opts.timeoutMs !== undefined) args.push("--timeout", String(opts.timeoutMs));
   if (opts.args?.length) args.push("--", ...opts.args);
   return herdrJson(ctx, args);
+}
+
+export async function agentPrompt(
+  ctx: HerdrCtx,
+  opts: { target: string; text: string },
+): Promise<void> {
+  await herdrRun(ctx, ["agent", "prompt", opts.target, opts.text]);
 }
 
 export type AgentState = "idle" | "working" | "blocked" | "done" | "unknown";

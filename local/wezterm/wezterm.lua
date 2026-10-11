@@ -184,7 +184,7 @@ config.inactive_pane_hsb = {
 -- --- Transparency ---
 -- One dial to turn if the terminal feels too see-through or too solid. The
 -- platform blur effects below need it under 1.0 to show at all.
-config.window_background_opacity = 0.8
+config.window_background_opacity = 0.95
 
 -- macOS gets its frosted effect from macos_window_background_blur; Windows 11
 -- gets the equivalent from win32_system_backdrop = 'Acrylic'.
@@ -194,7 +194,7 @@ end
 
 if is_windows then
   config.win32_system_backdrop = 'Acrylic'
-  config.window_background_opacity = 0.7
+  config.window_background_opacity = 0.95
   config.window_frame.font_size = 5.0
 end
 

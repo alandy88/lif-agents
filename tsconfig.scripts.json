@@ -17,6 +17,7 @@
     "remote/scripts/**/*.mts",
     "local/install/*.test.mts",
     "local/dispatch/src/**/*.mts",
+    "local/capture/**/*.mts",
     "local/hub/src/**/*.mts"
   ],
   "exclude": []
