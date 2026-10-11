@@ -3,7 +3,7 @@
   "name": "LIF Capture",
   "version": "0.1.0",
   "description": "Send the readable part of the open page to an agent in the notes vault.",
-  "permissions": ["nativeMessaging", "activeTab", "scripting"],
+  "permissions": ["nativeMessaging", "activeTab", "scripting", "contextMenus", "storage"],
   "background": {
     "service_worker": "background.js",
     "scripts": ["background.js"]
@@ -12,6 +12,7 @@
     "default_title": "LIF Capture",
     "default_popup": "popup.html"
   },
+  "options_ui": { "page": "options.html" },
   "browser_specific_settings": {
     "gecko": { "id": "lif-capture@alandy88.github" }
   }
