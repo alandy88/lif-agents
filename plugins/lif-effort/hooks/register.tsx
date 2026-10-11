@@ -1,8 +1,7 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, PromptSubmitInput, Register, SessionMessage, Timer } from 'claude-code'
+import type { EngineInterface, PromptSubmitInput, Register, SessionMessage } from 'claude-code'
 
-import type { AgentRow, LifEffortSession, ModelKey, Phase } from '../types'
-import { activityOf, agentRows, type AgentDetail } from './agents'
+import type { LifEffortSession, ModelKey, Phase } from '../types'
 import {
   CLASSIFIER_MODEL,
   BRIEF_MAX_TOKENS,
@@ -40,6 +39,9 @@ import {
   datedHandoffName,
   handoffPrompt,
   isUsableReview,
+  isUsableRetro,
+  notesIndex,
+  retroPrompt,
   reviewPrompt,
   isUsableHandoff,
   pullRequestPrompt,
@@ -48,17 +50,15 @@ import {
   summaryMessage,
 } from './summaries'
 import { EMPTY_STATUS, StatusLine, parseGit, tildify, withUsage } from './status'
-import { AGENTS_PANE, AgentsPane, Bar, NARROW_COLUMNS, effective, modeLabel } from './ui'
+import { Bar, NARROW_COLUMNS, effective, modeLabel } from './ui'
 
 const session = atom({ plugin: 'lif-effort', key: 'session' } as const, fresh())
-const agents = atom({ plugin: 'lif-effort', key: 'agents' } as const, [])
 const status = atom({ plugin: 'lif-effort', key: 'status' } as const, EMPTY_STATUS)
 
 const SESSIONS = 'sessions'
 const KEEP_SESSIONS = 30
 const CARRY = 'carry'
 const CARRY_MS = 15 * 60_000
-const AGENT_POLL_MS = 2000
 const COMPACT_TIMEOUT_MS = 120_000
 const CLASSIFIED_ORIGINS = new Set(['composer', 'bridge', 'sdk', 'scheduled-trigger'])
 
@@ -66,14 +66,8 @@ type Stored = Record<string, { at: number; s: LifEffortSession }>
 // The store is shared by every session, so a carried task names the session it belongs to.
 type Carry = { at: number; isAuto: boolean; isEffortAuto: boolean; task?: string; prompt?: string; session?: string; model?: ModelKey }
 
-// Subagent model, effort and activity seen on their own requests and tool calls; "when available".
-const details = new Map<string, AgentDetail>()
-let agentTimer: Timer | undefined
-
 // Haiku's git subagents by id, so their final answer is shown when they finish.
 const gitJobs = new Map<string, string>()
-
-const noteAgent = (id: string, detail: AgentDetail) => details.set(id, { ...details.get(id), ...detail })
 
 async function save($: EngineInterface, s: LifEffortSession) {
   const id = await $.session.id()
@@ -259,21 +253,6 @@ async function compactNow($: EngineInterface, config: Config) {
   $.ui.toast(filled ? 'lif-effort: press Enter to compact with Haiku' : 'lif-effort: type /compact to compact with Haiku')
 }
 
-async function toggleAgents($: EngineInterface) {
-  const panes = await $.ui.panes().catch(() => [])
-  // A pane that waits undrawn is not up: the next press must seat it, not close it.
-  if (panes.some(p => p.id === AGENTS_PANE && p.isPlaced)) return $.ui.close({ id: AGENTS_PANE })
-  const opened = await $.ui.open({ id: AGENTS_PANE, title: 'Agents' })
-  if (!opened.isPlaced) $.ui.toast(`lif-effort: agents panel not shown. ${opened.reason}`)
-}
-
-async function refreshAgents($: EngineInterface, config: Config) {
-  const list = await $.agent.list()
-  for (const id of details.keys()) if (!list.some(a => a.id === id)) details.delete(id)
-  const rows = agentRows(list, details, config.agentVisibility)
-  if (JSON.stringify(await read($, agents)) !== JSON.stringify(rows)) await update($, agents, () => rows)
-}
-
 async function repoState($: EngineInterface, cwd: string) {
   // Read-only git commands only: a handoff never changes the repository.
   const run = async (argv: string[]) => {
@@ -321,6 +300,38 @@ async function review($: EngineInterface, focus?: string) {
     if (!written.isAnswered) return $.ui.toast(`lif-effort: no review written (${written.reason})`)
     const text = written.text.trim()
     if (!isUsableReview(text)) return $.ui.toast('lif-effort: the review came back unusable; nothing was shown')
+    logLines($, text)
+  } finally {
+    await setPhase($, 'ready')
+  }
+}
+
+// shortcut: the fork sees each note's path and title, not its text; read the notes with a tool-using agent when suggestions need more.
+async function vaultNotes($: EngineInterface) {
+  const cwd = await $.env.get('LIF_NOTES_VAULT')
+  if (!cwd) return ''
+  const grep = (...args: string[]) => $.process.run(['git', 'grep', ...args, '--', 'notes/*.md'], { cwd, timeoutMs: 5000 })
+  try {
+    const [titles, red] = await Promise.all([grep('-m1', '-e', '^# '), grep('-l', '-e', '^sensitivity: *"\\?red')])
+    // git grep exits 1 when nothing matches; any other failure could let a red note through.
+    if (titles.exitCode !== 0 || red.exitCode > 1) return ''
+    return notesIndex(titles.stdout, red.stdout)
+  } catch {
+    return ''
+  }
+}
+
+/** Frictions and learnings from the session, with vault notes suggested for them; nothing is written. */
+async function retro($: EngineInterface) {
+  if ((await read($, session)).phase !== 'ready') return $.ui.toast('lif-effort: busy, try again in a moment')
+  await setPhase($, 'retro')
+  try {
+    const notes = await vaultNotes($)
+    if (!notes) return $.ui.toast('lif-effort: no retro, the vault notes could not be listed. Is LIF_NOTES_VAULT set?')
+    const written = await $.model.fork({ prompt: retroPrompt(notes) })
+    if (!written.isAnswered) return $.ui.toast(`lif-effort: no retro written (${written.reason})`)
+    const text = written.text.trim()
+    if (!isUsableRetro(text)) return $.ui.toast('lif-effort: the retro came back unusable; nothing was shown')
     logLines($, text)
   } finally {
     await setPhase($, 'ready')
@@ -411,16 +422,14 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'lif-effort',
-      description: 'Model and effort automation: status, auto, handoff, review, agents. Compact with /compact.',
-      argumentHint: 'status | auto [on|off] | handoff | commit | pr | review [focus] | agents',
+      description: 'Model and effort automation: status, auto, handoff, review, retro. Compact with /compact.',
+      argumentHint: 'status | auto [on|off] | handoff | commit | pr | review [focus] | retro',
     })
     await restore($)
     if (config.showStatus) {
       await $.session.usage().then(u => update($, status, s => withUsage(s, u))).catch(() => undefined)
       await refreshGit($).catch(() => undefined)
     }
-    agentTimer?.cancel()
-    agentTimer = $.clock.every(AGENT_POLL_MS, () => void refreshAgents($, config).catch(() => undefined))
     return next(e)
   })
 
@@ -468,10 +477,7 @@ export const register: Register = (on, options) => {
   })
 
   on('turn.step', async function* ($, e, next) {
-    if (e.agentId !== undefined) {
-      noteAgent(e.agentId, { model: e.model, ...(typeof e.effort === 'string' ? { effort: e.effort } : {}) })
-      return yield* next(e)
-    }
+    if (e.agentId !== undefined) return yield* next(e)
     const before = await read($, session)
     const { isManual } = observeEffort(before, e.effort)
     let s = before
@@ -488,11 +494,6 @@ export const register: Register = (on, options) => {
       await change($, s => manualModel(s, e.to_model))
     }
     return result
-  })
-
-  on('tool.call', async ($, e, next) => {
-    if (e.agentId !== undefined) noteAgent(e.agentId, { activity: activityOf(e.tool, e as Record<string, unknown>) })
-    return next(e)
   })
 
   on('session.compact', async ($, e, next) => {
@@ -544,11 +545,11 @@ export const register: Register = (on, options) => {
       $.clock.after(0, () => void review($, focus))
       return { text: 'Reviewing the session with CAFE(S).' }
     }
-    if (action === 'agents') {
-      await toggleAgents($)
-      return { text: 'Toggled the agents panel.' }
+    if (action === 'retro') {
+      $.clock.after(0, () => void retro($))
+      return { text: 'Writing a retro with vault note suggestions.' }
     }
-    return { text: 'Usage: /lif-effort status | auto [on|off] | handoff | commit | pr | review [focus] | agents. Compact with /compact.' }
+    return { text: 'Usage: /lif-effort status | auto [on|off] | handoff | commit | pr | review [focus] | retro. Compact with /compact.' }
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
@@ -556,18 +557,17 @@ export const register: Register = (on, options) => {
     if (e.props.hasSurvey) return native
     const { Box, Text, Button } = $.ui.resolve(e)
     const s = await read($, session)
-    const rows = await read($, agents)
     const line = config.showStatus
       ? StatusLine({ Box, Text }, await read($, status), e.props.bodyColumns, await $.clock.now(), NARROW_COLUMNS)
       : null
-    const bar = Bar({ Box, Text, Button }, s, rows.length, e.props.bodyColumns, config, {
+    const bar = Bar({ Box, Text, Button }, s, e.props.bodyColumns, config, {
       toggleAuto: () => void toggleAuto($),
       compact: () => void compactNow($, config),
       handoff: () => void $.clock.after(0, () => void handoff($, config)),
       commit: () => void gitJob($, 'commit and push', commitPrompt()),
       pullRequest: () => void gitJob($, 'open PR', pullRequestPrompt()),
       review: () => void $.clock.after(0, () => void review($)),
-      agents: () => void toggleAgents($),
+      retro: () => void $.clock.after(0, () => void retro($)),
     })
     return (
       <Box flexDirection="column">
@@ -576,10 +576,5 @@ export const register: Register = (on, options) => {
         {bar}
       </Box>
     )
-  })
-
-  on('ui.render', { component: 'Pane', requestId: AGENTS_PANE }, async ($, e) => {
-    const { Box, Text } = $.ui.resolve(e)
-    return AgentsPane({ Box, Text }, await read($, agents), Math.floor(((e.viewport?.rows ?? 24) - 2) / 2))
   })
 }

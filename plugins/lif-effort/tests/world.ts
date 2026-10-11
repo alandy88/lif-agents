@@ -1,5 +1,5 @@
 import { mock, type Engine } from 'claude-code/testing'
-import type { AgentInfo, On, PromptOrigin, TurnStepInput, TurnStepResult } from 'claude-code'
+import type { On, PromptOrigin, TurnStepInput, TurnStepResult } from 'claude-code'
 
 export const usage = { input_tokens: 1, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
 export const composer: PromptOrigin = { kind: 'composer' }
@@ -13,7 +13,7 @@ export const BAND = {
   view: {},
 } as const
 
-type WorldOptions = { id?: string; model?: string; turns?: number; store?: Record<string, unknown>; agents?: AgentInfo[] }
+type WorldOptions = { id?: string; model?: string; turns?: number; store?: Record<string, unknown> }
 
 /** The engine beneath the plugin: a session, a clock, a store, toasts, and requests answered as model:effort. */
 export function world(on: On, options: WorldOptions = {}) {
@@ -27,7 +27,6 @@ export function world(on: On, options: WorldOptions = {}) {
   on('session.turns', () => ({ value: options.turns ?? 0 }))
   on('session.messages', () => ({ value: [] }))
   on('session.cwd', () => ({ value: '/repo' }))
-  on('agent.list', () => ({ value: options.agents ?? [] }))
   on('command.register', ($, e) => ({ value: { command: e.name } }))
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('session.end', ($, e) => ({ sessionId: e.sessionId }))

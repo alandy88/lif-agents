@@ -1,6 +1,6 @@
 export type ModelKey = 'opus' | 'sonnet' | 'haiku'
 export type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
-export type Phase = 'ready' | 'classifying' | 'compacting' | 'handoff' | 'review'
+export type Phase = 'ready' | 'classifying' | 'compacting' | 'handoff' | 'review' | 'retro'
 
 export type LifEffortSession = {
   /** Master Auto control for this session. */
@@ -26,16 +26,6 @@ export type LifEffortSession = {
   phase: Phase
 }
 
-export type AgentRow = {
-  id: string
-  description: string
-  type: string
-  status: string
-  model?: string
-  effort?: string
-  activity?: string
-}
-
 export type LimitReading = { percent: number; resetsAt?: string }
 
 /** What the status line shows; every field is empty until its source has reported. */
@@ -52,7 +42,6 @@ declare module 'claude-code' {
   interface PluginState {
     'lif-effort': {
       session: LifEffortSession
-      agents: AgentRow[]
       status: StatusSnapshot
     }
   }

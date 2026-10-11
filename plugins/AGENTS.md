@@ -11,7 +11,7 @@ from GitHub; this directory holds the plugins, the skill evals, and the naming d
   a plugin: `lif-workbench` for character, prompt, image, and LoRA work; `comfyui-lif-nodes`
   for node development; `lif-openclaw-agents` for persona setup.
 - `lif-effort/` — a mod (function hooks, not skills): automatic model and effort, Haiku
-  compaction, handoffs, agents panel. Its own checks are `claude plugin validate`,
+  compaction, handoffs, session reviews and retros. Its own checks are `claude plugin validate`,
   `claude plugin test` and `bunx tsc -p` on its folder; the root `bun run test` does not
   cover it. See [lif-effort/README.md](lif-effort/README.md).
 - `evals/` — behavioural evals (`uv run --no-project --with pytest --with pyyaml pytest evals` from `plugins/`, add

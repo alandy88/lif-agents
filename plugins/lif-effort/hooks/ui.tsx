@@ -1,16 +1,15 @@
 import type { Elements } from 'claude-code'
 
-import type { AgentRow, LifEffortSession } from '../types'
+import type { LifEffortSession } from '../types'
 import { MODELS, modelKeyOf, type Config } from './config'
 import { isEffortRouted, isModelRouted } from './lifecycle'
 
 export const NARROW_COLUMNS = 64
-export const AGENTS_PANE = 'lif-effort-agents'
 
 type Table = Pick<Elements['terminal'], 'Box' | 'Text' | 'Button'>
-export type BarActions = { toggleAuto: () => void; compact: () => void; handoff: () => void; commit: () => void; pullRequest: () => void; review: () => void; agents: () => void }
+export type BarActions = { toggleAuto: () => void; compact: () => void; handoff: () => void; commit: () => void; pullRequest: () => void; review: () => void; retro: () => void }
 
-const PHASE_LABEL = { classifying: 'Classifying…', compacting: 'Compacting…', handoff: 'Writing handoff…', review: 'Reviewing session…' } as const
+const PHASE_LABEL = { classifying: 'Classifying…', compacting: 'Compacting…', handoff: 'Writing handoff…', review: 'Reviewing session…', retro: 'Writing retro…' } as const
 const title = (word: string) => word.charAt(0).toUpperCase() + word.slice(1)
 
 /** The values the requests actually use, which may differ from the app's own pickers. */
@@ -32,7 +31,6 @@ export function modeLabel(s: LifEffortSession): string {
 export function Bar(
   { Box, Text, Button }: Table,
   s: LifEffortSession,
-  agents: number,
   columns: number,
   config: Config,
   act: BarActions,
@@ -47,7 +45,7 @@ export function Bar(
           {reason}
         </Text>
         <Text dimColor wrap="truncate-end">
-          /compact · /lif-effort auto · handoff · commit · pr · review · agents
+          /compact · /lif-effort auto · handoff · review · retro · commit · pr
         </Text>
       </Box>
     )
@@ -63,12 +61,12 @@ export function Bar(
         </Button>
       </Box>
       <Box flexDirection="row" gap={1} flexShrink={0} marginLeft={2}>
-        <Button key="compact" label="Compact" hotkey="c" onPress={act.compact} />
-        <Button key="handoff" label="Handoff" hotkey="h" onPress={act.handoff} />
-        <Button key="review" label="Review" hotkey="r" onPress={act.review} />
-        <Button key="commit" label="Commit" hotkey="g" onPress={act.commit} />
-        <Button key="pr" label="Open PR" hotkey="p" onPress={act.pullRequest} />
-        <Button key="agents" label={`Agents (${agents})`} hotkey="a" onPress={act.agents} />
+        <Button key="compact" plain label="Compact" hotkey="c" onPress={act.compact} />
+        <Button key="handoff" plain label="Handoff" hotkey="h" onPress={act.handoff} />
+        <Button key="review" plain label="Review" hotkey="r" onPress={act.review} />
+        <Button key="retro" plain label="Retro" hotkey="t" onPress={act.retro} />
+        <Button key="commit" plain label="Commit" hotkey="g" onPress={act.commit} />
+        <Button key="pr" plain label="PR" hotkey="p" onPress={act.pullRequest} />
       </Box>
     </Box>
   )
@@ -79,32 +77,6 @@ export function Bar(
       <Text dimColor wrap="truncate-end">
         {s.reason}
       </Text>
-    </Box>
-  )
-}
-
-export function AgentsPane({ Box, Text }: Pick<Table, 'Box' | 'Text'>, rows: readonly AgentRow[], rowsAvailable: number) {
-  if (rows.length === 0) return <Text dimColor>No subagents to show.</Text>
-  return (
-    <Box flexDirection="column">
-      {rows.slice(-Math.max(1, rowsAvailable)).map(a => (
-        <Box key={a.id} flexDirection="column">
-          <Text wrap="truncate-end">
-            <Text bold>{a.status}</Text> {a.description || a.type}{' '}
-            <Text dimColor>
-              {a.type}
-              {a.model ? ` · ${a.model}` : ''}
-              {a.effort ? ` · ${a.effort}` : ''}
-            </Text>
-          </Text>
-          {a.activity ? (
-            <Text dimColor wrap="truncate-end">
-              {'  '}
-              {a.activity}
-            </Text>
-          ) : null}
-        </Box>
-      ))}
     </Box>
   )
 }

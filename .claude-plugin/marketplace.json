@@ -17,7 +17,7 @@
     {
       "name": "lif-effort",
       "source": "./plugins/lif-effort",
-      "description": "Picks the session model and each prompt's effort with one small Haiku call, shows them in a bar above the prompt, and adds Haiku compaction, handoffs, and a subagent panel."
+      "description": "Picks the session model and each prompt's effort with one small Haiku call, shows them in a bar above the prompt, and adds Haiku compaction, handoffs, CAFE(S) session reviews, and retros that suggest vault notes."
     }
   ]
 }

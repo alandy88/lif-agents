@@ -19,7 +19,6 @@ export type Config = {
   effortPreference: 'cheaper' | 'balanced' | 'deeper'
   compactionModel: 'haiku' | 'session'
   afterHandoff: 'continue' | 'wait' | 'save'
-  agentVisibility: 'active' | 'all'
   showReason: boolean
   briefFirstPrompt: boolean
   showStatus: boolean
@@ -41,7 +40,6 @@ export function readConfig(options: PluginOptions): Config {
     effortPreference: pick(options.effortPreference, ['cheaper', 'balanced', 'deeper'] as const, 'balanced'),
     compactionModel: pick(options.compactionModel, ['haiku', 'session'] as const, 'haiku'),
     afterHandoff: pick(options.afterHandoff, ['continue', 'wait', 'save'] as const, 'wait'),
-    agentVisibility: pick(options.agentVisibility, ['active', 'all'] as const, 'active'),
     showReason: options.showReason === true,
     briefFirstPrompt: options.briefFirstPrompt !== false,
     showStatus: options.showStatus !== false,

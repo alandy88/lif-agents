@@ -4,7 +4,7 @@ A Claude Code mod that picks the model and effort for you, with a small status l
 
 ```text
 ~/repo  main*  ·  ctx 42%  ·  5h 31% (2h10m)  ·  wk 12% (Thu)
-Sonnet 5.5 · High · Auto     [ Compact ] [ Handoff ] [ Review ] [ Commit ] [ Open PR ] [ Agents (2) ]
+Sonnet 5.5 · High · m: Auto     c: Compact h: Handoff r: Review t: Retro g: Commit p: PR
 ```
 
 - **Session model.** The first substantive prompt (four words or more, not "continue")
@@ -17,18 +17,18 @@ Sonnet 5.5 · High · Auto     [ Compact ] [ Handoff ] [ Review ] [ Commit ] [ O
   fails or its summary is unusable, the native compaction runs instead.
 - **Handoff.** Writes `HANDOFF.md`, then clears and continues, clears and waits, or only
   saves.
-- **Commit and Open PR.** Each starts its own Haiku 5.5 subagent, so the session's model
+- **Commit and PR.** Each starts its own Haiku 5.5 subagent, so the session's model
   and context stay out of the git work. Commit commits the changes and pushes the current
-  branch, `main` included. Open PR starts a branch first when you are on `main`, then
+  branch, `main` included. PR starts a branch first when you are on `main`, then
   commits, pushes and runs `gh pr create`. The result shows as a toast when it ends.
 - **Review.** `/lif-effort review` prints a CAFE(S) review of the session, with actions.
+- **Retro.** `/lif-effort retro` prints the session's frictions and learnings, and the
+  lif-notes vault notes to update or add for them. It writes nothing.
 - **Status line.** One dim line above the bar: directory, git branch (`*` when
   uncommitted), context use, and the 5-hour and weekly plan limits with time to reset.
   Context turns yellow above 15%, orange above 20%, and red above 30%. Limits turn
   yellow at 70% and red at 90%. Limits show only on a Claude
   subscription, after the first response.
-- **Agents.** A panel listing the session's subagents, from Claude Code's own
-  `$.agent.list()`.
 
 ## Install
 
@@ -56,7 +56,6 @@ in `settings.json` under `pluginConfigs`.
 | Effort preference | Balanced | How unclear prompts lean: cheaper, balanced or deeper. |
 | Compaction model | Haiku | `session` always uses the native compaction. |
 | After handoff | Start fresh and wait | `continue`, `wait` or `save`. |
-| Agent visibility | Active only | `all` also lists finished agents. |
 | Show classification reason | Off | Shows Haiku's short reason in the bar. |
 | Show status line | On | Turns the line above the bar on or off. |
 | Brief the first prompt | On | On a session's first substantive prompt, one more Haiku call (up to 12 seconds) adds a short task brief the model reads beside your words. Your prompt is never replaced. Skipped after a handoff. |
@@ -72,9 +71,9 @@ answer changes nothing: the request goes out as it would without the mod.
 | Compact | `c` | `/compact` |
 | Handoff | `h` | `/lif-effort handoff` |
 | Review | `r` | `/lif-effort review` |
+| Retro | `t` | `/lif-effort retro` |
 | Commit | `g` | `/lif-effort commit` |
-| Open PR | `p` | `/lif-effort pr` |
-| Agents (n) | `a` | `/lif-effort agents` |
+| PR | `p` | `/lif-effort pr` |
 
 Press `ctrl+x` then `tab` to move the keyboard to the bar, then press a hotkey. On a
 terminal narrower than 64 columns the bar shows the commands instead of buttons.
@@ -124,6 +123,18 @@ Neither are compaction summaries, handoff text, or the classifier's own calls.
 CAFE(S) framework (Clarity, Actionability, Fidelity, Efficiency, Security). It prints a
 rated review and up to five actions for next time in the transcript. It saves nothing.
 
+## Retro
+
+`/lif-effort retro` asks the model, through a fork of the conversation, what cost time in
+the session and what is now settled. It then matches each learning against the vault's
+notes and suggests a note to update or a new one to add. It prints the result in the
+transcript and writes nothing: you decide what goes into the vault.
+
+The vault is the folder in `LIF_NOTES_VAULT`. The model is given one line per note under
+`notes/`, its path and its title, read with `git grep`. It does not read the notes'
+text. Notes marked `sensitivity: red` are left out of that list. With the variable unset,
+or a vault git cannot list, no retro runs.
+
 ## Handoff
 
 1. Reads the repository state with `git status`, `git log` and `git diff --stat` only.
@@ -151,12 +162,11 @@ bunx tsc -p plugins/lif-effort --noEmit
 when it loads the folder through `--plugin-dir` in an interactive session. They are
 gitignored.
 
-Built against the 2.1.295 declarations. All checks ran on 2.1.296: 42 native tests, plus
+Built against the 2.1.295 declarations. All checks ran on 2.1.296: 75 native tests, plus
 live sessions in which a one-line question ran on Haiku at low effort, an architecture
-question on Opus at high, `/compact` produced the Haiku summary, the Agents button opened
-the panel, and a handoff saved, asked, cleared, and started the next cycle on Sonnet at
-high from the carried task. The mode word and the Compact button are covered by native
-tests only.
+question on Opus at high, `/compact` produced the Haiku summary, and a handoff saved,
+asked, cleared, and started the next cycle on Sonnet at high from the carried task. The
+mode word, the Compact button and Retro are covered by native tests only.
 
 ## Credits
 
