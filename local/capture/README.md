@@ -10,8 +10,9 @@ open page -> extension -> native helper -> herdr -> agent in lif-notes
 ```
 
 - `extension/` is the WebExtension (Manifest V3, plain JavaScript, no build). Its popup
-  has three actions (digest, explain, note) and a `claude` / `pi` switch. It has three
-  readers and tries them in this order:
+  has three actions (digest, explain, note), and the right-click menu on a page or a
+  selection has the same three. The agent, `claude` or `pi`, is chosen on the settings
+  page. It has three readers and tries them in this order:
   1. the selection, when there is one, is the whole capture;
   2. a site reader: on a Reddit thread (`reddit.com`, `/comments/<id>`) the post and its
      comments, on a `github.com` issue or pull request the post and its comments;
@@ -106,9 +107,17 @@ and that `herdr --version` runs, one line each, and exits non-zero when any fail
    A browser starts the helper without your shell profile, so the launcher carries the
    vault path, Herdr's folder and Bun's path as they were when you ran the script. Run it
    again when you move the vault, Herdr, Bun or this checkout.
-3. Open a page, click the toolbar button and pick an action. The popup shows the agent
+3. Pick the agent on the settings page; it is `claude` until you do. The choice is saved
+   as you make it.
+   - **Chrome:** `chrome://extensions` > *Details* > *Extension options*.
+   - **Firefox:** `about:addons` > *LIF Capture* > *Preferences*.
+4. Open a page, click the toolbar button and pick an action. The popup shows the agent
    name and the capture file, or the error. A `!` on the button means the last capture
-   failed; it clears on the next click.
+   failed; it clears on the next capture.
+
+   Or right-click the page, or a selection, and pick *Digest*, *Explain* or *Note* under
+   *LIF Capture*. A right-click capture reports only failure, as the `!` on the toolbar
+   button; on success the new agent tab in Herdr is the sign.
 
 ## Tests
 
