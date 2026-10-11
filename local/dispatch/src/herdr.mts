@@ -292,9 +292,10 @@ export interface TabEndpoint {
 
 export async function tabCreate(
   ctx: HerdrCtx,
-  opts: { workspaceId: string; cwd?: string; label?: string },
+  opts: { workspaceId?: string; cwd?: string; label?: string },
 ): Promise<TabEndpoint> {
-  const args = ["tab", "create", "--workspace", opts.workspaceId];
+  const args = ["tab", "create"];
+  if (opts.workspaceId) args.push("--workspace", opts.workspaceId);
   if (opts.cwd) args.push("--cwd", opts.cwd);
   if (opts.label) args.push("--label", opts.label);
   args.push("--no-focus");
@@ -321,6 +322,13 @@ export async function agentStart(
   if (opts.timeoutMs !== undefined) args.push("--timeout", String(opts.timeoutMs));
   if (opts.args?.length) args.push("--", ...opts.args);
   return herdrJson(ctx, args);
+}
+
+export async function agentPrompt(
+  ctx: HerdrCtx,
+  opts: { target: string; text: string },
+): Promise<void> {
+  await herdrRun(ctx, ["agent", "prompt", opts.target, opts.text]);
 }
 
 export type AgentState = "idle" | "working" | "blocked" | "done" | "unknown";
