@@ -1,7 +1,7 @@
 ---
 name: factory
 disable-model-invocation: true
-description: "Run the software factory on the current project: one job goes through spec, build on its own branch and worktree, parallel review lenses, a second-model review, a retro, and an approver that lands it or hands it to a human. The session that runs it becomes the orchestrator. Triggers: /factory <feature>, /factory next, /factory approve <job-id>, /factory rework <job-id> <note>."
+description: "Run the software factory on the current project: one job goes through spec, build on its own branch and worktree, parallel review lenses, a retro, and an approver that lands it or hands it to a human. The session that runs it becomes the orchestrator. Triggers: /factory <feature>, /factory next, /factory approve <job-id>, /factory rework <job-id> <note>."
 argument-hint: "<feature> | next | approve <job-id> | rework <job-id> <note>"
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent, Skill, SendMessage
 ---
@@ -26,8 +26,6 @@ feature → spec-writer → builder → [security, ux, ui, code] → WAIT FOR AL
                            ▲                                      │
                            ├──── any CHANGES: resume builder ◄────┤
                            │                                      ▼ all PASS
-                           └──── CHANGES ◄─────────────── second model (pi)
-                                                                  ▼ PASS
                                                                 retro
                                                                   ▼
                                               land ◄─ APPROVE ─ approver ─ ESCALATE → needs-human
@@ -270,9 +268,9 @@ VERDICT: SKIPPED
    `round-<N>/`. Never resume the builder mid-round. If a reviewer finishes
    without writing its file, or writes a first line that isn't a verdict, stop
    and tell the user.
-4. **Second-model review.** Any lens `CHANGES`: write the stub for `second`
-   (`A lens asked for changes this round.`) and set it to `SKIPPED`. All lenses
-   `PASS`: run the **Second-model review** below and record its verdict.
+4. **Second-model review: disabled.** Always write the stub for `second`
+   (`Disabled: the second agent reviews in the PR.`) and set it to `SKIPPED`.
+   Do not run `pi`. Skip the **Second-model review** section below.
 5. Decide:
    - **All PASS** (a `SKIPPED` counts as a pass): go to **Retro**.
    - **Any CHANGES, resumes left**: set `stage: "build"`, then send the builder
@@ -289,7 +287,9 @@ VERDICT: SKIPPED
      `Review rounds exhausted. Outstanding CHANGES in round-<N>/ from: <reviewers>.`
      Go to **Needs human**.
 
-### Second-model review
+### Second-model review (disabled)
+
+Not run. The second agent reviews in the PR. Kept for re-enabling.
 
 A model from another vendor reads the change after the lenses pass, to find
 what they share a blind spot for. It runs through the `pi` CLI, with no agent.
