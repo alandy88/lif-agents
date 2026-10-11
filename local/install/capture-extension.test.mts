@@ -266,6 +266,8 @@ describe("the Reddit reader", () => {
     ["the post has no author", reply(without((json) => json[0].data.children[0].data, "author"))],
     ["the post has no text field", reply(without((json) => json[0].data.children[0].data, "selftext"))],
     ["the post has no subreddit", reply(without((json) => json[0].data.children[0].data, "subreddit_name_prefixed"))],
+    ["the post does not say whether it is a link", reply(without((json) => json[0].data.children[0].data, "is_self"))],
+    ["the post's link flag is not a boolean", reply(changed((json) => (json[0].data.children[0].data.is_self = "false")))],
     ["a link post has no link", reply(without((json) => Object.assign(json[0].data.children[0].data, { is_self: false }), "url"))],
   ] as const) {
     test(`falls back to Readability when ${name}`, async () => {

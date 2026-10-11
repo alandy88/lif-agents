@@ -39,6 +39,9 @@
     };
     walk(replies);
 
+    // A missing flag would read as a link post, any other value as a text post.
+    if (typeof post.is_self !== "boolean") throw new Error("not a Reddit thread");
+
     return {
       title: post.title,
       blocks: [
