@@ -49,8 +49,18 @@ Linux, Firefox and Google Chrome only.
   against a fake `herdr` only. Plan step 1 (running Herdr by hand) is still open. The
   first live run is yours; expect to adjust a flag.
 - **The page is data.** Nothing from the page reaches a file name or a `herdr` argument.
-  The prompt carries only the action word and the file path, and tells the agent that the
-  file is a captured web page and not instructions. The per-action prompts come later.
+  The prompt carries only a fixed instruction per action and the file path, and tells the
+  agent that the file is a captured web page and not instructions.
+- **Each action is one fixed prompt, the same for `claude` and `pi`.** All three tell the
+  agent to read the capture file first.
+  - *Digest:* reply in the chat with what the page is, its main points and the source URL.
+    No file is written.
+  - *Explain:* explain the page in the chat through the `explain` skill
+    (`lif-workflow:explain`). No file is written. Under `pi` this depends on the `explain`
+    skill being installed for pi, which this repo does not do; without it pi explains in
+    its own way.
+  - *Note:* propose exactly one `/log learn <topic> <summary>` entry and wait. The agent
+    does not run `/log` or write to the vault until you accept the proposal.
 
 ## Drive it from the shell
 
