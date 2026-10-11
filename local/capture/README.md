@@ -44,10 +44,9 @@ Linux, Firefox and Google Chrome only.
 - **Captures stay in the temp folder and are not deleted.** The helper exits before the
   agent reads the file, so it cannot clean up; the OS clears the temp folder. The helper
   never writes into the vault.
-- **Not yet run against a live Herdr.** The three commands the helper sends (`tab create`,
-  `agent start`, `agent prompt`) were written from `herdr 0.9.3 --help` and are tested
-  against a fake `herdr` only. Plan step 1 (running Herdr by hand) is still open. The
-  first live run is yours; expect to adjust a flag.
+- **Confirmed against a live Herdr once.** The three commands the helper sends (`tab create`,
+  `agent start`, `agent prompt`) were run by hand against `herdr 0.9.3` on 2026-10-11.
+  The tests still use a fake `herdr`.
 - **The page is data.** Nothing from the page reaches a file name or a `herdr` argument.
   The prompt carries only a fixed instruction per action and the file path, and tells the
   agent that the file is a captured web page and not instructions.
