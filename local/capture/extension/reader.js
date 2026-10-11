@@ -17,16 +17,22 @@
   const reddit = async () => {
     const response = await fetch(`${location.origin}${location.pathname.replace(/\/$/, "")}.json?raw_json=1`);
     if (!response.ok) throw new Error(`Reddit answered ${response.status}`);
+    // A reply that is not shaped like a thread throws, which leaves the page to Readability.
+    const text = (value) => {
+      if (typeof value !== "string") throw new Error("not a Reddit thread");
+      return value;
+    };
     const [posts, replies] = await response.json();
     const post = posts.data.children[0].data;
 
     const comments = [];
     const walk = (listing, parent) => {
-      // The other kind is "more": a stub for comments Reddit did not send.
-      for (const { kind, data } of listing?.data?.children ?? []) {
+      for (const { kind, data } of listing.data.children) {
+        // The other kind is "more": a stub for comments Reddit did not send.
         if (kind !== "t1") continue;
-        comments.push(`**u/${data.author}**${parent ? ` (reply to u/${parent})` : ""}`, data.body);
-        walk(data.replies, data.author);
+        comments.push(`**u/${text(data.author)}**${parent ? ` (reply to u/${parent})` : ""}`, text(data.body));
+        // A comment with no replies carries "" in place of a Listing.
+        if (data.replies !== "") walk(data.replies, data.author);
       }
     };
     walk(replies);
@@ -35,8 +41,8 @@
       title: post.title,
       blocks: [
         `# ${post.title}`,
-        `u/${post.author} in ${post.subreddit_name_prefixed}`,
-        !post.is_self && post.url,
+        `u/${text(post.author)} in ${text(post.subreddit_name_prefixed)}`,
+        !post.is_self && text(post.url),
         post.selftext.trim() && post.selftext,
         comments.length && "## Comments",
         ...comments,

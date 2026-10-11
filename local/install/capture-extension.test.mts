@@ -157,6 +157,12 @@ describe("the Reddit reader", () => {
   const sample = () =>
     JSON.parse(readFileSync(path.resolve("local/capture/samples/reddit-thread.json"), "utf8")) as any[];
   const reply = (json: unknown) => () => Promise.resolve({ ok: true, json: () => Promise.resolve(json) });
+  /** The sample thread with one field deleted from the entry `pick` returns. */
+  const without = (pick: (json: any[]) => Record<string, unknown>, field: string) => {
+    const json = sample();
+    delete pick(json)[field];
+    return json;
+  };
 
   test("puts the post before its comments", async () => {
     const { result, given, fetched } = await readPage({
@@ -242,6 +248,15 @@ describe("the Reddit reader", () => {
     // A refusal is not read, even when it carries a thread.
     ["Reddit refuses", () => Promise.resolve({ ok: false, status: 403, json: () => Promise.resolve(sample()) })],
     ["the reply is not a thread", reply({})],
+    ["the reply has no comments listing", reply([sample()[0]])],
+    ["the comments listing is not a listing", reply([sample()[0], ""])],
+    ["a comment has no text", reply(without((json) => json[1].data.children[1].data, "body"))],
+    ["a comment has no author", reply(without((json) => json[1].data.children[1].data, "author"))],
+    ["a reply has no text", reply(without((json) => json[1].data.children[0].data.replies.data.children[0].data, "body"))],
+    ["a comment has no replies field", reply(without((json) => json[1].data.children[1].data, "replies"))],
+    ["the post has no author", reply(without((json) => json[0].data.children[0].data, "author"))],
+    ["the post has no subreddit", reply(without((json) => json[0].data.children[0].data, "subreddit_name_prefixed"))],
+    ["a link post has no link", reply(without((json) => Object.assign(json[0].data.children[0].data, { is_self: false }), "url"))],
   ] as const) {
     test(`falls back to Readability when ${name}`, async () => {
       const { result, given, fetched } = await readPage({ selection: "", article: readable, url: thread, fetch });
