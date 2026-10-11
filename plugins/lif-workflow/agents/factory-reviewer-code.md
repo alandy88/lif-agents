@@ -55,6 +55,11 @@ mode that rewrites files, such as `--fix`.
 - **Docs**: AGENTS.md and any docs it lists are updated where the change
   requires it.
 - **Commits**: short one-line messages and nothing stray committed.
+- **Smells**: Mysterious Name, Duplicated Code, Feature Envy, Data Clumps,
+  Primitive Obsession, Repeated Switches, Shotgun Surgery, Divergent Change,
+  Speculative Generality, Message Chains, Middle Man, Refused Bequest. Each is
+  a judgement call: put it under Notes, never Findings. A documented repo
+  convention overrides it. Skip what the project's tooling already enforces.
 
 ## Write review-code.md
 

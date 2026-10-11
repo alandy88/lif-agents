@@ -47,12 +47,15 @@ write there.
 5. **Keep only repo knowledge**: build, test, release, file layout, or
    code-coupled behaviour of this repo. Drop the rest. Propose no issues and no
    notes for anywhere else.
-6. **Apply** each survivor to the `AGENTS.md` nearest the code. Keep each entry
-   to the bar in that file's own maintenance section, and prefer rewriting an
-   entry over appending one. Leave the `## Factory` section alone. The spec
+6. **Sort.** A note that a lint rule, type check or test could catch is
+   mechanical. List it under Checks to add in `retro.md`, with the check you
+   would write, and make no `AGENTS.md` edit for it.
+7. **Apply** each remaining survivor to the `AGENTS.md` nearest the code. Keep
+   each entry to the bar in that file's own maintenance section, and prefer
+   rewriting an entry over appending one. Leave the `## Factory` section alone. The spec
    already requires the `AGENTS.md` updates the change itself needs; do not redo
    those.
-7. **Commit** the edits on the job branch as `docs(agents): <what was learned>`,
+8. **Commit** the edits on the job branch as `docs(agents): <what was learned>`,
    staging explicit paths. Leave the tree clean. With no edits, make no commit.
 
 A foreground Bash call stops at 10 minutes. When the project's commit hooks are
@@ -68,8 +71,11 @@ output. If a hook fails, fix your edit. Never bypass a hook.
 1. <AGENTS.md path>: <the line you added or rewrote>. Evidence: <path:line, or
    the command and its result>.
 
+## Checks to add
+- <the mistake>: <the lint rule, type or test that would catch it>
+
 ## Dropped
 - <note>: <one-word reason>
 ```
 
-Under Edits, write "None." when you made none.
+Under Edits and under Checks to add, write "None." when there are none.

@@ -8,7 +8,8 @@ model: opus
 You build one factory job. Your prompt gives the job folder, the worktree, the
 branch, the base branch, the round you are building for, and a port. You change
 code on the branch, commit it, and write exactly one factory file,
-`<job folder>/build.md`.
+`<job folder>/build.md`. A prompt that says `Ticket <NN>` or `Integrate:` is
+for a job split into tickets: read **Split jobs** first.
 
 ## Where you work
 
@@ -58,7 +59,8 @@ Verify every acceptance criterion and record the evidence in build.md: the
 command you ran and its result, or what the page showed.
 
 - Run the validation commands AGENTS.md lists (tests, build, lint, type-check)
-  for the areas you changed. They must pass.
+  for the areas you changed. They must pass. Run the type check and the one
+  test file you are working on as you go. Run the full set once, at the end.
 - Prove every new test can fail. Run it once without the change it covers
   (write the test first, or `git stash` the fix) and see it fail for the right
   reason. Record each test and its failing line under Validation in build.md.
@@ -78,6 +80,34 @@ command you ran and its result, or what the page showed.
 - When the pages need a build step, run it before you write `STATUS: READY` and
   leave its output in the worktree. The two page reviewers share this worktree
   and only start a server; they never build.
+
+## Split jobs
+
+A large job is cut into tickets, built side by side by one builder each, then
+merged into the job branch. Everything above still holds, with these changes.
+
+**`Ticket <NN>`: you build one ticket.** Your worktree and branch are the
+ticket's own, and your base is the job branch, which moves as other tickets
+merge.
+
+- Read `<job folder>/tickets/<NN>-*.md` after `spec.md`. Build that ticket and
+  nothing else. Change a file outside its Files list only when the ticket
+  cannot work without it, and name that file in your report.
+- You have no port. Check page criteria by reading the code; the integrate
+  build checks them on a page.
+- Before you report, merge the job branch into yours once more
+  (`git merge <base>`), resolve any conflicts by what each side set out to do,
+  and rerun the validation commands.
+- Write `<job folder>/ticket-reports/<NN>.md` in place of `build.md`: the same
+  first line and sections, covering the criteria the ticket owns.
+- A message that starts `Job branch moved:` means your branch no longer merges
+  cleanly. Merge the job branch, resolve, rerun the validation commands, commit,
+  and update your report.
+
+**`Integrate:`: every ticket is already merged into your worktree.** Read each
+`<job folder>/ticket-reports/<NN>.md`. Build nothing new. Verify every acceptance
+criterion in `spec.md` against the merged branch, on a page where it has one,
+fix what the merges broke, and write `build.md` for the whole job.
 
 ## Commit
 

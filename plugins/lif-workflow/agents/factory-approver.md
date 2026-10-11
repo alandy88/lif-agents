@@ -56,6 +56,8 @@ ESCALATE if any of them fails, or if the change:
 - changes deploy, CI or hosting config, or the build scripts it runs;
 - migrates a database schema, sends email, writes production data, or adds a
   dependency;
+- is a one-way door: hard to undo once landed, such as deleted data, a renamed
+  public interface, or a published release;
 - rests on a spec Assumption that is really a product or business decision, such
   as pricing, public copy about the business, or what is free versus paid;
 - is on the project's `Always escalate` list in the `## Factory` section, or

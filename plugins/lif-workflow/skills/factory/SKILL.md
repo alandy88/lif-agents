@@ -35,7 +35,7 @@ feature → spec-writer → builder → [security, ux, ui, code] → WAIT FOR AL
 
 | Step    | Agent (`subagent_type`)                 | Writes                                               |
 | ------- | --------------------------------------- | ---------------------------------------------------- |
-| spec    | `lif-workflow:factory-spec-writer`      | `spec.md`                                            |
+| spec    | `lif-workflow:factory-spec-writer`      | `spec.md`, plus `tickets/*.md` when the job splits   |
 | build   | `lif-workflow:factory-builder`          | `build.md` + commits on `factory/<job-id>`           |
 | review  | `lif-workflow:factory-reviewer-security` | `round-N/review-security.md`                        |
 |         | `lif-workflow:factory-reviewer-ux`      | `round-N/review-ux.md`                               |
@@ -98,6 +98,8 @@ writes at run time lands inside `<repo>`, so there is nothing to gitignore.
 <factory>/backlog.md                     queue for /factory next
 <factory>/jobs/<job-id>/job.json         the job's state (you write it, the dashboard reads it)
 <factory>/jobs/<job-id>/spec.md
+<factory>/jobs/<job-id>/tickets/         only on a job the spec writer split
+<factory>/jobs/<job-id>/ticket-reports/  one report per ticket, from its builder
 <factory>/jobs/<job-id>/build.md
 <factory>/jobs/<job-id>/rework-<k>.md    written by you, from /factory rework
 <factory>/jobs/<job-id>/round-<N>/review-{security,ux,ui,code}.md
@@ -201,9 +203,12 @@ project is already ready.
 3. **Spec.** Spawn `lif-workflow:factory-spec-writer` with the prompt
    `<paths> Feature: <feature, verbatim>`.
    Wait for it to finish, then check that `spec.md` exists.
-4. **Build.** Set `stage: "build"`. Spawn `lif-workflow:factory-builder` with the
-   prompt `<paths> Build round 1. Port: <port>.` Where the `Agent` tool takes a
-   name, name it `builder-<job-id>`. Wait for it to finish, then go to
+4. **Build.** When `<factory>/jobs/<job-id>/tickets/` holds two or more files,
+   the job is split: build it by [references/tickets.md](references/tickets.md)
+   in place of this step. Otherwise set `stage: "build"`. Spawn
+   `lif-workflow:factory-builder` with the prompt
+   `<paths> Build round 1. Port: <port>.` Where the `Agent` tool takes a name,
+   name it `builder-<job-id>`. Wait for it to finish, then go to
    **Build check**.
 
 ### Build check
@@ -409,6 +414,9 @@ git -C <repo> worktree remove <worktree>
 git -C <repo> branch -d factory/<job-id>
 ```
 
+A split job also has ticket worktrees and branches: remove them as
+[references/tickets.md](references/tickets.md) says.
+
 Set `stage: "merged"`. The plugin's safety hook asks the user before any branch
 delete; that prompt is expected, not a failure. After a squash-merged PR,
 `branch -d` can refuse because the commits differ. `gh pr view` printing
@@ -463,4 +471,5 @@ The job must be in `needs-human`.
 Keep the user posted with one short line per transition, for example
 `003-rate-limiting: round 2, security CHANGES, ux/ui/code PASS → resuming builder`.
 When the job ends, say whether it merged, waits as an open PR, or needs a human,
-and why.
+and why. Then quote the `## Checks to add` section of `retro.md`, unless it reads
+"None."

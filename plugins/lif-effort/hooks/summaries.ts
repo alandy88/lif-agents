@@ -67,6 +67,8 @@ export const handoffPrompt = (repoState: string) =>
     'Write a handoff document so a fresh session can continue this work with no other context.',
     `Start with "# Handoff", then use exactly these headings: ${HANDOFF_SECTIONS.join(', ')}.`,
     'Be specific: file paths, commands, error text, and what was decided and why. Under "## Next step" state the single task the next session should do first, as an instruction.',
+    'Point to specs, plans, commits and diffs by path or hash instead of restating them.',
+    'Replace every secret, key or password with <REDACTED>.',
     ...DOCUMENT_RULES,
     'Reply with the document only.',
     repoState ? `\n<repo_state>\n${repoState}\n</repo_state>` : '',
@@ -123,7 +125,7 @@ export const retroPrompt = (notes: string) =>
   [
     'Write a retro of this session, then suggest which notes in the lif-notes vault should hold what was learned. Judge the session as it happened; never invent events.',
     `Start with "# Session retro", then use exactly these headings: ${RETRO_SECTIONS.join(', ')}.`,
-    'Under "## Frictions" list what cost time: a retry, a correction from the user, a wrong assumption, a missing fact, a tool that failed. Give the evidence for each in one line.',
+    'Under "## Frictions" list what cost time: a retry, a correction from the user, a wrong assumption, a missing fact, a tool that failed. Give the evidence for each in one line, then its fix in one word: check (a lint rule, type or test would catch it), pointer (a line in AGENTS.md), tool, or access. Prefer check over pointer for a mistake a machine can catch.',
     'Under "## Learnings" list what is now settled and would help a later session: a decision made, a fact resolved, a preference stated, a command or path that works. Leave out status recaps and anything the code or its docs already show.',
     'Under "## Vault notes to update" give, for each learning a listed note already covers, that note\'s path and one line to add to it.',
     'Under "## Vault notes to add" give, for each learning no listed note covers, a new path as notes/<topic>.md in lowercase kebab-case and one line on what it holds. A learning with no lasting topic gets no note.',
@@ -160,7 +162,7 @@ export const pullRequestPrompt = () =>
     'Open a pull request for the working-tree changes in this repository.',
     'If the current branch is main or master, first create and switch to a new branch named for the change, such as feat/<short-topic>. Otherwise stay on the current branch.',
     'Commit the changes, then push with git push -u origin <branch>.',
-    'Then run gh pr create against the default branch, with a short title and a body that has a Summary and a Test plan. Reply with the PR link.',
+    'Then run gh pr create against the default branch, with a short title and a body with three headings: Summary (a short diff sketch or file tree of the change), Test plan, and Merge danger (one-way or two-way door, then the blast radius in one line). Reply with the PR link.',
     ...GIT_RULES,
   ].join('\n')
 
