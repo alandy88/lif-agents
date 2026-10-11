@@ -255,6 +255,7 @@ describe("the Reddit reader", () => {
     ["a reply has no text", reply(without((json) => json[1].data.children[0].data.replies.data.children[0].data, "body"))],
     ["a comment has no replies field", reply(without((json) => json[1].data.children[1].data, "replies"))],
     ["the post has no author", reply(without((json) => json[0].data.children[0].data, "author"))],
+    ["the post has no text field", reply(without((json) => json[0].data.children[0].data, "selftext"))],
     ["the post has no subreddit", reply(without((json) => json[0].data.children[0].data, "subreddit_name_prefixed"))],
     ["a link post has no link", reply(without((json) => Object.assign(json[0].data.children[0].data, { is_self: false }), "url"))],
   ] as const) {
