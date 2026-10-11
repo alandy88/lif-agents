@@ -1,6 +1,6 @@
 export type ModelKey = 'opus' | 'sonnet' | 'haiku'
 export type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
-export type Phase = 'ready' | 'classifying' | 'compacting' | 'handoff' | 'review' | 'retro' | 'commit' | 'pr'
+export type Phase = 'ready' | 'classifying' | 'compacting' | 'handoff' | 'review' | 'retro' | 'digest' | 'commit' | 'pr'
 
 export type LifEffortSession = {
   /** Master Auto control for this session. */

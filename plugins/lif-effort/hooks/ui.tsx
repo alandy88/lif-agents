@@ -4,12 +4,12 @@ import type { LifEffortSession } from '../types'
 import { MODELS, modelKeyOf, type Config } from './config'
 import { isEffortRouted, isModelRouted } from './lifecycle'
 
-export const NARROW_COLUMNS = 64
+export const NARROW_COLUMNS = 74
 
 type Table = Pick<Elements['terminal'], 'Box' | 'Text' | 'Button'>
-export type BarActions = { toggleAuto: () => void; compact: () => void; handoff: () => void; commit: () => void; pullRequest: () => void; review: () => void; retro: () => void }
+export type BarActions = { toggleAuto: () => void; compact: () => void; handoff: () => void; commit: () => void; pullRequest: () => void; review: () => void; retro: () => void; digest: () => void }
 
-const PHASE_LABEL = { classifying: 'Classifying…', compacting: 'Compacting…', handoff: 'Writing handoff…', review: 'Reviewing session…', retro: 'Writing retro…', commit: 'Writing commit message…', pr: 'Writing pull request…' } as const
+const PHASE_LABEL = { classifying: 'Classifying…', compacting: 'Compacting…', handoff: 'Writing handoff…', review: 'Reviewing session…', retro: 'Writing retro…', digest: 'Writing digest…', commit: 'Writing commit message…', pr: 'Writing pull request…' } as const
 const title = (word: string) => word.charAt(0).toUpperCase() + word.slice(1)
 
 /** The values the requests actually use, which may differ from the app's own pickers. */
@@ -45,7 +45,7 @@ export function Bar(
           {reason}
         </Text>
         <Text dimColor wrap="truncate-end">
-          /compact · /lif-effort auto · handoff · review · retro · commit · pr
+          /compact · /lif-effort auto · handoff · review · retro · digest · commit · pr
         </Text>
       </Box>
     )
@@ -65,6 +65,7 @@ export function Bar(
         <Button key="handoff" plain label="Handoff" hotkey="h" onPress={act.handoff} />
         <Button key="review" plain label="Review" hotkey="r" onPress={act.review} />
         <Button key="retro" plain label="Retro" hotkey="t" onPress={act.retro} />
+        <Button key="digest" plain label="Digest" hotkey="d" onPress={act.digest} />
         <Button key="commit" plain label="Commit" hotkey="g" onPress={act.commit} />
         <Button key="pr" plain label="PR" hotkey="p" onPress={act.pullRequest} />
       </Box>

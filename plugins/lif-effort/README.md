@@ -4,7 +4,7 @@ A Claude Code mod that picks the model and effort for you, with a small status l
 
 ```text
 ~/repo  main*  ·  ctx 42%  ·  5h 31% (2h10m)  ·  wk 12% (Thu)
-Sonnet 5.5 · High · m: Auto     c: Compact h: Handoff r: Review t: Retro g: Commit p: PR
+Sonnet 5.5 · High · m: Auto     c: Compact h: Handoff r: Review t: Retro d: Digest g: Commit p: PR
 ```
 
 - **Session model.** The first substantive prompt (four words or more, not "continue")
@@ -28,6 +28,8 @@ Sonnet 5.5 · High · m: Auto     c: Compact h: Handoff r: Review t: Retro g: Co
 - **Review.** `/lif-effort review` prints a CAFE(S) review of the session, with actions.
 - **Retro.** `/lif-effort retro` prints the session's frictions and learnings, and the
   lif-notes vault notes to update or add for them. It writes nothing.
+- **Digest.** `/lif-effort digest` writes one learning from the session into one note in
+  the lif-notes vault, after showing it and asking. It never commits.
 - **Status line.** One dim line above the bar: directory, git branch (`*` when
   uncommitted), context use, and the 5-hour and weekly plan limits with time to reset.
   Context turns yellow above 15%, orange above 20%, and red above 30%. Limits turn
@@ -76,11 +78,12 @@ answer changes nothing: the request goes out as it would without the mod.
 | Handoff | `h` | `/lif-effort handoff` |
 | Review | `r` | `/lif-effort review` |
 | Retro | `t` | `/lif-effort retro` |
+| Digest | `d` | `/lif-effort digest [topic]` |
 | Commit | `g` | `/lif-effort commit` |
 | PR | `p` | `/lif-effort pr` |
 
 Press `ctrl+x` then `tab` to move the keyboard to the bar, then press a hotkey. On a
-terminal narrower than 64 columns the bar shows the commands instead of buttons.
+terminal narrower than 74 columns the bar shows the commands instead of buttons.
 `/lif-effort status` prints what requests use next to the app's own setting.
 
 The mode word turns all automation off. Pressed again, it turns automation back on,
@@ -139,6 +142,27 @@ The vault is the folder in `LIF_NOTES_VAULT`. The model is given one line per no
 text. Notes marked `sensitivity: red` are left out of that list. With the variable unset,
 or a vault git cannot list, no retro runs.
 
+## Digest
+
+`/lif-effort digest [topic]` saves one learning from the session into the vault. A retro
+suggests; a digest writes.
+
+1. A fork of the conversation picks the one learning most worth keeping, or the one you
+   named as the topic. It replies with a path under `notes/`, a title and a short entry.
+   It sees the same list of note paths and titles as a retro, red notes left out.
+2. The entry is printed in the transcript, and you pick Save or Cancel.
+3. On Save, one file is written. A new note gets the vault's frontmatter (`type:
+   reference`, today's `updated`, `sensitivity: green`) and the title as its heading. A
+   note that exists keeps its text: the entry goes at its end under a `##` heading, with
+   a `_logged YYYY-MM-DD_` line, and `updated` moves to today.
+4. The vault lint runs, and its lines about that one note are printed.
+
+Only a lowercase kebab-case path under `notes/` is accepted; anything else saves nothing.
+A learning about one repository's own code belongs in that repository's `AGENTS.md`, so
+the fork answers "None." for it. Digest never pulls, commits or pushes: the note waits in
+the vault's working tree for you. A new note is marked green, so change the key by hand
+when the content is private.
+
 ## Handoff
 
 1. Reads the repository state with `git status`, `git log` and `git diff --stat` only.
@@ -166,11 +190,11 @@ bunx tsc -p plugins/lif-effort --noEmit
 when it loads the folder through `--plugin-dir` in an interactive session. They are
 gitignored.
 
-Built against the 2.1.295 declarations. All checks ran on 2.1.296: 79 native tests, plus
+Built against the 2.1.295 declarations. All checks ran on 2.1.296: 89 native tests, plus
 live sessions in which a one-line question ran on Haiku at low effort, an architecture
 question on Opus at high, `/compact` produced the Haiku summary, and a handoff saved,
 asked, cleared, and started the next cycle on Sonnet at high from the carried task. The
-mode word, the Compact button, Retro and the Commit and PR drafts are covered by native
+mode word, the Compact button, Retro, Digest and the Commit and PR drafts are covered by native
 tests only.
 
 ## Credits

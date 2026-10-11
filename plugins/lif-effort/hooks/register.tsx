@@ -38,6 +38,8 @@ import {
   compactPrompt,
   continuationPrompt,
   datedHandoffName,
+  digestNote,
+  digestPrompt,
   handoffPrompt,
   isUsableCommitMessage,
   isUsablePullRequest,
@@ -47,6 +49,8 @@ import {
   retroPrompt,
   reviewPrompt,
   isUsableHandoff,
+  isoDate,
+  parseDigest,
   pullRequestDraftPrompt,
   pullRequestPrompt,
   isUsableSummary,
@@ -343,6 +347,46 @@ async function retro($: EngineInterface) {
   }
 }
 
+/** The vault lint's lines about one note: it reports the whole vault, and only this note was touched. */
+async function lintNote($: EngineInterface, vault: string, path: string) {
+  // shortcut: python3 by name, so a machine without it skips the lint; resolve the interpreter per environment when one needs it.
+  try {
+    const r = await $.process.run(['python3', 'system/scripts/lint-vault.py'], { cwd: vault, timeoutMs: 10_000 })
+    return r.stdout.split('\n').filter(line => line.startsWith(`${path}: `))
+  } catch {
+    return []
+  }
+}
+
+/** One learning from the session, saved to a vault note once the person agrees; never pulled, committed or pushed. */
+async function digest($: EngineInterface, focus?: string) {
+  if ((await read($, session)).phase !== 'ready') return $.ui.toast('lif-effort: busy, try again in a moment')
+  await setPhase($, 'digest')
+  try {
+    const vault = await $.env.get('LIF_NOTES_VAULT')
+    const notes = await vaultNotes($)
+    if (!vault || !notes) return $.ui.toast('lif-effort: no digest, the vault notes could not be listed. Is LIF_NOTES_VAULT set?')
+    const written = await $.model.fork({ prompt: digestPrompt(notes, focus) })
+    if (!written.isAnswered) return $.ui.toast(`lif-effort: no digest written (${written.reason})`)
+    const note = parseDigest(written.text)
+    if (!note) return $.ui.toast('lif-effort: nothing to digest, or the note came back unusable; nothing was saved')
+    const file = `${vault}/${note.path}`
+    try {
+      const old = (await $.fs.exists(file)) ? await $.fs.read(file) : undefined
+      logLines($, `Digest for ${note.path} (${old === undefined ? 'a new note' : 'added to the end'}): ${note.title}\n${note.body}`)
+      if ((await ask($, `Save this to ${note.path} in the vault?`, ['Save', 'Cancel'])) !== 'Save') return $.ui.toast('lif-effort: digest cancelled; nothing was saved')
+      await $.fs.write(file, digestNote(note, old, isoDate(await $.clock.now())))
+    } catch (error) {
+      return $.ui.toast(`lif-effort: could not save ${note.path}: ${String(error).slice(0, 120)}`)
+    }
+    const lint = await lintNote($, vault, note.path)
+    if (lint.length) logLines($, `Vault lint:\n${lint.join('\n')}`)
+    $.ui.toast(`lif-effort: saved ${note.path}; it is not committed`)
+  } finally {
+    await setPhase($, 'ready')
+  }
+}
+
 async function handoff($: EngineInterface, config: Config) {
   if ((await read($, session)).phase !== 'ready') return $.ui.toast('lif-effort: busy, try again in a moment')
   await setPhase($, 'handoff')
@@ -449,8 +493,8 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'lif-effort',
-      description: 'Model and effort automation: status, auto, handoff, review, retro. Compact with /compact.',
-      argumentHint: 'status | auto [on|off] | handoff | commit | pr | review [focus] | retro',
+      description: 'Model and effort automation: status, auto, handoff, review, retro, digest. Compact with /compact.',
+      argumentHint: 'status | auto [on|off] | handoff | commit | pr | review [focus] | retro | digest [topic]',
     })
     await restore($)
     if (config.showStatus) {
@@ -576,7 +620,12 @@ export const register: Register = (on, options) => {
       $.clock.after(0, () => void retro($))
       return { text: 'Writing a retro with vault note suggestions.' }
     }
-    return { text: 'Usage: /lif-effort status | auto [on|off] | handoff | commit | pr | review [focus] | retro. Compact with /compact.' }
+    if (action === 'digest') {
+      const focus = e.args.trim().replace(/^digest\s*/i, '')
+      $.clock.after(0, () => void digest($, focus))
+      return { text: 'Writing one note for the vault.' }
+    }
+    return { text: 'Usage: /lif-effort status | auto [on|off] | handoff | commit | pr | review [focus] | retro | digest [topic]. Compact with /compact.' }
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
@@ -595,6 +644,7 @@ export const register: Register = (on, options) => {
       pullRequest: () => void $.clock.after(0, () => void gitJob($, 'pr')),
       review: () => void $.clock.after(0, () => void review($)),
       retro: () => void $.clock.after(0, () => void retro($)),
+      digest: () => void $.clock.after(0, () => void digest($)),
     })
     return (
       <Box flexDirection="column">
