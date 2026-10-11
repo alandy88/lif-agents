@@ -4,7 +4,8 @@ Send the page open in the browser to an agent working in the notes vault.
 
 ```
 open page -> extension -> native helper -> herdr -> agent in lif-notes
-             site reader   temp file        tab, start, prompt
+             selection,    temp file        tab, start, prompt
+             site reader
              or Readability
 ```
 

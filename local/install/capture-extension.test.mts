@@ -402,6 +402,11 @@ describe("the GitHub reader", () => {
   const unread: [string, string, Record<string, Element[]>][] = [
     ["no selector matches", issue, {}],
     ["the post has no text", issue, { ...issueMarkup, '[data-testid="issue-body"]': [element()] }],
+    [
+      "the post's text is blank",
+      issue,
+      { ...issueMarkup, '[data-testid="issue-body"]': [container('[data-testid="issue-body-header-author"]', "poster", " \n")] },
+    ],
     ["the page is not an issue or a pull request", "https://github.com/mozilla/readability", issueMarkup],
     ["the host only ends in github.com", "https://gist.github.com/mozilla/readability/issues/950", issueMarkup],
   ];
