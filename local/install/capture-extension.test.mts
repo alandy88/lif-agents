@@ -185,6 +185,18 @@ describe("the background script", () => {
     assert.deepEqual(made("native"), [["lif_capture", { ...page, kind: "pi", action: "note" }]]);
   });
 
+  test("a menu click on a selection inside a frame reads that frame, and a plain click there reads the page", async () => {
+    const { fire, made } = load({});
+
+    await fire("clicked", { menuItemId: "note", frameId: 4, selectionText: "picked" }, { id: 7 });
+    await fire("clicked", { menuItemId: "note", frameId: 4 }, { id: 7 });
+
+    assert.deepEqual(
+      made("inject").map(([injection]) => injection.target),
+      [{ tabId: 7, frameIds: [4] }, { tabId: 7 }],
+    );
+  });
+
   for (const [name, stored] of [
     ["nothing is saved", {}],
     ["the saved agent is not one of the two", { kind: "rogue" }],

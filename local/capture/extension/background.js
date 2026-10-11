@@ -5,12 +5,12 @@ const api = globalThis.browser ?? chrome;
 
 const actions = { digest: "Digest", explain: "Explain", note: "Note" };
 
-async function capture(action, findTab) {
+async function capture(action, findTab, frameId) {
   const tab = await findTab();
   // The saved agent is the only source: nothing a sender puts in a message can set it.
   const { kind } = await api.storage.local.get("kind");
   const [injected] = await api.scripting.executeScript({
-    target: { tabId: tab.id },
+    target: frameId ? { tabId: tab.id, frameIds: [frameId] } : { tabId: tab.id },
     files: ["vendor/Readability.js", "reader.js"],
   });
   const page = injected?.result;
@@ -25,10 +25,10 @@ async function capture(action, findTab) {
   return reply;
 }
 
-async function run(action, findTab) {
+async function run(action, findTab, frameId) {
   api.action.setBadgeText({ text: "" });
   try {
-    return await capture(action, findTab);
+    return await capture(action, findTab, frameId);
   } catch (error) {
     api.action.setBadgeText({ text: "!" });
     return { ok: false, error: error.message };
@@ -53,5 +53,7 @@ api.runtime.onInstalled.addListener(async () => {
 });
 
 api.contextMenus.onClicked.addListener((info, tab) => {
-  if (Object.hasOwn(actions, info.menuItemId)) run(info.menuItemId, () => tab);
+  if (!Object.hasOwn(actions, info.menuItemId)) return;
+  // A selection inside a frame is read in that frame: the main frame cannot see it.
+  run(info.menuItemId, () => tab, info.selectionText ? info.frameId : undefined);
 });
