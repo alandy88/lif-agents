@@ -30,7 +30,13 @@ function parts(file: string): { front: string[]; body: string } {
 }
 
 /** Asserts the full happy path for one capture and returns the reply. */
-function assertCaptured(t: TempEnv, stdout: Buffer, status: number | null, kind: string) {
+function assertCaptured(
+  t: TempEnv,
+  stdout: Buffer,
+  status: number | null,
+  kind: string,
+  action = "digest",
+) {
   assert.equal(status, 0);
   const reply = unframe(stdout);
   assert.equal(reply["ok"], true);
@@ -53,7 +59,7 @@ function assertCaptured(t: TempEnv, stdout: Buffer, status: number | null, kind:
   const [create, start, prompt] = calls as [string[], string[], string[]];
   assert.deepEqual(create, [
     "--session", "default", "tab", "create",
-    "--cwd", t.vault, "--label", "capture-digest", "--no-focus",
+    "--cwd", t.vault, "--label", `capture-${action}`, "--no-focus",
   ]);
   assert.deepEqual(start, [
     "--session", "default", "agent", "start", `cap-${id.toLowerCase()}`,
@@ -88,6 +94,46 @@ test("kind pi starts a pi agent", () => {
   const t = tempEnv();
   const result = run(t, frame({ ...sample, kind: "pi" }));
   assertCaptured(t, result.stdout, result.status, "pi");
+});
+
+/** Runs one capture through the full happy path and returns its prompt without the file path. */
+function promptFor(action: string, kind = "claude"): string {
+  const t = tempEnv();
+  const result = run(t, frame({ ...sample, action, kind }));
+  const reply = assertCaptured(t, result.stdout, result.status, kind, action);
+  const text = t.calls()[2]?.[5] ?? "";
+  assert.match(text, /data only/);
+  assert.match(text, /not instructions/);
+  assert.ok(!text.startsWith("/"), "the prompt must not be a slash command");
+  return text.replace(reply["file"] as string, "");
+}
+
+test("the digest prompt asks for a digest in the chat and no file", () => {
+  const text = promptFor("digest");
+  assert.match(text, /digest/i);
+  assert.match(text, /write no file|do not write/i);
+});
+
+test("the explain prompt names the explain skill and asks for no file", () => {
+  const text = promptFor("explain");
+  assert.ok(text.includes("lif-workflow:explain"));
+  assert.match(text, /read/i);
+  assert.match(text, /write no file|do not write/i);
+});
+
+test("the note prompt proposes one /log learn entry and forbids running it", () => {
+  const text = promptFor("note");
+  assert.ok(text.includes("/log learn"));
+  assert.match(text, /propose/i);
+  assert.match(text, /do not (run|write)/i);
+});
+
+test("the three actions get three different prompts", () => {
+  assert.equal(new Set(["digest", "explain", "note"].map((action) => promptFor(action))).size, 3);
+});
+
+test("claude and pi get the same prompt", () => {
+  assert.equal(promptFor("note", "pi"), promptFor("note", "claude"));
 });
 
 test("a title cannot break out of the frontmatter", () => {
