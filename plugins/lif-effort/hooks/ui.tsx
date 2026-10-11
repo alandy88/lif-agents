@@ -9,7 +9,7 @@ export const NARROW_COLUMNS = 64
 type Table = Pick<Elements['terminal'], 'Box' | 'Text' | 'Button'>
 export type BarActions = { toggleAuto: () => void; compact: () => void; handoff: () => void; commit: () => void; pullRequest: () => void; review: () => void; retro: () => void }
 
-const PHASE_LABEL = { classifying: 'Classifying…', compacting: 'Compacting…', handoff: 'Writing handoff…', review: 'Reviewing session…', retro: 'Writing retro…' } as const
+const PHASE_LABEL = { classifying: 'Classifying…', compacting: 'Compacting…', handoff: 'Writing handoff…', review: 'Reviewing session…', retro: 'Writing retro…', commit: 'Writing commit message…', pr: 'Writing pull request…' } as const
 const title = (word: string) => word.charAt(0).toUpperCase() + word.slice(1)
 
 /** The values the requests actually use, which may differ from the app's own pickers. */

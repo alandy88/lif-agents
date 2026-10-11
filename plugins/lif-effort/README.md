@@ -17,10 +17,14 @@ Sonnet 5.5 · High · m: Auto     c: Compact h: Handoff r: Review t: Retro g: Co
   fails or its summary is unusable, the native compaction runs instead.
 - **Handoff.** Writes `HANDOFF.md`, then clears and continues, clears and waits, or only
   saves.
-- **Commit and PR.** Each starts its own Haiku 5.5 subagent, so the session's model
-  and context stay out of the git work. Commit commits the changes and pushes the current
-  branch, `main` included. PR starts a branch first when you are on `main`, then
-  commits, pushes and runs `gh pr create`. The result shows as a toast when it ends.
+- **Commit and PR.** A fork of the conversation first writes the commit message, or the
+  PR title and body, because the session knows why the change was made. Then a Haiku 5.5
+  subagent of its own does the git work with that text, so the session's model and context
+  stay out of the tool calls. Commit commits the changes and pushes the current branch,
+  `main` included. PR starts a branch first when you are on `main`, then commits, pushes
+  and runs `gh pr create`. The result shows as a toast when it ends. Before the session's
+  first response, after `/clear`, or when the draft comes back unusable, Haiku writes the
+  text itself and the toast says so.
 - **Review.** `/lif-effort review` prints a CAFE(S) review of the session, with actions.
 - **Retro.** `/lif-effort retro` prints the session's frictions and learnings, and the
   lif-notes vault notes to update or add for them. It writes nothing.
@@ -162,11 +166,12 @@ bunx tsc -p plugins/lif-effort --noEmit
 when it loads the folder through `--plugin-dir` in an interactive session. They are
 gitignored.
 
-Built against the 2.1.295 declarations. All checks ran on 2.1.296: 75 native tests, plus
+Built against the 2.1.295 declarations. All checks ran on 2.1.296: 79 native tests, plus
 live sessions in which a one-line question ran on Haiku at low effort, an architecture
 question on Opus at high, `/compact` produced the Haiku summary, and a handoff saved,
 asked, cleared, and started the next cycle on Sonnet at high from the carried task. The
-mode word, the Compact button and Retro are covered by native tests only.
+mode word, the Compact button, Retro and the Commit and PR drafts are covered by native
+tests only.
 
 ## Credits
 

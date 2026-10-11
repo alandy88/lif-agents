@@ -85,6 +85,8 @@ test('the bar names each state', async () => {
   expect(modeLabel({ ...fresh(), phase: 'classifying' })).toBe('Classifying…')
   expect(modeLabel({ ...fresh(), phase: 'compacting' })).toBe('Compacting…')
   expect(modeLabel({ ...fresh(), phase: 'handoff' })).toBe('Writing handoff…')
+  expect(modeLabel({ ...fresh(), phase: 'commit' })).toBe('Writing commit message…')
+  expect(modeLabel({ ...fresh(), phase: 'pr' })).toBe('Writing pull request…')
   expect(modeLabel({ ...fresh(), isAuto: false })).toBe('Off')
   expect(modeLabel({ ...fresh(), isEffortAuto: false })).toBe('Manual effort')
   expect(modeLabel(fresh())).toBe('Auto')

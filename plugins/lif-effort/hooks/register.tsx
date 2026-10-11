@@ -33,21 +33,26 @@ import {
 import {
   COMPACT_SYSTEM,
   carriedTask,
+  commitMessagePrompt,
   commitPrompt,
   compactPrompt,
   continuationPrompt,
   datedHandoffName,
   handoffPrompt,
+  isUsableCommitMessage,
+  isUsablePullRequest,
   isUsableReview,
   isUsableRetro,
   notesIndex,
   retroPrompt,
   reviewPrompt,
   isUsableHandoff,
+  pullRequestDraftPrompt,
   pullRequestPrompt,
   isUsableSummary,
   renderTranscript,
   summaryMessage,
+  unfence,
 } from './summaries'
 import { EMPTY_STATUS, StatusLine, parseGit, tildify, withUsage } from './status'
 import { Bar, NARROW_COLUMNS, effective, modeLabel } from './ui'
@@ -383,12 +388,34 @@ async function handoff($: EngineInterface, config: Config) {
   }
 }
 
-/** Haiku does the git work in its own subagent, so the session's model and context stay out of it. */
-async function gitJob($: EngineInterface, label: string, prompt: string) {
-  const started = await $.agent.spawn({ model: 'haiku', subagentType: 'general-purpose', description: label, prompt }).catch((error: unknown) => ({ deny: String(error) }))
+const GIT_JOBS = {
+  commit: { label: 'commit and push', draft: commitMessagePrompt, isUsable: isUsableCommitMessage, prompt: commitPrompt },
+  pr: { label: 'open PR', draft: pullRequestDraftPrompt, isUsable: isUsablePullRequest, prompt: pullRequestPrompt },
+} as const
+
+/** A fork of the session writes the text, since it knows why the change was made; undefined leaves the writing to Haiku. */
+async function draftGitText($: EngineInterface, kind: keyof typeof GIT_JOBS) {
+  await setPhase($, kind)
+  try {
+    const written = await $.model.fork({ prompt: GIT_JOBS[kind].draft(await repoState($, await $.session.cwd())) })
+    const text = written.isAnswered ? unfence(written.text) : ''
+    return GIT_JOBS[kind].isUsable(text) ? text : undefined
+  } catch {
+    return undefined
+  } finally {
+    await setPhase($, 'ready')
+  }
+}
+
+/** Haiku does the git work in its own subagent, so the session's model and context stay out of the tool calls. */
+async function gitJob($: EngineInterface, kind: keyof typeof GIT_JOBS) {
+  if ((await read($, session)).phase !== 'ready') return $.ui.toast('lif-effort: busy, try again in a moment')
+  const { label, prompt } = GIT_JOBS[kind]
+  const text = await draftGitText($, kind)
+  const started = await $.agent.spawn({ model: 'haiku', subagentType: 'general-purpose', description: label, prompt: prompt(text) }).catch((error: unknown) => ({ deny: String(error) }))
   if ('deny' in started && started.deny !== undefined) return $.ui.toast(`lif-effort: ${label} did not start (${started.deny})`)
   if ('agentId' in started && started.agentId) gitJobs.set(started.agentId, label)
-  $.ui.toast(`lif-effort: Haiku started: ${label}`)
+  $.ui.toast(`lif-effort: Haiku started: ${label}${text ? '' : ' (no draft from the session, so Haiku writes the text)'}`)
 }
 
 function statusText(s: LifEffortSession, config: Config) {
@@ -533,12 +560,12 @@ export const register: Register = (on, options) => {
       return { text: 'Writing a handoff.' }
     }
     if (action === 'commit') {
-      $.clock.after(0, () => void gitJob($, 'commit and push', commitPrompt()))
-      return { text: 'Haiku is committing and pushing.' }
+      $.clock.after(0, () => void gitJob($, 'commit'))
+      return { text: 'Writing the commit message, then Haiku commits and pushes.' }
     }
     if (action === 'pr') {
-      $.clock.after(0, () => void gitJob($, 'open PR', pullRequestPrompt()))
-      return { text: 'Haiku is opening a pull request.' }
+      $.clock.after(0, () => void gitJob($, 'pr'))
+      return { text: 'Writing the pull request, then Haiku opens it.' }
     }
     if (action === 'review') {
       const focus = e.args.trim().replace(/^review\s*/i, '')
@@ -564,8 +591,8 @@ export const register: Register = (on, options) => {
       toggleAuto: () => void toggleAuto($),
       compact: () => void compactNow($, config),
       handoff: () => void $.clock.after(0, () => void handoff($, config)),
-      commit: () => void gitJob($, 'commit and push', commitPrompt()),
-      pullRequest: () => void gitJob($, 'open PR', pullRequestPrompt()),
+      commit: () => void $.clock.after(0, () => void gitJob($, 'commit')),
+      pullRequest: () => void $.clock.after(0, () => void gitJob($, 'pr')),
       review: () => void $.clock.after(0, () => void review($)),
       retro: () => void $.clock.after(0, () => void retro($)),
     })
