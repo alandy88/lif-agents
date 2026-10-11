@@ -14,6 +14,9 @@ from GitHub; this directory holds the plugins, the skill evals, and the naming d
   compaction, handoffs, session reviews and retros. Its own checks are `claude plugin validate`,
   `claude plugin test` and `bunx tsc -p` on its folder; the root `bun run test` does not
   cover it. See [lif-effort/README.md](lif-effort/README.md).
+- `lif-theme/` — a mod (function hooks, not skills): prompts and replies in padded, coloured
+  boxes, three built-in themes, `/lif-theme`, and an off switch. It shares nothing with
+  `lif-effort/` and has the same three checks. See [lif-theme/README.md](lif-theme/README.md).
 - `evals/` — behavioural evals (`uv run --no-project --with pytest --with pyyaml pytest evals` from `plugins/`, add
   `--full` for the LLM judge). Skill lookup searches this plugin first, then
   `$LIF_WORKBENCH_ROOT/.agents/skills` and `$COMFYUI_LIF_NODES_ROOT/.agents/skills`;
