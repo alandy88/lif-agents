@@ -4,12 +4,19 @@ Send the page open in the browser to an agent working in the notes vault.
 
 ```
 open page -> extension -> native helper -> herdr -> agent in lif-notes
-             Readability   temp file        tab, start, prompt
+             selection,    temp file        tab, start, prompt
+             site reader
+             or Readability
 ```
 
 - `extension/` is the WebExtension (Manifest V3, plain JavaScript, no build). Its popup
-  has three actions (digest, explain, note) and a `claude` / `pi` switch. It reads the
-  selection when there is one, and otherwise the article `Readability` finds.
+  has three actions (digest, explain, note) and a `claude` / `pi` switch. It has three
+  readers and tries them in this order:
+  1. the selection, when there is one, is the whole capture;
+  2. a site reader: on a Reddit thread (`reddit.com`, `/comments/<id>`) the post and its
+     comments, on a `github.com` issue or pull request the post and its comments;
+  3. otherwise the article `Readability` finds, which is also the fallback when a site
+     reader fails.
 - `host.mts` is the native helper the browser starts. It writes the capture to
   `<tmpdir>/lif-capture/<UTC timestamp>-<random>.md`, opens a new Herdr tab in
   `$LIF_NOTES_VAULT`, starts the agent there and prompts it with the file path.
@@ -21,8 +28,18 @@ Linux, Firefox and Google Chrome only.
 
 - **Herdr must already be running.** The helper talks to the `default` session and does
   not start a server. With no server it replies with Herdr's error.
-- **A lazy-loaded page gives only what has loaded.** Scroll a long thread to the end
-  before capturing it. The body is plain text: links, headings and code fences are lost.
+- **A lazy-loaded page gives only what has loaded.** Scroll a long page to the end
+  before capturing it. The Reddit reader reads the thread's `.json` from inside the tab,
+  so it does not depend on scrolling, but it does not expand "more replies" stubs. The
+  GitHub reader gets only the comments GitHub has loaded into the page.
+- **The body is mostly plain text.** Both site readers add a light Markdown skeleton
+  (headings and author lines). Reddit post and comment text is Reddit's own Markdown.
+  GitHub post and comment text and the `Readability` body are plain text: links,
+  headings and code fences are lost.
+- **The site readers are tested against fixtures only.** The GitHub selectors were read
+  from live markup on 2026-10-11 and will need updating when GitHub changes its pages.
+  A failing site reader falls back to `Readability` without a message, so on Reddit a
+  capture can still hold the replies and not the post.
 - **Captures stay in the temp folder and are not deleted.** The helper exits before the
   agent reads the file, so it cannot clean up; the OS clears the temp folder. The helper
   never writes into the vault.
