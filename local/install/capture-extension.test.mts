@@ -239,7 +239,8 @@ describe("the Reddit reader", () => {
 
   for (const [name, fetch] of [
     ["the request fails", () => Promise.reject(new Error("offline"))],
-    ["Reddit refuses", () => Promise.resolve({ ok: false, status: 403 })],
+    // A refusal is not read, even when it carries a thread.
+    ["Reddit refuses", () => Promise.resolve({ ok: false, status: 403, json: () => Promise.resolve(sample()) })],
     ["the reply is not a thread", reply({})],
   ] as const) {
     test(`falls back to Readability when ${name}`, async () => {
