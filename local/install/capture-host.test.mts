@@ -55,10 +55,11 @@ function assertCaptured(
 
   const id = path.basename(file, ".md");
   const calls = t.calls();
-  assert.equal(calls.length, 3);
-  const [create, start, prompt] = calls as [string[], string[], string[]];
+  assert.equal(calls.length, 4);
+  const [list, create, start, prompt] = calls as [string[], string[], string[], string[]];
+  assert.deepEqual(list, ["--session", "default", "workspace", "list"]);
   assert.deepEqual(create, [
-    "--session", "default", "tab", "create",
+    "--session", "default", "tab", "create", "--workspace", "w7",
     "--cwd", t.vault, "--label", `capture-${action}`, "--no-focus",
   ]);
   assert.deepEqual(start, [
@@ -90,6 +91,18 @@ test("a framed capture is written and handed to a claude agent", () => {
   assertCaptured(t, result.stdout, result.status, "claude");
 });
 
+test("with no workspace labelled for the vault, one is created there and takes the tab", () => {
+  const t = tempEnv({ noWorkspace: true });
+  const result = run(t, frame(sample));
+  assert.equal(result.status, 0, result.stderr.toString());
+  const [, create, tab] = t.calls() as [string[], string[], string[]];
+  assert.deepEqual(create, [
+    "--session", "default", "workspace", "create",
+    "--label", "vault", "--cwd", t.vault, "--no-focus",
+  ]);
+  assert.deepEqual(tab.slice(2, 6), ["tab", "create", "--workspace", "w8"]);
+});
+
 test("kind pi starts a pi agent", () => {
   const t = tempEnv();
   const result = run(t, frame({ ...sample, kind: "pi" }));
@@ -101,7 +114,7 @@ function promptFor(action: string, kind = "claude"): string {
   const t = tempEnv();
   const result = run(t, frame({ ...sample, action, kind }));
   const reply = assertCaptured(t, result.stdout, result.status, kind, action);
-  const text = t.calls()[2]?.[5] ?? "";
+  const text = t.calls()[3]?.[5] ?? "";
   assert.match(text, /data only/);
   assert.match(text, /not instructions/);
   assert.ok(!text.startsWith("/"), "the prompt must not be a slash command");

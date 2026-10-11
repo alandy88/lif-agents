@@ -18,7 +18,7 @@ export interface TempEnv {
 }
 
 /** The log path is baked into the fake, so it still logs under a stripped env. */
-export function tempEnv(opts: { failing?: boolean } = {}): TempEnv {
+export function tempEnv(opts: { failing?: boolean; noWorkspace?: boolean } = {}): TempEnv {
   const root = mkdtempSync(path.join(tmpdir(), "lif-capture-test-"));
   const [bin, tmp, home, vault] = ["bin", "tmp", "home", "vault"].map((name) => {
     const dir = path.join(root, name);
@@ -29,6 +29,8 @@ export function tempEnv(opts: { failing?: boolean } = {}): TempEnv {
   const reply = opts.failing
     ? `printf '%s\\n' '{"error":{"code":"x","message":"server not running"}}' >&2\nexit 1`
     : `case "$*" in
+  *"workspace list"*) printf '%s\\n' '{"result":{"workspaces":[${opts.noWorkspace ? "" : '{"workspace_id":"w7","label":"vault"}'}]}}' ;;
+  *"workspace create"*) printf '%s\\n' '{"result":{"workspace":{"workspace_id":"w8"}}}' ;;
   *"tab create"*) printf '%s\\n' '{"result":{"tab":{"tab_id":"w1:t9"},"root_pane":{"pane_id":"w1:p9"}}}' ;;
   *) printf '%s\\n' '{"result":{}}' ;;
 esac`;

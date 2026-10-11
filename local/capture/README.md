@@ -20,7 +20,10 @@ open page -> extension -> native helper -> herdr -> agent in lif-notes
      reader fails.
 - `host.mts` is the native helper the browser starts. It writes the capture to
   `<tmpdir>/lif-capture/<UTC timestamp>-<random>.md`, opens a new Herdr tab in
-  `$LIF_NOTES_VAULT`, starts the agent there and prompts it with the file path.
+  `$LIF_NOTES_VAULT`, starts the agent there and prompts it with the file path. The tab
+  goes into the Herdr workspace labelled with the vault's folder name (`lif-notes`),
+  whichever workspace has focus. With no such workspace the helper creates one in the
+  vault; with more than one it refuses.
 - `install.sh` registers the helper with Firefox and Google Chrome.
 
 Linux, Firefox and Google Chrome only.

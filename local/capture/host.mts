@@ -15,7 +15,7 @@ import { lstatSync, mkdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { endianness, tmpdir } from "node:os";
 import path from "node:path";
 
-import { agentPrompt, agentStart, tabCreate } from "../dispatch/src/herdr.mts";
+import { agentPrompt, agentStart, tabCreate, workspaceByLabel } from "../dispatch/src/herdr.mts";
 import type { HerdrCtx } from "../dispatch/src/herdr.mts";
 
 const MAX_BYTES = 16 * 1024 * 1024;
@@ -144,7 +144,9 @@ async function capture(plain: boolean): Promise<Reply> {
   // From here a failure leaves the file and any tab in place: the reply names
   // the error and the human decides.
   const ctx: HerdrCtx = { session: "default" };
-  const tab = await tabCreate(ctx, { cwd: vault, label: `capture-${message.action}` });
+  // Without a workspace Herdr puts the tab in whichever one has focus.
+  const { workspaceId } = await workspaceByLabel(ctx, path.basename(vault), vault);
+  const tab = await tabCreate(ctx, { workspaceId, cwd: vault, label: `capture-${message.action}` });
   // Herdr agent names: lowercase letters, digits, - or _, at most 32 characters.
   const agent = `cap-${id.toLowerCase()}`;
   await agentStart(ctx, { paneId: tab.paneId, name: agent, kind: message.kind });

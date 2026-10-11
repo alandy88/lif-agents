@@ -72,7 +72,7 @@ test("the rendered launcher runs a capture from a bare environment", () => {
 
   assert.equal(result.status, 0, result.stderr.toString());
   assert.equal(unframe(result.stdout)["ok"], true);
-  assert.equal(t.calls()[0]?.[5], t.vault);
+  assert.equal(t.calls()[1]?.[7], t.vault);
 });
 
 test("install refuses bad input and writes nothing", () => {

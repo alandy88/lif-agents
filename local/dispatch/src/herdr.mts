@@ -201,7 +201,7 @@ export async function workspaceResolve(ctx: HerdrCtx): Promise<WorkspaceResoluti
   if (env["HERDR_ENV"] === "1") {
     return resolveFromIdentity(ctx, env);
   }
-  return resolveFromLabel(ctx);
+  return workspaceByLabel(ctx, DISPATCH_LABEL);
 }
 
 async function resolveFromIdentity(
@@ -253,14 +253,19 @@ async function resolveFromIdentity(
   return { workspaceId, source: "identity", raw: workspace };
 }
 
-async function resolveFromLabel(ctx: HerdrCtx): Promise<WorkspaceResolution> {
+/** The one workspace with this label, created (in `cwd`, when given) if there is none. */
+export async function workspaceByLabel(
+  ctx: HerdrCtx,
+  label: string,
+  cwd?: string,
+): Promise<WorkspaceResolution> {
   const result = await herdrJson(ctx, ["workspace", "list"]);
   const workspaces = (result["workspaces"] ?? []) as WorkspaceInfo[];
-  const matches = workspaces.filter((w) => w?.label === DISPATCH_LABEL);
+  const matches = workspaces.filter((w) => w?.label === label);
 
   if (matches.length > 1) {
     throw new Error(
-      `refusing to dispatch: ${matches.length} workspaces are labeled "${DISPATCH_LABEL}" ` +
+      `refusing to dispatch: ${matches.length} workspaces are labeled "${label}" ` +
         `(${matches.map((w) => w.workspace_id).join(", ")}) — placement is ambiguous`,
     );
   }
@@ -274,7 +279,8 @@ async function resolveFromLabel(ctx: HerdrCtx): Promise<WorkspaceResolution> {
     "workspace",
     "create",
     "--label",
-    DISPATCH_LABEL,
+    label,
+    ...(cwd ? ["--cwd", cwd] : []),
     "--no-focus",
   ]);
   return {
