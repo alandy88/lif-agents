@@ -178,8 +178,8 @@ _cc_run() {
         case "$sub" in
             fable)    claude "${B[@]}" --model claude-fable-5-1 "$@" ;;
             opus)     claude "${B[@]}" "${A[@]}" --model claude-opus-5-5 "${P[@]}" "$@" ;;
-            sonnet)   claude "${B[@]}" --model claude-sonnet-5 "$@" ;;
-            haiku)    claude "${B[@]}" --model claude-haiku-4-5 "$@" ;;
+            sonnet)   claude "${B[@]}" --model claude-sonnet-5-5 "$@" ;;
+            haiku)    claude "${B[@]}" --model claude-haiku-5-5 "$@" ;;
             resume)   claude "${B[@]}" --resume "$@" ;;
             remote)   claude "${B[@]}" remote-control --spawn worktree "$@" ;;
             w)        if [ $# -gt 0 ]; then claude "${B[@]}" --worktree "$1"
@@ -211,8 +211,8 @@ pi() {
     [ $# -gt 0 ] && shift
     case "$sub" in
         opus)   command pi --provider anthropic    --model claude-opus-5-5 "${P[@]}" "$@" ;;
-        sonnet) command pi --provider anthropic    --model claude-sonnet-5 "$@" ;;
-        haiku)  command pi --provider anthropic    --model claude-haiku-4-5 "$@" ;;
+        sonnet) command pi --provider anthropic    --model claude-sonnet-5-5 "$@" ;;
+        haiku)  command pi --provider anthropic    --model claude-haiku-5-5 "$@" ;;
         fable)  command pi --provider anthropic    --model claude-fable-5-1 "$@" ;;
         sol)    command pi --provider openai-codex --model gpt-5.6-sol "$@" ;;
         luna)   command pi --provider openai-codex --model gpt-5.6-luna "$@" ;;
