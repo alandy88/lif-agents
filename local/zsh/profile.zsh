@@ -214,10 +214,10 @@ pi() {
         sonnet) command pi --provider anthropic    --model claude-sonnet-5-5 "$@" ;;
         haiku)  command pi --provider anthropic    --model claude-haiku-5-5 "$@" ;;
         fable)  command pi --provider anthropic    --model claude-fable-5-1 "$@" ;;
-        sol)    command pi --provider openai-codex --model gpt-5.6-sol "$@" ;;
-        luna)   command pi --provider openai-codex --model gpt-5.6-luna "$@" ;;
-        terra)  command pi --provider openai-codex --model gpt-5.6-terra "$@" ;;
-        astra)  command pi --provider openai-codex --model gpt-6-astra "$@" ;;
+        sol)    command pi --provider openai --model gpt-5.6-sol "$@" ;;
+        luna)   command pi --provider openai --model gpt-5.6-luna "$@" ;;
+        terra)  command pi --provider openai --model gpt-5.6-terra "$@" ;;
+        astra)  command pi --provider openai --model gpt-6-astra "$@" ;;
         qwen27) command pi --provider lif-llm      --model Qwen3.8-27B "$@" ;;
         qwennext) command pi --provider lif-llm    --model Qwen3.8-Flash-Next "$@" ;;
         '')     command pi ;;
