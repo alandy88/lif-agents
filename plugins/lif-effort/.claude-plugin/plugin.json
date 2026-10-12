@@ -1,12 +1,12 @@
 {
   "name": "lif-effort",
-  "version": "0.12.0",
-  "description": "Picks the session model and each prompt's effort with one small Haiku call, shows them in a bar above the prompt, and adds Haiku compaction, handoffs, CAFE(S) session reviews, retros that suggest vault notes, and digests that save one.",
+  "version": "0.13.0",
+  "description": "Picks the session model and each prompt's effort with one small Haiku call, shows them in a bar above the prompt, and adds Haiku compaction, handoffs, and a Reflect action that reviews the session with CAFE(S) and saves the lessons you approve to the vault.",
   "author": {
     "name": "Peter Yu",
     "email": "hyu067@gmail.com"
   },
-  "keywords": ["lif", "effort", "model", "compaction", "handoff", "commit", "pull-request", "review", "retro", "digest"],
+  "keywords": ["lif", "effort", "model", "compaction", "handoff", "commit", "pull-request", "review", "reflect", "vault"],
   "types": "./types/index.d.ts",
   "userConfig": {
     "autoModel": {

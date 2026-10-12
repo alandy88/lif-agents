@@ -7,9 +7,9 @@ import { isEffortRouted, isModelRouted } from './lifecycle'
 export const NARROW_COLUMNS = 74
 
 type Table = Pick<Elements['terminal'], 'Box' | 'Text' | 'Button'>
-export type BarActions = { toggleAuto: () => void; compact: () => void; handoff: () => void; commit: () => void; pullRequest: () => void; review: () => void; retro: () => void; digest: () => void }
+export type BarActions = { toggleAuto: () => void; compact: () => void; handoff: () => void; commit: () => void; pullRequest: () => void; reflect: () => void }
 
-const PHASE_LABEL = { classifying: 'Classifying…', compacting: 'Compacting…', handoff: 'Writing handoff…', review: 'Reviewing session…', retro: 'Writing retro…', digest: 'Writing digest…', commit: 'Writing commit message…', pr: 'Writing pull request…' } as const
+const PHASE_LABEL = { classifying: 'Classifying…', compacting: 'Compacting…', handoff: 'Writing handoff…', reflect: 'Reflecting…', commit: 'Writing commit message…', pr: 'Writing pull request…' } as const
 const title = (word: string) => word.charAt(0).toUpperCase() + word.slice(1)
 
 /** The values the requests actually use, which may differ from the app's own pickers. */
@@ -45,7 +45,7 @@ export function Bar(
           {reason}
         </Text>
         <Text dimColor wrap="truncate-end">
-          /compact · /lif-effort auto · handoff · review · retro · digest · commit · pr
+          /compact · /lif-effort auto · handoff · reflect · commit · pr
         </Text>
       </Box>
     )
@@ -63,9 +63,7 @@ export function Bar(
       <Box flexDirection="row" gap={1} flexShrink={0} marginLeft={2}>
         <Button key="compact" plain label="Compact" hotkey="c" onPress={act.compact} />
         <Button key="handoff" plain label="Handoff" hotkey="h" onPress={act.handoff} />
-        <Button key="review" plain label="Review" hotkey="r" onPress={act.review} />
-        <Button key="retro" plain label="Retro" hotkey="t" onPress={act.retro} />
-        <Button key="digest" plain label="Digest" hotkey="d" onPress={act.digest} />
+        <Button key="reflect" plain label="Reflect" hotkey="r" onPress={act.reflect} />
         <Button key="commit" plain label="Commit" hotkey="g" onPress={act.commit} />
         <Button key="pr" plain label="PR" hotkey="p" onPress={act.pullRequest} />
       </Box>

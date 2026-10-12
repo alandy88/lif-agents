@@ -4,7 +4,7 @@ A Claude Code mod that picks the model and effort for you, with a small status l
 
 ```text
 ~/repo  main*  ·  ctx 42%  ·  5h 31% (2h10m)  ·  wk 12% (Thu)
-Sonnet 5.5 · High · m: Auto     c: Compact h: Handoff r: Review t: Retro d: Digest g: Commit p: PR
+Sonnet 5.5 · High · m: Auto     c: Compact h: Handoff r: Reflect g: Commit p: PR
 ```
 
 - **Session model.** The first substantive prompt (four words or more, not "continue")
@@ -25,11 +25,8 @@ Sonnet 5.5 · High · m: Auto     c: Compact h: Handoff r: Review t: Retro d: Di
   and runs `gh pr create`. The result shows as a toast when it ends. Before the session's
   first response, after `/clear`, or when the draft comes back unusable, Haiku writes the
   text itself and the toast says so.
-- **Review.** `/lif-effort review` prints a CAFE(S) review of the session, with actions.
-- **Retro.** `/lif-effort retro` prints the session's frictions and learnings, and the
-  lif-notes vault notes to update or add for them. It writes nothing.
-- **Digest.** `/lif-effort digest` writes one learning from the session into one note in
-  the lif-notes vault, after showing it and asking. It never commits.
+- **Reflect.** `/lif-effort reflect` prints a CAFE(S) review of the session, then offers
+  up to three lessons for the lif-notes vault, saving each one you approve. It never commits.
 - **Status line.** One dim line above the bar: directory, git branch (`*` when
   uncommitted), context use, and the 5-hour and weekly plan limits with time to reset.
   Context turns yellow above 15%, orange above 20%, and red above 30%. Limits turn
@@ -76,9 +73,7 @@ answer changes nothing: the request goes out as it would without the mod.
 | The mode word (`Auto`, `Manual effort`, `Off`) | `m` | `/lif-effort auto [on\|off]` |
 | Compact | `c` | `/compact` |
 | Handoff | `h` | `/lif-effort handoff` |
-| Review | `r` | `/lif-effort review` |
-| Retro | `t` | `/lif-effort retro` |
-| Digest | `d` | `/lif-effort digest [topic]` |
+| Reflect | `r` | `/lif-effort reflect [focus]` |
 | Commit | `g` | `/lif-effort commit` |
 | PR | `p` | `/lif-effort pr` |
 
@@ -124,44 +119,34 @@ effort setter, and no way to read the app's effort before the first request.
 Prompts from notifications, peers, channels and other plugins are not classified.
 Neither are compaction summaries, handoff text, or the classifier's own calls.
 
-## Review
+## Reflect
 
-`/lif-effort review [focus]` asks the model to review the session so far against the
-CAFE(S) framework (Clarity, Actionability, Fidelity, Efficiency, Security). It prints a
-rated review and up to five actions for next time in the transcript. It saves nothing.
+`/lif-effort reflect [focus]` runs one fork of the conversation that writes two things.
+The optional focus steers both the review and which lessons are picked.
 
-## Retro
+1. A review of the session against the CAFE(S) framework (Clarity, Actionability,
+   Fidelity, Efficiency, Security): a rating per heading with evidence, and up to three
+   actions for next time. It is printed in the transcript.
+2. Up to three lessons worth keeping: a decision made, a fact resolved, a preference
+   stated, or a command or path that works. Each names a path under `notes/` in the vault,
+   a title and a short entry. Each is printed, and you pick Save or Skip.
 
-`/lif-effort retro` asks the model, through a fork of the conversation, what cost time in
-the session and what is now settled. It then matches each learning against the vault's
-notes and suggests a note to update or a new one to add. It prints the result in the
-transcript and writes nothing: you decide what goes into the vault.
+On Save, one file is written. A new note gets the vault's frontmatter (`type:
+reference`, today's `updated`, `sensitivity: green`) and the title as its heading. A note
+that exists keeps its text: the entry goes at its end under a `##` heading, with a
+`_logged YYYY-MM-DD_` line, and `updated` moves to today. The vault lint then runs, and
+its lines about that one note are printed.
 
-The vault is the folder in `LIF_NOTES_VAULT`. The model is given one line per note under
-`notes/`, its path and its title, read with `git grep`. It does not read the notes'
-text. Notes marked `sensitivity: red` are left out of that list. With the variable unset,
-or a vault git cannot list, no retro runs.
+The vault is the folder in `LIF_NOTES_VAULT`. The fork is given one line per note under
+`notes/`, its path and its title, read with `git grep`. It does not read the notes' text.
+Notes marked `sensitivity: red` are left out of that list. With the variable unset, or a
+vault git cannot list, the review still prints and no lessons are offered.
 
-## Digest
-
-`/lif-effort digest [topic]` saves one learning from the session into the vault. A retro
-suggests; a digest writes.
-
-1. A fork of the conversation picks the one learning most worth keeping, or the one you
-   named as the topic. It replies with a path under `notes/`, a title and a short entry.
-   It sees the same list of note paths and titles as a retro, red notes left out.
-2. The entry is printed in the transcript, and you pick Save or Cancel.
-3. On Save, one file is written. A new note gets the vault's frontmatter (`type:
-   reference`, today's `updated`, `sensitivity: green`) and the title as its heading. A
-   note that exists keeps its text: the entry goes at its end under a `##` heading, with
-   a `_logged YYYY-MM-DD_` line, and `updated` moves to today.
-4. The vault lint runs, and its lines about that one note are printed.
-
-Only a lowercase kebab-case path under `notes/` is accepted; anything else saves nothing.
-A learning about one repository's own code belongs in that repository's `AGENTS.md`, so
-the fork answers "None." for it. Digest never pulls, commits or pushes: the note waits in
-the vault's working tree for you. A new note is marked green, so change the key by hand
-when the content is private.
+Only a lowercase kebab-case path under `notes/` is accepted; any other lesson is dropped.
+A lesson about one repository's own code belongs in that repository's `AGENTS.md`, so the
+fork lists it under the review's actions instead. Reflect never pulls, commits or pushes:
+saved notes wait in the vault's working tree for you. A new note is marked green, so
+change the key by hand when the content is private.
 
 ## Handoff
 
@@ -190,11 +175,11 @@ bunx tsc -p plugins/lif-effort --noEmit
 when it loads the folder through `--plugin-dir` in an interactive session. They are
 gitignored.
 
-Built against the 2.1.295 declarations. All checks ran on 2.1.296: 89 native tests, plus
+Built against the 2.1.295 declarations. All checks ran on 2.1.296: 80 native tests, plus
 live sessions in which a one-line question ran on Haiku at low effort, an architecture
 question on Opus at high, `/compact` produced the Haiku summary, and a handoff saved,
 asked, cleared, and started the next cycle on Sonnet at high from the carried task. The
-mode word, the Compact button, Retro, Digest and the Commit and PR drafts are covered by native
+mode word, the Compact button, Reflect and the Commit and PR drafts are covered by native
 tests only.
 
 ## Credits

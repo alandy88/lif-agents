@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { constrain, isContinuation, isSubstantive, parseBrief, parseVerdict, withModelFloor } from '../hooks/classify'
+import { classifierRequest, constrain, isContinuation, isSubstantive, parseBrief, parseVerdict, withModelFloor } from '../hooks/classify'
 import { readConfig } from '../hooks/config'
 import { start, turn, world } from './world'
 
@@ -192,4 +192,13 @@ test('a classifier call with no verdict says why in the log and keeps the settin
     'lif-effort: classifier gave no verdict (aborted), keeping the current model and effort',
     'lif-effort: classifier gave no verdict (unreadable reply: Sure! {"effort":"low"}), keeping the current model and effort',
   ])
+})
+
+test('the classifier prompt carries the work types and model rules only when it picks a model', () => {
+  const config = readConfig({})
+  const withModel = classifierRequest('fix the login bug', '', true, config).system
+  const effortOnly = classifierRequest('fix the login bug', '', false, config).system
+  expect(withModel).toContain('Exploration and review start at opus')
+  expect(withModel).toContain('exploration (')
+  expect(effortOnly).not.toContain('start at opus')
 })
