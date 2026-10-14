@@ -1,7 +1,7 @@
 ---
 name: retro
 disable-model-invocation: true
-description: "Digest the learnings log from a /shipit run: drop notes without evidence, dedupe, and route each survivor by the vault's knowledge boundary — repo AGENTS.md edits inside the run's PR, vault topic notes after approval, /shipit friction as a lif-agents issue. Triggers: /retro, the Retro step of /shipit."
+description: "Digests the learnings log from a /shipit run: drops notes without evidence, dedupes, and routes each survivor by the vault's knowledge boundary (repo AGENTS.md edits inside the run's PR, vault topic notes after approval, /shipit friction as a lif-agents issue). Use in the Retro step of /shipit or when the user runs /retro on a run folder. Triggers: /retro."
 argument-hint: "[run dir, default the current /shipit run]"
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
@@ -14,7 +14,9 @@ and settled facts, and a note with no home is not worth keeping.
 
 ## Input
 
-`$RUN/learnings.jsonl`, one JSON object per line:
+`$RUN` is the run folder: the argument, else the current `/shipit` run's
+`$(git rev-parse --git-common-dir)/shipit/<slug>`. Read `$RUN/learnings.jsonl`, one
+JSON object per line:
 
 ```json
 {"role": "builder", "slice": 2, "kind": "gotcha", "text": "...", "evidence": "src/db.ts:41"}
