@@ -1,10 +1,10 @@
 ---
-name: claude-code-docs
+name: cc-docs
 disable-model-invocation: true
 description: "Use when the user asks how any Claude Code feature works or is configured (hooks, skills, MCP, settings, subagents, SDK) — prefer over training data."
 ---
 
-# claude-code-docs
+# cc-docs
 
 Fetch authoritative answers from the official Claude Code docs at `code.claude.com/docs` instead of relying on training-data recall. The product ships weekly; anything you "remember" about plugin schemas, hook events, SDK flags, or slash commands may already be wrong.
 
