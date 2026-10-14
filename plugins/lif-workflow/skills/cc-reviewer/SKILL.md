@@ -1,5 +1,5 @@
 ---
-name: claude-code-reviewer
+name: cc-reviewer
 disable-model-invocation: true
 description: "Use when the user wants to run Claude Code CLI in one-shot (`claude -p`) review mode for code, architecture, or spec feedback."
 argument-hint: "[review-scope or target]"
