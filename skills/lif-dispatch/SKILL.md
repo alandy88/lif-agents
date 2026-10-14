@@ -1,6 +1,6 @@
 ---
 name: lif-dispatch
-description: Dispatch a coding agent into an isolated git worktree in a Herdr tab, then track, collect and land its work. Use this skill whenever the user wants to dispatch, delegate, farm out, hand off or background a coding task to another agent; whenever they ask what dispatched tasks are running or want to check on, collect, land or abandon one; and whenever they want to register, list, rename or remove a dispatchable project — even if they never say "lif-dispatch" by name.
+description: Dispatches a coding agent into an isolated git worktree in a Herdr tab, then tracks, collects and lands its work. Use when the user wants to dispatch, delegate, farm out, hand off or background a coding task to another agent; whenever they ask what dispatched tasks are running or want to check on, collect, land or abandon one; and whenever they want to register, list, rename or remove a dispatchable project — even if they never say "lif-dispatch" by name.
 ---
 
 # lif-dispatch
@@ -9,7 +9,8 @@ lif-dispatch puts a coding agent to work on a registered project in a disposable
 git worktree inside a Herdr tab, records the task, and gives the human a
 harvest loop: `status` → `collect` → `land` or `abandon`. It is built for
 1–3 concurrent tasks with a human deciding what merges — never land or discard
-work without the user's say-so.
+work without the user's say-so. To open a repo as a Herdr workspace and work in it
+with agents interactively, use `herdr-workspace` instead.
 
 ## Routing
 
