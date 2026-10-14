@@ -1,7 +1,7 @@
 ---
 name: structured-planning
 disable-model-invocation: true
-description: "Use when planning a feature, designing a system, drafting a spec/RFC, or making a non-trivial architectural decision."
+description: "Turns an idea into an approved design, plan, spec or decision record through a gated pipeline: scope triage, alternatives, evidence labels on every claim, self-critique, and for complex work a fresh subagent critique and a pre-mortem. Use when planning a feature, designing a system, drafting a spec/RFC, or making a non-trivial architectural decision."
 argument-hint: "[topic or question] [--depth trivial|moderate|complex] [--out <path>]"
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent, TodoWrite
 ---
@@ -32,19 +32,7 @@ Work the steps in order. Steps marked `[moderate+]` or `[complex]` run condition
 8. **Subagent critic** `[complex]` — dispatch via `references/subagent-critic.md`, revise against findings
 9. **Pre-mortem** `[complex]` — answer the three questions in `references/pre-mortem.md`, revise
 10. **User approval** — present artifact path, request review
-11. **Handoff** — invoke next skill or stop per user direction
-
-## Process Flow
-
-```
-[Scope Triage]
-   ├── trivial  ── Explore → Clarify → Draft+Evidence → Self-scan → Approve → Handoff
-   ├── moderate ── Explore → Clarify → Alternatives → Draft+Evidence
-   │                → Self-critique → Revise → Approve → Handoff
-   └── complex  ── Explore → Decompose → Clarify → Alternatives → Draft+Evidence
-                    → Self-critique → Subagent Critic → Pre-mortem
-                    → Revise → Approve → Handoff
-```
+11. **Handoff** — name the next step or stop, per user direction
 
 ## Stage Rules
 
@@ -60,7 +48,7 @@ See `references/depth-triage.md` for classification rules. The user may override
 
 ### Explore Context
 
-- Read the project's CLAUDE.md if present
+- Read the repo's `AGENTS.md` (or `CLAUDE.md`), and any nested one covering the topic
 - Glob for files relevant to the topic; read the most relevant ones
 - Check recent commits touching the area (`git log --oneline -20 -- <path>`)
 - Record what you found; do NOT infer from filenames alone
@@ -115,12 +103,14 @@ Wait for response. If changes requested, apply them and re-run self-critique (an
 
 ### Handoff
 
-After approval, invoke the next skill the user specified, or stop. Common handoffs:
+After approval, hand off as the user directs, or stop. `plan-handoff` and
+`skill-designer` are user-only skills, so tell the user which command to run rather
+than invoking them. Common handoffs:
 
-- `plan-handoff` — when the design is settled and needs slices a fresh agent can build
-- `skill-designer` — when the artifact designs a new skill
-- `issue-implement` — when the artifact is already a single buildable change
-- None — when the artifact itself is the deliverable (decision record, research memo)
+- `/lif-workflow:plan-handoff <artifact path>` — the design is settled and needs slices a fresh agent can build
+- `/lif-workflow:skill-designer` — the artifact designs a new skill
+- `issue-implement` (invoke it) — the artifact is already a single buildable change
+- None — the artifact itself is the deliverable (decision record, research memo)
 
 Ask the user which handoff applies if it is not obvious.
 
@@ -132,13 +122,3 @@ Ask the user which handoff applies if it is not obvious.
 - `references/subagent-critic.md` — dispatch template and critic prompt
 - `references/pre-mortem.md` — three mandatory failure-mode questions
 - `assets/artifact-template.md` — starting skeleton for the output file
-
-## Key Principles
-
-- **Scope first, always** — wrong depth wastes tokens or misses risk
-- **Evidence or assumption** — no bare claims; label every non-obvious statement
-- **One question at a time** — the user answers better without a queue
-- **Alternatives mandatory** at moderate+; first-idea bias is the default failure mode
-- **Fresh-eyes critique** — subagent has no prior context, which is the feature
-- **Pre-mortem before approval** — cheaper to revise on paper than in code
-- **Gates run at every depth** — obvious tasks hide the unchecked assumption
