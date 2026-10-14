@@ -28,13 +28,9 @@ settles it.
 
 ## After fixing
 
-1. Push fixes as their own commits — do not amend the reviewed commit; Codex
-   tracks review state by the SHA in `Reviewed commit:`.
-2. Expect no second review. Codex runs one automatic pass per PR (open, or
-   draft → ready); fix pushes do not re-trigger it. Waiting for a round two
-   that never arrives stalls the PR.
-3. To force another pass, comment `@codex review`. Worth it only when the
-   fixes reshaped the diff — not to confirm a one-line change.
+Push fixes as their own commits — do not amend the reviewed commit; Codex
+tracks review state by the SHA in `Reviewed commit:`. Then follow "Codex
+reviews once" in `SKILL.md`.
 
 ## Reporting to the user
 

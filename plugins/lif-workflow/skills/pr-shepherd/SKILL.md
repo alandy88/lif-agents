@@ -1,6 +1,6 @@
 ---
 name: pr-shepherd
-description: "Use when opening a pull request on an alandy88 GitHub repo and driving it to merge — write the PR body, triage the Codex bot review, babysit CI to green, ask before merging, then watch post-merge main CI. Triggers: /pr-shepherd, \"open a PR\", \"raise a PR for this branch\", \"babysit the PR\", \"watch the checks\"."
+description: "Opens a pull request on an alandy88 GitHub repo and drives it to merge: writes the PR body, triages the Codex bot review, babysits CI to green, asks before merging, then watches post-merge main CI. Use when opening a PR or seeing one through review and CI. Triggers: /pr-shepherd, \"open a PR\", \"raise a PR for this branch\", \"babysit the PR\", \"watch the checks\"."
 argument-hint: "[pr-number|--draft]"
 allowed-tools: Read, Glob, Grep, Edit, Write, Bash, TodoWrite
 ---
@@ -40,7 +40,7 @@ git diff "$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name)"...H
 
 Push the branch, then open with the body from
 [assets/pr-body-template.md](assets/pr-body-template.md). Pass the body via a
-file, never inline quoting:
+file outside the repo (`<scratch>` is the session scratchpad), never inline quoting:
 
 ```bash
 gh pr create --title "<type>(<scope>): <what changed>" --body-file <scratch>/pr-body.md
