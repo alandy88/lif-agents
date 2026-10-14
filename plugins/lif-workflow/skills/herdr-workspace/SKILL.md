@@ -9,7 +9,8 @@ One workspace per active repo: open it when work on the repo starts, close it wh
 ends. This skill adds repo lookup and a layout convention; the `herdr` skill owns the
 commands. Load the `herdr` skill first — its `HERDR_ENV=1` guardrail, ID rules, and safety
 rules govern every step here. To hand one self-contained task to an agent in its own
-worktree and land it later, use `lif-dispatch` instead.
+worktree and land it later, use `lif-dispatch` instead (it ships in the lif-agents repo's
+`skills/lif-dispatch/`, not in this plugin, so it may not be installed).
 
 ## Find the repo
 

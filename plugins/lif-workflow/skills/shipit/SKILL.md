@@ -14,7 +14,7 @@ exactly one pull request, however many slices and worktrees it uses on the way.
 
 `structured-planning` and `retro` are user-only skills, so the Skill tool refuses
 them. Read their `SKILL.md` files instead; every `../<skill>/` path below is relative
-to this skill's folder.
+to this skill's folder, and paths inside those files are relative to their own folder.
 
 ```
 Shape ─▶ Plan ─▶ Gate 1 ─▶ per wave: Build ∥ ─▶ Review ∥ ─▶ Merge ─▶ Check
