@@ -120,7 +120,7 @@ worktrees.
   "ports": { "builder": 41873, "ux": 39897, "ui": 45081 },
   "stage": "review", "round": 2,
   "reviews": { "security": "CHANGES", "ux": "PASS", "ui": "pending", "code": "PASS",
-               "second": "pending" } }
+               "second": "SKIPPED" } }
 ```
 
 - `stage` is one of `spec`, `build`, `review`, `approve`, `pr-open`, `merged`,
