@@ -11,7 +11,8 @@ Paths below are under `$LIF_NOTES_VAULT`. Read and write notes with the Read,
 Write and Edit tools, as the vault's own scheduled briefing does.
 
 Before you write a note, follow the vault-write steps in the vault's
-`AGENTS.md` (Git status and a fast-forward pull first, the vault lint after).
+`AGENTS.md` (Git status and a fast-forward pull first, then after the write
+the vault lint: `python3 "$LIF_NOTES_VAULT/system/scripts/lint-vault.py"`).
 Do not commit or push unless the user says so.
 
 ## Workflow

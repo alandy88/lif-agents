@@ -30,6 +30,7 @@ Rules that matter most from outside the vault, all stated in those files:
 - Capture means proposing the edit and waiting for a yes; never write a note
   silently.
 - For an approved write, follow the vault-write steps in `AGENTS.md`: Git
-  status and a fast-forward pull first, the vault lint after, and no commit or
-  push without the user's yes.
+  status and a fast-forward pull first, the vault lint after
+  (`python3 "$LIF_NOTES_VAULT/system/scripts/lint-vault.py"`, report-only), and
+  no commit or push without the user's yes.
 - In an existing note, keep its frontmatter and its folder's naming style.
