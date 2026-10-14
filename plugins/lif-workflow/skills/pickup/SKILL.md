@@ -1,12 +1,12 @@
 ---
 name: pickup
 disable-model-invocation: true
-description: "Use when resuming work handed off from another session — lists pending handoffs from lif-notes system/handoff, lets user pick one, and ingests it as session context."
+description: "Lists pending handoffs in the lif-notes vault's system/handoff/ queue, lets the user pick one, loads it as session context, and removes it from the queue. Use when resuming work handed off from another session, or when the user runs /pickup."
 ---
 
 # Pickup
 
-Find a pending handoff in `system/handoff/`, display it, move it to `claimed/`, and ingest the content as starting context for this session.
+Find a pending handoff in `$LIF_NOTES_VAULT/system/handoff/`, display it, remove it from the queue, and ingest the content as starting context for this session.
 
 ## Steps
 
@@ -24,15 +24,19 @@ Exclude `README.md` from results. If the directory has no `*.md` files besides `
 
    - **One file →** Proceed to step 3 with that file.
 
-   - **Multiple files →** Present a numbered list. For each file, show the filename and extract the goal from the `# Handoff:` heading (first H1 line). Ask user to pick by number. Proceed with chosen file.
+   - **Multiple files →** Present a numbered list. For each file, show the filename and the goal: the first H1 line, else the `goal:` frontmatter field, else the filename. Ask user to pick by number. Proceed with chosen file.
 
 3. **Read the chosen file** using the Read tool. Display the full content to the user.
 
-4. **Move to claimed:**
+4. **Remove it from the queue.** The vault keeps no `claimed/` archive; git history is
+   the archive (`$LIF_NOTES_VAULT/system/handoff/README.md`). Check whether git has it:
 
 ```bash
-mv "$LIF_NOTES_VAULT/system/handoff/{filename}" "$LIF_NOTES_VAULT/system/handoff/claimed/{filename}"
+git -C "$LIF_NOTES_VAULT" ls-files --error-unmatch "system/handoff/{filename}"
 ```
+
+   Exit 0 (tracked): `rm` the file and tell the user the deletion is not committed.
+   Otherwise the file exists nowhere else: ask before deleting it.
 
 5. **Ingest the handoff body** as session context. Use the content from the handoff sections (What Was Done, Decisions, Next Action, Relevant Files, etc.) to orient yourself and continue work from where the previous session left off.
 

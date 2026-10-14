@@ -1,11 +1,13 @@
 ---
 name: plan-handoff
-description: Turn a settled plan into an implementation instruction with phases, slices, and verification gates.
+description: "Turns a settled plan into an implementation instruction with phases, slices and verification gates, saved to the lif-notes vault's handoff queue so a fresh agent can build it slice by slice. Use when a plan is approved and needs handing to another agent or session, or when the user runs /plan-handoff."
 argument-hint: "[path or reference to the approved plan]"
 disable-model-invocation: true
 ---
 
-Write an implementation instruction for a plan that is already decided, so a fresh agent can execute it slice by slice with no design judgement left to make. Save to `$LIF_NOTES_VAULT/system/handoff/<date>-<topic>-implementation.md`.
+# plan-handoff
+
+Write an implementation instruction for a plan that is already decided, so a fresh agent can execute it slice by slice with no design judgement left to make. Save to `$LIF_NOTES_VAULT/system/handoff/YYYY-MM-DD--<repo_name>--<topic>-implementation.md`, the queue's naming convention (`system/handoff/README.md`) that `handoff` also follows.
 
 ## Inputs
 
@@ -17,15 +19,38 @@ The plan is the argument, or the plan settled in this conversation. Before writi
 
 ## Structure
 
-1. **Header** — repo, plan path, source handoff path.
-2. **Decisions (fixed)** — one line each.
-3. **Rules for every phase** — invariants that apply to all slices: commit granularity, diff discipline, how to verify, known noise to tolerate.
-4. **Phases** in dependency order. Each phase:
-   - one or more **slices**, each a reviewable commit that leaves the branch green;
-   - each slice written as a standalone brief — **Goal** (what and why), **Scope** (files in, files untouched), **Context** (paths, commands, interfaces it consumes or exposes), **Done when** (the Verify block) — so a fresh agent can build it from that slice alone, without the plan or other slices;
-   - concrete file paths, commands, and code shape — enough that another developer implements it without reading the plan.
-5. **Acceptance test** — the last phase proves the goal end to end (add the second instance, run the new workflow cold). Its gate is the bar the whole project is judged by.
-6. **Done when** — merge state, recorded evidence, closing note.
+```markdown
+---
+repo: <repo path>
+created: <YYYY-MM-DD>
+goal: <one sentence>
+---
+# <goal>
+
+Plan: <plan path>. Source handoff: <path or none>.
+
+## Decisions (fixed)
+- <decision>: <one-line reason>
+
+## Rules for every phase
+- <invariants for all slices: commit granularity, diff discipline, how to verify, known noise to tolerate>
+
+## Phase 1: <name>
+
+### Slice 1.1: <name>
+- **Goal:** <what and why>
+- **Scope:** <files in>; untouched: <files>
+- **Context:** <paths, commands, interfaces it consumes or exposes>
+- **Done when:** <the verification gate>
+
+## Acceptance test
+<last phase: proves the goal end to end, such as adding the second instance or running the new workflow cold; its gate is the bar the whole project is judged by>
+
+## Done when
+<merge state, recorded evidence, closing note>
+```
+
+Phases go in dependency order. Each slice is a reviewable commit that leaves the branch green, and its brief stands alone: concrete paths, commands and code shape, enough that a fresh agent builds it without the plan or the other slices.
 
 ## Slicing
 

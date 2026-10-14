@@ -1,7 +1,7 @@
 ---
 name: handoff
 disable-model-invocation: true
-description: "Compact the current conversation into a handoff document for a fresh session to pick up via /pickup."
+description: "Compacts the current session into a handoff note in the lif-notes vault's system/handoff/ queue, so a fresh session can resume the work with /pickup. Use when ending a session with work left to continue, or when the user runs /handoff."
 ---
 
 # Handoff
@@ -20,15 +20,16 @@ git remote get-url origin         # → origin URL (may fail if no remote — th
 
 2. **Reconstruct session context** from conversation memory into the template sections below. Every section is required — use `(none)` if truly empty.
 
-3. **Build filename:** `YYYY-MM-DD--{repo_name}--{slug}.md`
+3. **Build filename:** `YYYY-MM-DD--{repo_name}--{slug}.md` (the queue's convention in
+   `$LIF_NOTES_VAULT/system/handoff/README.md`)
    - `repo_name`: basename of repo path (e.g. `lif-studio`)
    - `slug`: kebab-case from goal, max 40 chars, lowercase, alphanumeric + hyphens only
-   - If file already exists, append `-2`, `-3`, etc.
 
-4. **Check for collision** using Glob:
+4. **Check for collision** with Bash (Glob cannot reach the vault from another repo).
+   If the name is taken, append `-2`, `-3`, and so on:
 
-```
-Glob pattern: system/handoff/{date}--{repo_name}--{slug}*.md
+```bash
+ls -1 "$LIF_NOTES_VAULT/system/handoff/" | grep -- "^{date}--{repo_name}--{slug}"
 ```
 
 5. **Write file** to `$LIF_NOTES_VAULT/system/handoff/{filename}` using the Write tool with the filled template below.
