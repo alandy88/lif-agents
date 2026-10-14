@@ -71,7 +71,6 @@ store; skills that must resolve from any repo ship in the `lif-workflow` plugin.
 | `claude-code-reviewer` | — | lif-agents `plugins/lif-workflow/` |
 | `codex` | — | lif-agents `plugins/lif-workflow/` |
 | `explain` | — | lif-agents `plugins/lif-workflow/` |
-| `factory` | — | lif-agents `plugins/lif-workflow/` |
 | `handoff` | — | lif-agents `plugins/lif-workflow/` |
 | `herdr-workspace` | herdr | lif-agents `plugins/lif-workflow/` |
 | `issue-implement` | issue | lif-agents `plugins/lif-workflow/` |
