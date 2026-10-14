@@ -75,9 +75,9 @@ For Tier 1, Tier 2, and new Tier 3 messages, fetch the full body:
 
 Write a 1-2 sentence summary for each new email. Flag overdue items explicitly (e.g., "**OVERDUE -- action needed**").
 
-4. **Follow-ups** -- Read today's note, if it exists, and find the items under `## Follow-ups Due`. Do not copy standing follow-ups from `system/now.md`; they stay there.
+4. **Follow-ups** -- Email follow-ups live under `## Follow-ups` in `system/now.md`; `email-actions` writes them there. Parse its unchecked items that carry a Gmail ID (`- [ ] ... due DATE <!-- gmail:ID -->`) and keep those where `due` <= today. Copy them into today's `## Follow-ups Due`; leave `system/now.md` unchanged. Skip items without a Gmail ID: they are standing follow-ups, not email ones.
 
-Parse unchecked follow-up items (`- [ ] ... <!-- gmail:ID -->`). Filter for items where `due` <= today. Carried-forward follow-ups from step 2 are already included -- only add NEW follow-ups not yet in the note.
+Carried-forward follow-ups from step 2 are already included -- only add follow-ups whose Gmail ID is not yet in the note.
 
 5. **Invoice scan** -- Search for recent emails matching:
 
@@ -142,7 +142,7 @@ Focus on recap and tomorrow prep rather than triage:
    - Checked items (`- [x]`) = actioned today
    - Unchecked items (`- [ ]`) = still pending
    Report: "X actioned, Y still pending". List any unchecked Tier 1 items by name as "**Tier 1 still unactioned:**".
-4. **Follow-ups due tomorrow** -- scan today's note `## Follow-ups Due` for unchecked items with `due` = tomorrow
+4. **Follow-ups due tomorrow** -- scan the email follow-ups in `system/now.md` (as in morning step 4) for unchecked items with `due` = tomorrow
 5. **Append** a `## Evening Update` section to the end of today's `daily/YYYY-MM-DD.md` with the Edit tool (do NOT overwrite morning content). If no morning briefing exists, generate the full briefing first (step 6 above).
 6. **Print** terminal summary: events completed, events tomorrow, actioned count, pending count, follow-ups due
 
