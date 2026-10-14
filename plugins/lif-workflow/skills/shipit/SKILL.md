@@ -1,7 +1,7 @@
 ---
 name: shipit
 disable-model-invocation: true
-description: "Take an idea to one merged pull request through Claude subagents: shape the idea, plan it into waves of coarse slices, build each wave's slices in parallel worktrees, review and fix each slice, attack and test the integrated branch, and shepherd one PR. Triggers: /shipit."
+description: "Takes an idea to one merged pull request through Claude subagents: shapes the idea, plans it into waves of coarse slices, builds each wave's slices in parallel worktrees, reviews and fixes each slice, attacks and tests the integrated branch, and shepherds one PR. Use when the user runs /shipit with an idea, issue number or plan path. Triggers: /shipit."
 argument-hint: "[idea, issue number, or plan path]"
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent, Skill, TodoWrite
 ---
@@ -11,6 +11,10 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent, Skill, TodoWrite
 You are the **Orchestrator**. You talk with the user, keep the plan, merge slices,
 and dispatch every other role as a fresh Claude subagent. One `/shipit` run ends in
 exactly one pull request, however many slices and worktrees it uses on the way.
+
+`structured-planning` and `retro` are user-only skills, so the Skill tool refuses
+them. Read their `SKILL.md` files instead; every `../<skill>/` path below is relative
+to this skill's folder.
 
 ```
 Shape ─▶ Plan ─▶ Gate 1 ─▶ per wave: Build ∥ ─▶ Review ∥ ─▶ Merge ─▶ Check
@@ -23,12 +27,12 @@ Shape ─▶ Plan ─▶ Gate 1 ─▶ per wave: Build ∥ ─▶ Review ∥ ─
 | Role | Runs as | Question it answers | Writes |
 |---|---|---|---|
 | Orchestrator | this session | what happens next | plan, merges, PR body |
-| Architect | this session, `structured-planning` | what are the slices | `plan.md` |
+| Architect | this session, following `../structured-planning/SKILL.md` | what are the slices | `plan.md` |
 | Builder | `lif-workflow:builder`, per slice, own worktree | does it work | slice code and its tests |
 | Reviewer | `lif-workflow:reviewer`, per slice, Builder's worktree | is the code right, by reading | code fixes, test asks |
 | Breaker | `lif-workflow:breaker`, read-only | how does it break | findings only |
 | Tester | `lif-workflow:tester`, integration worktree | does the branch work, by running | tests, code fixes |
-| Retro | subagent with `model: "sonnet"`, integration worktree, `retro` skill | what did we learn | `AGENTS.md` only |
+| Retro | subagent with `model: "sonnet"`, integration worktree, following `../retro/SKILL.md` | what did we learn | `AGENTS.md` only |
 
 The four `lif-workflow:` agent files under `agents/` set each role's model and effort
 and hold its standing rules, so dispatch them by type and pass no `model`. A
@@ -66,7 +70,7 @@ RUN="$(git rev-parse --git-common-dir)/shipit/<slug>"
 single source of truth: waves, slices, their branches, status, and gate decisions.
 Subagent briefs go to `$RUN/briefs/`, reports to `$RUN/reports/`. Every agent,
 you included, appends gotchas and learnings to `$RUN/learnings.jsonl` in the
-format the `retro` skill defines; the line goes in when the thing is found, not
+format in the Input section of `../retro/SKILL.md`; the line goes in when the thing is found, not
 saved for the report. Update `plan.md` after every dispatch returns, so a resumed
 run (`/shipit <plan path>`) picks up from it.
 
@@ -101,7 +105,8 @@ Size the work:
 
 ## 2. Plan (Architect)
 
-Run `structured-planning` for the design, then slice it into `$RUN/plan.md`.
+Read `../structured-planning/SKILL.md` and follow it for the design, then slice it
+into `$RUN/plan.md`.
 
 A slice is a **coarse**, end-to-end piece of the feature: the chunk a lead would
 hand one engineer for a day, usually several files with their tests. Size it as
@@ -124,11 +129,11 @@ make it its own early slice, so the slices consuming it can run together after i
 Each slice:
 
 - names the interfaces it consumes from earlier waves and exposes to later ones;
-- ends on a checkable **Done when**, written by the rules in `plan-handoff`'s
-  Verification gates section: commands that exit 0, a grep that returns nothing.
+- ends on a checkable **Done when**, written by the Verification gates section of
+  `../plan-handoff/SKILL.md`: commands that exit 0, a grep that returns nothing.
 
-`structured-planning` ends on its own approval step. Fold it into Gate 1 by
-showing the wave list in the same message.
+`structured-planning` ends on its own approval and handoff steps. Fold its approval
+into Gate 1 by showing the wave list in the same message, and skip its handoff.
 
 ## Gate 1 — plan approval
 
@@ -140,7 +145,8 @@ Wait for an explicit yes. Build nothing before it.
 For each wave, in order:
 
 1. Create every slice worktree in the wave, write each Builder brief from
-   [references/briefs.md](references/briefs.md), and dispatch all of the wave's
+   [references/briefs.md](references/briefs.md) and the brief rules in
+   `../prompt-optimize/references/rewrite-rules.md`, and dispatch all of the wave's
    Builders at once: one message with one `Agent` call per slice, up to 6 per
    message. Record each worktree path and branch in `plan.md`.
 2. Check each report against its slice's Done-when. A report is a claim: run the
@@ -193,12 +199,13 @@ Tester reports, then re-run the full suite yourself before Retro.
 
 ## 6. Retro
 
-Dispatch the Retro subagent into the integration worktree with its brief. It
-runs the `retro` skill: commits repo `AGENTS.md` edits onto the integration
+Dispatch the Retro subagent into the integration worktree with its brief, which gives
+the absolute path of `../retro/SKILL.md`. It follows that file: commits repo `AGENTS.md` edits onto the integration
 branch, so they ship in the same PR, and writes `$RUN/retro.md` with the vault
 edits and issues it proposes. Re-run the full suite if it committed anything.
 
-Then write the PR body to `$RUN/pr-body.md` from `pr-shepherd`'s template, using
+Then write the PR body to `$RUN/pr-body.md` from
+`../pr-shepherd/assets/pr-body-template.md`, using
 `plan.md` and the reports. Write "not run" with a reason for any suite that did
 not run.
 
@@ -211,8 +218,8 @@ committing and pushing the vault, and the issues. Wait for an explicit yes on ea
 
 ## 7. Ship
 
-Apply what the user approved from `$RUN/retro.md` yourself, following the `retro`
-skill's After approval section. Then run `pr-shepherd` on the integration branch
+Apply what the user approved from `$RUN/retro.md` yourself, following the After
+approval section of `../retro/SKILL.md`. Then run `pr-shepherd` on the integration branch
 with `$RUN/pr-body.md`. It opens the one PR, triages review, watches CI, and asks
 before merging. After merge, remove the worktrees and branches this run created.
 
