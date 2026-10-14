@@ -1,7 +1,7 @@
 ---
 name: factory
 disable-model-invocation: true
-description: "Run the software factory on the current project: one job goes through spec, build on its own branch and worktree, parallel review lenses, a retro, and an approver that lands it or hands it to a human. The session that runs it becomes the orchestrator. Triggers: /factory <feature>, /factory next, /factory approve <job-id>, /factory rework <job-id> <note>."
+description: "Runs the software factory on the current project: one feature goes through a spec, a build on its own branch and worktree, parallel review lenses, a retro, and an approver that lands it or hands it to a human. The session that runs it becomes the orchestrator. Use when the user runs /factory with a feature, or /factory next, /factory approve or /factory rework with a job id."
 argument-hint: "<feature> | next | approve <job-id> | rework <job-id> <note>"
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent, Skill, SendMessage
 ---
@@ -39,7 +39,7 @@ feature → spec-writer → builder → [security, ux, ui, code] → WAIT FOR AL
 |         | `lif-workflow:factory-reviewer-ux`      | `round-N/review-ux.md`                               |
 |         | `lif-workflow:factory-reviewer-ui`      | `round-N/review-ui.md`                               |
 |         | `lif-workflow:factory-reviewer-code`    | `round-N/review-code.md`                             |
-|         | none: the `pi` CLI, run by you          | `round-N/review-second.md`                           |
+|         | none: disabled, you write a stub        | `round-N/review-second.md`                           |
 | retro   | `lif-workflow:factory-retro`            | `retro.md` + `AGENTS.md` commits on `factory/<job-id>` |
 | approve | `lif-workflow:factory-approver`         | `decision.md`                                        |
 
@@ -236,8 +236,11 @@ cd <worktree> && <the Checks command>
 
 ### Review round N
 
-The reviews are four lenses, `security`, `ux`, `ui` and `code`, then the
-second-model review, `second`.
+The reviews are four lenses, `security`, `ux`, `ui` and `code`, plus the
+second-model review, `second`, which is disabled: the second agent reviews in
+the PR. To re-enable it, read
+[references/second-model-review.md](references/second-model-review.md); its
+prompt is [assets/second-review.md](assets/second-review.md).
 
 **Which lenses run.** The full set is `security` and `code`, plus `ux` and `ui`
 unless the project's `Pages` line reads `none`.
@@ -255,9 +258,11 @@ VERDICT: SKIPPED
 <why: "The project has no pages." or "Passed in round <k>; not rerun.">
 ```
 
-1. Set `stage: "review"`, `round: N`, the lenses that run and `second` to
-   `pending`, and the rest to `SKIPPED`. Create
-   `<factory>/jobs/<job-id>/round-<N>/` and write the stubs.
+1. Set `stage: "review"`, `round: N`, the lenses that run to `pending`, and
+   the rest, `second` included, to `SKIPPED`. Create
+   `<factory>/jobs/<job-id>/round-<N>/` and write the stubs. The stub for
+   `second` reads `Disabled: the second agent reviews in the PR.` Do not run
+   `pi`.
 2. Spawn every lens that runs **in one message**, so they run in parallel. Each
    gets the prompt `<paths> Review round N.`, plus its port for
    `factory-reviewer-ux` and `factory-reviewer-ui`.
@@ -268,10 +273,7 @@ VERDICT: SKIPPED
    `round-<N>/`. Never resume the builder mid-round. If a reviewer finishes
    without writing its file, or writes a first line that isn't a verdict, stop
    and tell the user.
-4. **Second-model review: disabled.** Always write the stub for `second`
-   (`Disabled: the second agent reviews in the PR.`) and set it to `SKIPPED`.
-   Do not run `pi`. Skip the **Second-model review** section below.
-5. Decide:
+4. Decide:
    - **All PASS** (a `SKIPPED` counts as a pass): go to **Retro**.
    - **Any CHANGES, resumes left**: set `stage: "build"`, then send the builder
      this message:
@@ -286,43 +288,6 @@ VERDICT: SKIPPED
      `ESCALATE`, then a blank line, then
      `Review rounds exhausted. Outstanding CHANGES in round-<N>/ from: <reviewers>.`
      Go to **Needs human**.
-
-### Second-model review (disabled)
-
-Not run. The second agent reviews in the PR. Kept for re-enabling.
-
-A model from another vendor reads the change after the lenses pass, to find
-what they share a blind spot for. It runs through the `pi` CLI, with no agent.
-Its prompt is [assets/second-review.md](assets/second-review.md) and its reply
-is the review file.
-
-When `command -v pi` prints nothing, write the stub for `second`
-(`pi is not installed on this machine.`), set it to `SKIPPED`, and say so in
-your report line. Otherwise run this in the background and wait for it:
-
-```bash
-cd <worktree> && pi -p --provider openai --model gpt-6.1-sol --thinking medium \
-  --no-session --tools read,grep,find,ls,bash \
-  "<paths> Review round N." "@<this skill's folder>/assets/second-review.md" \
-  < /dev/null > <factory>/jobs/<job-id>/round-<N>/review-second.md
-```
-
-- Keep `< /dev/null`: without it `pi -p` waits on its input and never starts.
-- The tool list leaves out `edit` and `write`. `bash` stays so it can run `git`
-  and the project's checks, so read-only is asked for, not enforced. Afterwards
-  `git -C <worktree> status --porcelain` must print nothing; if it prints
-  anything, go to **Needs human** and quote it.
-- To use another model, change `--provider` and `--model` on that one line.
-  `openai` bills the OpenAI API key; `openai-codex` uses the subscription sign-in.
-- Read the first line of the file, as for a lens, and write the verdict to
-  `job.json`.
-- If `pi` exits with an error, or the first line isn't a verdict: replace the
-  file with a stub that quotes what `pi` printed, set `second` to `SKIPPED`,
-  write `decision.md` yourself, reading `ESCALATE`, then a blank line, then
-  `The second-model review did not run: <what pi printed>.`, and go to
-  **Needs human**. The user fixes `pi` and runs
-  `/factory rework <job-id> rerun the reviews`, or lands without it with
-  `/factory approve <job-id>`.
 
 ### Retro
 
@@ -340,89 +305,9 @@ When it finishes, read the first line of `decision.md`:
 
 ### Land
 
-**Base check, first.** Other jobs may have landed since the last build round:
-
-```bash
-git -C <repo> merge-base --is-ancestor <base> factory/<job-id>
-```
-
-- Exit 0: the branch holds everything on the base. Carry on.
-- Otherwise the base has moved. Run
-  `git -C <repo> merge-tree --write-tree <base> factory/<job-id>`.
-  - It reports conflicts: go to **Needs human**, and tell the user to run
-    `/factory rework <job-id> merge <base> and resolve the conflicts`, so the
-    fix goes through review.
-  - No conflicts: set `stage: "build"` and send the builder
-    `Base sync: <base> has moved. Merge it into the job branch, rerun the project's checks, commit, and add a "Base sync" entry to the Log in build.md.`
-    Resume it or spawn it fresh as in **Review round N**, without counting
-    against `MAX_RESUMES`. When it finishes, read the first line of `build.md`:
-    `STATUS: BLOCKED` goes to **Needs human**. `STATUS: READY`: set
-    `stage: "approve"` and carry on. A clean merge with passing checks is not
-    reviewed again.
-
-The check reads the local base branch. In a `Land: pr` project that is only as
-fresh as the user's last pull; the pull request's own checks cover the rest.
-
-Read the project's `Land` line from the base branch, never from the job branch,
-so a job cannot grant itself a push:
-
-```bash
-git -C <repo> show <base>:AGENTS.md
-```
-
-| `Land` line | Do |
-|---|---|
-| absent | Stop and ask once per job: "push `factory/<job-id>` and open a PR?" On a yes, land as `pr`. On a no, go to **Needs human**. |
-| `pr` | A standing yes. Land by pull request, below. |
-| `merge` | Land by local merge, below. Never push. |
-
-A push is visible to others. Nothing but the `Land` line or the user's own yes
-allows one.
-
-**By pull request.** Run the `pr-shepherd` skill with the `Skill` tool, with
-every command inside the worktree (`cd <worktree> && …`). It pushes the branch,
-opens the PR, triages the Codex bot's review, watches CI, and asks the user
-before merging. While it runs its rules apply, so it may fix Codex and CI
-findings in the worktree. Once the PR exists, set `stage: "pr-open"`.
-
-- The PR merges: go to **Cleanup**.
-- The user says not yet, or the session has to stop: leave `stage: "pr-open"`
-  and tell the user `/factory approve <job-id>` picks it up.
-- `pr-shepherd` cannot open the PR: go to **Needs human** and quote why.
-
-**By local merge.** The merge happens in the main checkout, so it must be clean
-and on the base branch: `git -C <repo> status --porcelain` prints nothing and
-`git -C <repo> branch --show-current` prints `<base>`. If not, set
-`stage: "needs-human"` and tell the user the job is approved but the main
-checkout is busy; they run `/factory approve <job-id>` once it is clean.
-Otherwise:
-
-```bash
-git -C <repo> merge --no-ff factory/<job-id> -m "Merge factory/<job-id>"
-```
-
-If the merge fails, run `git -C <repo> merge --abort` (when a merge is in
-progress), set `stage: "needs-human"` and tell the user why. Otherwise go to
-**Cleanup**.
-
-### Cleanup
-
-After a merge, by PR or locally:
-
-```bash
-git -C <repo> worktree remove <worktree>
-git -C <repo> branch -d factory/<job-id>
-```
-
-A split job also has ticket worktrees and branches: remove them as
-[references/tickets.md](references/tickets.md) says.
-
-Set `stage: "merged"`. The plugin's safety hook asks the user before any branch
-delete; that prompt is expected, not a failure. After a squash-merged PR,
-`branch -d` can refuse because the commits differ. `gh pr view` printing
-`MERGED` is the proof it landed, so use `-D` then. If removing the worktree
-fails, the job is still merged: tell the user what `git worktree remove`
-printed.
+Read [references/land.md](references/land.md) and follow it. It covers the base
+check, the `Land` line (read from the base branch, so a job cannot grant itself
+a push), landing by pull request or by local merge, and **Cleanup**.
 
 ### Needs human
 
@@ -444,12 +329,12 @@ on its backlog line with the job id.
 
 The job must be in `needs-human` or `pr-open`.
 
-- `needs-human`: run **Land** with that job id. Typing this command is the
+- `needs-human`: run **Land** ([references/land.md](references/land.md)) with that job id. Typing this command is the
   user's yes to push that one job, so do not ask the `Land` question again. A
   `Land: merge` project still lands by local merge.
 - `pr-open`: run
   `cd <worktree> && gh pr view factory/<job-id> --json number,state`.
-  `MERGED`: go to **Cleanup**. `OPEN`: run `pr-shepherd` again with that PR
+  `MERGED`: go to **Cleanup** in references/land.md. `OPEN`: run `pr-shepherd` again with that PR
   number. `CLOSED`: go to **Needs human**.
 
 ## /factory rework <job-id> <note>
