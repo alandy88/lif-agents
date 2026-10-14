@@ -29,14 +29,16 @@ Exclude `README.md` from results. If the directory has no `*.md` files besides `
 3. **Read the chosen file** using the Read tool. Display the full content to the user.
 
 4. **Remove it from the queue.** The vault keeps no `claimed/` archive; git history is
-   the archive (`$LIF_NOTES_VAULT/system/handoff/README.md`). Check whether git has it:
+   the archive (`$LIF_NOTES_VAULT/system/handoff/README.md`). Check whether git holds it
+   as it is now:
 
 ```bash
-git -C "$LIF_NOTES_VAULT" ls-files --error-unmatch "system/handoff/{filename}"
+git -C "$LIF_NOTES_VAULT" status --porcelain -- "system/handoff/{filename}"
 ```
 
-   Exit 0 (tracked): `rm` the file and tell the user the deletion is not committed.
-   Otherwise the file exists nowhere else: ask before deleting it.
+   No output (committed, unchanged): `rm` the file and tell the user the deletion is not
+   committed. Any output (untracked or edited): git does not hold this version, so ask
+   before deleting it.
 
 5. **Ingest the handoff body** as session context. Use the content from the handoff sections (What Was Done, Decisions, Next Action, Relevant Files, etc.) to orient yourself and continue work from where the previous session left off.
 
