@@ -1,6 +1,6 @@
 ---
 name: prompt-optimize
-description: "Rewrite a raw prompt into a task brief tuned for Claude Opus 5.5. Use when the user's request is a multi-step agentic task (a feature, refactor, migration, audit, multi-file bug, or research across several sources), when asked to rewrite or optimize a prompt, or before writing a brief for a subagent, Codex, or a handoff. Skip questions, single edits, and prompts that are already a structured brief."
+description: "Rewrites a raw prompt into a task brief with a goal, scope, context and a checkable finish line, stripped of phrasing that misfires on current Claude models. Use when the user's request is a multi-step agentic task (a feature, refactor, migration, audit, multi-file bug, or research across several sources), when asked to rewrite or optimize a prompt, or before writing a brief for a subagent, Codex, or a handoff. Skip questions, single edits, and prompts that are already a structured brief."
 argument-hint: "[raw prompt]"
 ---
 
@@ -9,7 +9,7 @@ argument-hint: "[raw prompt]"
 Turn a raw prompt into a **brief**: the same request, with the gaps a capable newcomer
 would trip on filled from the repo and the conversation. The brief never changes what was
 asked. It makes the goal, scope, and finish line explicit, and strips the phrasing that
-misfires on Opus 5.5.
+misfires on current Claude models.
 
 ## Pick the branch
 
