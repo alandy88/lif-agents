@@ -83,6 +83,12 @@ def validate_skill(skill_path):
                 False,
                 f"Name '{name}' cannot start/end with hyphen or contain consecutive hyphens",
             )
+        for reserved in ("anthropic", "claude"):
+            if reserved in name:
+                return (
+                    False,
+                    f"Name '{name}' cannot contain the reserved word '{reserved}'",
+                )
         # Check name length (max 64 characters per spec)
         if len(name) > 64:
             return (
