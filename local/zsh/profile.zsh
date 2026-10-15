@@ -141,8 +141,10 @@ tm() {
 # The permission posture is environment-owned and per-launcher: cc resolves
 # LIF_CLAUDE_PERMISSION_MODE_STANDARD, ccp resolves LIF_CLAUDE_PERMISSION_MODE_PERSONAL,
 # each falling back to the shared LIF_CLAUDE_PERMISSION_MODE when its own key is
-# unset or empty, then to the shared default of `--dangerously-skip-permissions`.
-# A set mode passes `--permission-mode <mode>` instead. cc/ccp resolve their own
+# unset or empty. With no mode set, cc passes `--dangerously-skip-permissions`;
+# ccp passes nothing, leaving ~/.claude-p/settings.json's defaultMode in charge.
+# A set mode passes `--permission-mode <mode>` instead. ccp always adds
+# `--enable-auto-mode` and never appends the Opus prompt. cc/ccp resolve their own
 # key and pass the result into _cc_run as an argument, read at call time, so it
 # follows the overlay even though the overlay is sourced before these functions
 # are defined.
@@ -159,17 +161,21 @@ lif_opus_prompt() {
 }
 
 _cc_run() {
-    local dir=$1 posture=$2; shift 2
-    local -a B
+    local dir=$1 posture=$2 personal=$3; shift 3
+    local -a B; B=()
     if [ -n "$posture" ]; then
         B=(--permission-mode "$posture")
-    else
+    elif [ "$personal" != 1 ]; then
         B=(--dangerously-skip-permissions)
     fi
     local -a A; A=()
-    [ "${LIF_CLAUDE_OPUS_ENABLE_AUTO_MODE:-}" = 1 ] && A=(--enable-auto-mode)
     local -a P; P=()
-    local f; f=$(lif_opus_prompt) && P=(--append-system-prompt-file "$f")
+    if [ "$personal" = 1 ]; then
+        B+=(--enable-auto-mode)
+    else
+        [ "${LIF_CLAUDE_OPUS_ENABLE_AUTO_MODE:-}" = 1 ] && A=(--enable-auto-mode)
+        local f; f=$(lif_opus_prompt) && P=(--append-system-prompt-file "$f")
+    fi
     local sub=${1:-}
     [ $# -gt 0 ] && shift
     (
@@ -192,8 +198,8 @@ _cc_run() {
         esac
     )
 }
-cc()   { _cc_run "$HOME/.claude"   "${LIF_CLAUDE_PERMISSION_MODE_STANDARD:-${LIF_CLAUDE_PERMISSION_MODE:-}}" "$@"; }
-ccp()  { _cc_run "$HOME/.claude-p" "${LIF_CLAUDE_PERMISSION_MODE_PERSONAL:-${LIF_CLAUDE_PERMISSION_MODE:-}}" "$@"; }
+cc()   { _cc_run "$HOME/.claude"   "${LIF_CLAUDE_PERMISSION_MODE_STANDARD:-${LIF_CLAUDE_PERMISSION_MODE:-}}" 0 "$@"; }
+ccp()  { _cc_run "$HOME/.claude-p" "${LIF_CLAUDE_PERMISSION_MODE_PERSONAL:-${LIF_CLAUDE_PERMISSION_MODE:-}}" 1 "$@"; }
 ccr()  { cc  resume "$@"; }
 ccpr() { ccp resume "$@"; }
 

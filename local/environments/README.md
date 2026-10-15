@@ -58,9 +58,9 @@ captain** — never invent a plausible-looking path.
 | ~~`HerdrPath`~~ | dropped — the pwsh `fmw` now runs bare `herdr`, which the firstmate account's `~/.zshenv` puts on PATH for the non-login shell ssh spawns | — |
 | `LIF_HERDR_DEFAULT_SHELL` | shell Herdr opens panes with | defaults per platform, see below |
 | `LIF_CLAUDE_PERMISSION_MODE_STANDARD` / `ClaudePermissionModeStandard` | `claude --permission-mode` the `cc` launcher uses | optional; when unset or empty, falls back to the shared key below, then `--dangerously-skip-permissions` |
-| `LIF_CLAUDE_PERMISSION_MODE_PERSONAL` / `ClaudePermissionModePersonal` | `claude --permission-mode` the `ccp` launcher uses | optional; when unset or empty, falls back to the shared key below, then `--dangerously-skip-permissions` |
+| `LIF_CLAUDE_PERMISSION_MODE_PERSONAL` / `ClaudePermissionModePersonal` | `claude --permission-mode` the `ccp` launcher uses | optional; when unset or empty, falls back to the shared key below, then to no flag (`~/.claude-p/settings.json` `defaultMode` applies). `ccp` always adds `--enable-auto-mode` |
 | `LIF_CLAUDE_PERMISSION_MODE` / `ClaudePermissionMode` | shared `claude --permission-mode` fallback for `cc` and `ccp` | optional; omit or leave empty for `--dangerously-skip-permissions` |
-| `LIF_CLAUDE_OPUS_ENABLE_AUTO_MODE` (`host.sh` only) | adds `--enable-auto-mode` to `cc opus` and `ccp opus` | optional; set to `1` to enable; other values disable it |
+| `LIF_CLAUDE_OPUS_ENABLE_AUTO_MODE` (`host.sh` only) | adds `--enable-auto-mode` to `cc opus` (`ccp` always has it) | optional; set to `1` to enable; other values disable it |
 | `LIF_OPUS_PROMPT_FILE` (`host.sh` only) | prompt file for `cc opus`, `ccp opus`, and `pi opus` | optional; overrides the path under `LIF_GITHUB_DIR`; missing files add no prompt |
 
 Eight values are captain-only: the three WezTerm cwds, the four directory

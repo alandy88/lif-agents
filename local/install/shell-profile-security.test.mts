@@ -89,14 +89,33 @@ test("zsh preserves permission behavior and injects broadly only explicitly", ()
 
 for (const shell of ["bash", "zsh"]) {
   test(`${shell} keeps Opus auto mode environment-owned`, () => {
-    const defaults = runProfile("cc opus\nccp opus", shell);
+    const defaults = runProfile("cc opus", shell);
     assert.doesNotMatch(defaults, /--enable-auto-mode/);
-    assert.equal((defaults.match(/--model claude-opus-5-5/g) ?? []).length, 2);
+    assert.match(defaults, /--model claude-opus-5-5/);
 
-    const enabled = runProfile("LIF_CLAUDE_OPUS_ENABLE_AUTO_MODE=1\ncc opus\nccp opus\ncc sonnet", shell);
-    assert.equal((enabled.match(/--enable-auto-mode --model claude-opus-5-5/g) ?? []).length, 2);
+    const enabled = runProfile("LIF_CLAUDE_OPUS_ENABLE_AUTO_MODE=1\ncc opus\ncc sonnet", shell);
+    assert.match(enabled, /--enable-auto-mode --model claude-opus-5-5/);
     assert.doesNotMatch(enabled, /--enable-auto-mode --model claude-sonnet/);
     assert.doesNotMatch(runProfile("LIF_CLAUDE_OPUS_ENABLE_AUTO_MODE=0 cc opus", shell), /--enable-auto-mode/);
+  });
+
+  test(`${shell} ccp uses auto mode instead of bypass and no Opus prompt`, () => {
+    const output = runProfile(`
+mkdir -p "$HOME/github/oss/fixing-smartass-opus-5"
+printf 'default prompt' > "$HOME/github/oss/fixing-smartass-opus-5/sr_opus_5_system_prompt.md"
+LIF_GITHUB_DIR="$HOME/github"
+ccp
+ccp opus
+ccp sonnet
+LIF_CLAUDE_OPUS_ENABLE_AUTO_MODE=1 ccp opus
+LIF_CLAUDE_PERMISSION_MODE_PERSONAL=plan ccp
+`, shell).trim().split("\n");
+    assert.equal(output[0], "claude-token= broad= args=--enable-auto-mode");
+    assert.equal(output[1], "claude-token= broad= args=--enable-auto-mode --model claude-opus-5-5");
+    assert.equal(output[2], "claude-token= broad= args=--enable-auto-mode --model claude-sonnet-5-5");
+    assert.equal(output[3], "claude-token= broad= args=--enable-auto-mode --model claude-opus-5-5");
+    assert.equal(output[4], "claude-token= broad= args=--permission-mode plan --enable-auto-mode");
+    assert.doesNotMatch(output.join("\n"), /--dangerously-skip-permissions|--append-system-prompt-file/);
   });
 
   test(`${shell} uses the environment-owned Opus prompt path`, () => {
@@ -109,13 +128,13 @@ cc opus
 LIF_OPUS_PROMPT_FILE="$HOME/work prompts/opus.md"
 cc opus
 unset LIF_GITHUB_DIR
-ccp opus
+cc opus
 LIF_OPUS_PROMPT_FILE="$HOME/missing.md"
 cc opus
 `, shell).trim().split("\n");
     assert.ok(output[0] !== undefined, "default prompt output is missing");
     assert.ok(output[1] !== undefined, "custom prompt output is missing");
-    assert.ok(output[2] !== undefined, "ccp prompt output is missing");
+    assert.ok(output[2] !== undefined, "custom prompt without LIF_GITHUB_DIR output is missing");
     assert.ok(output[3] !== undefined, "missing prompt output is missing");
     assert.match(output[0], /--append-system-prompt-file .*\/github\/oss\/fixing-smartass-opus-5\/sr_opus_5_system_prompt\.md/);
     assert.match(output[1], /--append-system-prompt-file .*\/work prompts\/opus\.md/);
