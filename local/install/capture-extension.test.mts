@@ -54,7 +54,7 @@ test("the popup has the three actions and no agent choice", () => {
   assert.equal(html.includes("fieldset"), false);
   assert.deepEqual(
     [...html.matchAll(/<button[^>]*data-action="(\w+)"/g)].map((match) => match[1]),
-    ["digest", "explain", "note"],
+    ["explain", "note"],
   );
   assert.equal(read("popup.js").includes("localStorage"), false);
   assert.equal(read("popup.js").includes("kind"), false);
@@ -164,11 +164,10 @@ describe("the background script", () => {
     await fire("installed", { reason: "install" });
 
     assert.deepEqual(calls[0], ["removeAll"]);
-    assert.equal(calls.length, 4);
+    assert.equal(calls.length, 3);
     assert.deepEqual(
       calls.slice(1).map(([name, item]) => [name, item.id, item.title, item.contexts]),
       [
-        ["create", "digest", "Digest", ["page", "selection"]],
         ["create", "explain", "Explain", ["page", "selection"]],
         ["create", "note", "Note", ["page", "selection"]],
       ],
@@ -204,9 +203,9 @@ describe("the background script", () => {
     test(`the agent is claude when ${name}`, async () => {
       const { fire, made } = load(stored);
 
-      await fire("clicked", { menuItemId: "digest" }, { id: 7 });
+      await fire("clicked", { menuItemId: "explain" }, { id: 7 });
 
-      assert.deepEqual(made("native"), [["lif_capture", { ...page, kind: "claude", action: "digest" }]]);
+      assert.deepEqual(made("native"), [["lif_capture", { ...page, kind: "claude", action: "explain" }]]);
     });
   }
 
@@ -214,9 +213,9 @@ describe("the background script", () => {
     const { fire, made } = load({ kind: "claude" });
     const replies: unknown[] = [];
 
-    await fire("message", { action: "digest", kind: "pi" }, {}, (reply: unknown) => replies.push(reply));
+    await fire("message", { action: "explain", kind: "pi" }, {}, (reply: unknown) => replies.push(reply));
 
-    assert.deepEqual(made("native"), [["lif_capture", { ...page, kind: "claude", action: "digest" }]]);
+    assert.deepEqual(made("native"), [["lif_capture", { ...page, kind: "claude", action: "explain" }]]);
     assert.deepEqual(made("query"), [[{ active: true, lastFocusedWindow: true }]]);
     assert.deepEqual(made("inject")[0]?.[0].target, { tabId: 3 });
     assert.deepEqual(replies, [sent]);

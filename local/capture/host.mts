@@ -23,7 +23,7 @@ const LE = endianness() === "LE";
 
 const FIELDS = ["site", "url", "title", "captured", "body", "kind", "action"] as const;
 const KINDS = ["claude", "pi"];
-const ACTIONS = ["digest", "explain", "note"];
+const ACTIONS = ["explain", "note"];
 
 type Capture = Record<(typeof FIELDS)[number], string>;
 
@@ -110,9 +110,6 @@ function render(capture: Capture): string {
 // Skills are named inside a sentence: a leading slash command would take the
 // data-only warning as its argument.
 const TASKS = {
-  digest:
-    "Read the capture file and reply in the chat with a short digest: what the page is, " +
-    "its main points, and the source URL from the file's frontmatter. Write no file.",
   explain:
     "Read the capture file, then explain the page it holds plainly, using the explain skill " +
     "(lif-workflow:explain). The subject is the page, not the file path. " +

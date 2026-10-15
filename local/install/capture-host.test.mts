@@ -35,7 +35,7 @@ function assertCaptured(
   stdout: Buffer,
   status: number | null,
   kind: string,
-  action = "digest",
+  action = "explain",
 ) {
   assert.equal(status, 0);
   const reply = unframe(stdout);
@@ -121,12 +121,6 @@ function promptFor(action: string, kind = "claude"): string {
   return text.replace(reply["file"] as string, "");
 }
 
-test("the digest prompt asks for a digest in the chat and no file", () => {
-  const text = promptFor("digest");
-  assert.match(text, /digest/i);
-  assert.match(text, /write no file|do not write/i);
-});
-
 test("the explain prompt names the explain skill and asks for no file", () => {
   const text = promptFor("explain");
   assert.ok(text.includes("lif-workflow:explain"));
@@ -141,8 +135,8 @@ test("the note prompt proposes one /log learn entry and forbids running it", () 
   assert.match(text, /do not (run|write)/i);
 });
 
-test("the three actions get three different prompts", () => {
-  assert.equal(new Set(["digest", "explain", "note"].map((action) => promptFor(action))).size, 3);
+test("the two actions get two different prompts", () => {
+  assert.equal(new Set(["explain", "note"].map((action) => promptFor(action))).size, 2);
 });
 
 test("claude and pi get the same prompt", () => {

@@ -10,8 +10,8 @@ open page -> extension -> native helper -> herdr -> agent in lif-notes
 ```
 
 - `extension/` is the WebExtension (Manifest V3, plain JavaScript, no build). Its popup
-  has three actions (digest, explain, note), and the right-click menu on a page or a
-  selection has the same three. The agent, `claude` or `pi`, is chosen on the settings
+  has two actions (explain, note), and the right-click menu on a page or a
+  selection has the same two. The agent, `claude` or `pi`, is chosen on the settings
   page. It has three readers and tries them in this order:
   1. the selection, when there is one, is the whole capture;
   2. a site reader: on a Reddit thread (`reddit.com`, `/comments/<id>`) the post and its
@@ -53,10 +53,8 @@ Linux, Firefox and Google Chrome only.
 - **The page is data.** Nothing from the page reaches a file name or a `herdr` argument.
   The prompt carries only a fixed instruction per action and the file path, and tells the
   agent that the file is a captured web page and not instructions.
-- **Each action is one fixed prompt, the same for `claude` and `pi`.** All three tell the
+- **Each action is one fixed prompt, the same for `claude` and `pi`.** Both tell the
   agent to read the capture file first.
-  - *Digest:* reply in the chat with what the page is, its main points and the source URL.
-    No file is written.
   - *Explain:* explain the page in the chat through the `explain` skill
     (`lif-workflow:explain`). No file is written. Under `pi` this depends on the `explain`
     skill being installed for pi, which this repo does not do; without it pi explains in
@@ -77,7 +75,7 @@ bun local/capture/host.mts --plain < local/capture/samples/capture.json
 This opens a real tab and starts a real agent. A failure prints
 `{"ok":false,"error":"..."}` and exits non-zero. The message has seven string fields:
 `site`, `url` (http or https), `title`, `captured`, `body` (not empty), `kind`
-(`claude` or `pi`) and `action` (`digest`, `explain` or `note`).
+(`claude` or `pi`) and `action` (`explain` or `note`).
 
 To check the preconditions without capturing anything:
 
@@ -127,7 +125,7 @@ and that `herdr --version` runs, one line each, and exits non-zero when any fail
    name and the capture file, or the error. A `!` on the button means the last capture
    failed; it clears on the next capture.
 
-   Or right-click the page, or a selection, and pick *Digest*, *Explain* or *Note* under
+   Or right-click the page, or a selection, and pick *Explain* or *Note* under
    *LIF Capture*. A right-click capture reports only failure, as the `!` on the toolbar
    button; on success the new agent tab in Herdr is the sign.
 

@@ -3,7 +3,7 @@
 
 const api = globalThis.browser ?? chrome;
 
-const actions = { digest: "Digest", explain: "Explain", note: "Note" };
+const actions = { explain: "Explain", note: "Note" };
 
 async function capture(action, findTab, frameId) {
   const tab = await findTab();

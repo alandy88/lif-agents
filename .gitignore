@@ -21,3 +21,5 @@ __pycache__/
 # OS files
 .DS_Store
 Thumbs.db
+/web-ext-artifacts/
+.amo-upload-uuid
