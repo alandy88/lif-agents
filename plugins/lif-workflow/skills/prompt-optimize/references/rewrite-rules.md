@@ -1,9 +1,16 @@
 # Rewrite rules
 
 Distilled from Anthropic's "Prompting Claude Opus 5.5" guide, with the Opus 5 guide and
-the general prompting best practices it builds on. Only prompt-level rules live here;
-API settings such as `max_tokens`, `thinking.display`, and refusal handling are out of
-scope for a brief.
+the general prompting best practices it builds on. The pin names the source of the Strip
+rules: re-check them against the newer guide when the default model changes. Only
+prompt-level rules live here; API settings such as `max_tokens`, `thinking.display`, and
+refusal handling are out of scope for a brief.
+
+## Contents
+- Sections
+- Strip
+- Conditional blocks
+- Example
 
 ## Sections
 
@@ -29,7 +36,7 @@ input (a log, a document, a diff), put that input first and the instructions aft
 
 ## Strip
 
-Opus 5.5 thinks on every turn, checks its own work, and follows instructions closely.
+The model thinks on every turn, checks its own work, and follows instructions closely.
 Each pattern below either adds cost for nothing or misfires. Remove it; where a
 replacement is given, use that.
 

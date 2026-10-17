@@ -1,14 +1,14 @@
 ---
 name: ui-hig
-description: "Apple Human Interface Guidelines (HIG) for UI and UX: design a new screen or flow, audit an existing interface, or enhance one to follow the HIG. Use when the user asks for an HIG review, an Apple-style or native-feeling UI, or UI/UX design, audit, or polish for iOS, iPadOS, macOS, watchOS, tvOS, or visionOS."
+description: "Applies Apple's Human Interface Guidelines (HIG) to UI and UX work: designs a new screen or flow, audits an existing interface, or enhances one to follow the HIG, citing pages fetched live from Apple. Use when the user asks for an HIG review, an Apple-style or native-feeling UI, or UI/UX design, audit, or polish for iOS, iPadOS, macOS, watchOS, tvOS, or visionOS."
 argument-hint: "[design|audit|enhance] [screen, flow, or path]"
 ---
 
 # ui-hig
 
 Apply Apple's Human Interface Guidelines to one of three jobs. The guide is the source of
-truth and it changes (Liquid Glass rewrote much of it in 2025), so every rule you cite
-comes from a page fetched this run with `scripts/hig.py` in this skill's base directory:
+truth and it changes, so every rule you cite comes from a page fetched this run with
+`scripts/hig.py` in this skill's base directory:
 
 ```bash
 python3 <skill-dir>/scripts/hig.py <slug>   # one page as Markdown

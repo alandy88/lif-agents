@@ -1,6 +1,6 @@
 ---
 name: herdr-workspace
-description: "Herdr workspace per repo: open a local repo by name as a Herdr workspace, lay out its tabs, put agents on it, and close it when the work ends. Use when the user asks to open, set up, or close a repo in Herdr, or to start agents on a repo there."
+description: "Opens a local repo by name as a Herdr workspace, lays out its tabs, puts agents on it, and closes it when the work ends. Use when the user asks to open, set up, or close a repo in Herdr, or to start agents on a repo there."
 ---
 
 # Herdr workspace
@@ -8,7 +8,9 @@ description: "Herdr workspace per repo: open a local repo by name as a Herdr wor
 One workspace per active repo: open it when work on the repo starts, close it when the work
 ends. This skill adds repo lookup and a layout convention; the `herdr` skill owns the
 commands. Load the `herdr` skill first — its `HERDR_ENV=1` guardrail, ID rules, and safety
-rules govern every step here.
+rules govern every step here. To hand one self-contained task to an agent in its own
+worktree and land it later, use `lif-dispatch` instead (it ships in the lif-agents repo's
+`skills/lif-dispatch/`, not in this plugin, so it may not be installed).
 
 ## Find the repo
 

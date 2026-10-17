@@ -1,8 +1,8 @@
 ---
 name: issue-implement
-description: "Use when implementing or fixing a single GitHub issue on a feature branch interactively — explore the repo, drive the change with red-green-refactor, run typecheck + tests, then commit. Triggers: /issue-implement, \"implement issue #N\", \"fix issue #N\", \"work this ticket\"."
+description: "Implements one GitHub issue on a feature branch interactively: explores the repo, drives the change red-green-refactor, runs typecheck and tests, then commits. Use when implementing or fixing a single GitHub issue. Triggers: /issue-implement, \"implement issue #N\", \"fix issue #N\", \"work this ticket\"."
 argument-hint: "[issue-number]"
-allowed-tools: Read, Glob, Grep, Edit, Write, Bash, Skill, TodoWrite
+allowed-tools: Read, Glob, Grep, Edit, Write, Bash, TodoWrite
 ---
 
 # issue-implement
@@ -10,9 +10,10 @@ allowed-tools: Read, Glob, Grep, Edit, Write, Bash, Skill, TodoWrite
 ## Overview
 
 Implement **one** GitHub issue, end to end, on a working branch. This is the
-interactive counterpart to the swarm-pi `implement-prompt` template: same
-explore → test → implement → verify → commit loop, but you gather the issue and
-branch from context and finish with a normal commit.
+interactive counterpart to the swarm's `implement-prompt.md` (lif-studio
+`.sandcastle/templates/implement/`): the same explore → test → implement → verify →
+commit loop, but you gather the issue and branch from context and finish with a
+normal commit.
 
 Work on the one issue only. One issue per branch keeps the diff reviewable and
 the commit revertable on its own.

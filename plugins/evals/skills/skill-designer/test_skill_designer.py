@@ -3,10 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 import re
 
-REPO_ROOT = (
+PLUGINS_ROOT = (
     Path(__file__).resolve().parents[3]
-)  # evals/skills/skill-designer -> repo root
-SKILL_DIR = REPO_ROOT / "skills" / "skill-designer"
+)  # evals/skills/skill-designer -> plugins/
+SKILL_DIR = PLUGINS_ROOT / "lif-workflow" / "skills" / "skill-designer"
 SKILL_MD_PATH = SKILL_DIR / "SKILL.md"
 REFERENCES_DIR = SKILL_DIR / "references"
 ASSETS_DIR = SKILL_DIR / "assets"
@@ -162,16 +162,27 @@ def test_skill_markdown_exists():
     assert SKILL_MD_PATH.is_file()
 
 
-def test_frontmatter_uses_only_name_and_description():
+def test_frontmatter_uses_only_allowed_keys():
     data = parse_frontmatter(read(SKILL_MD_PATH))
-    assert set(data) == {"name", "description"}
+    allowed = {
+        "name",
+        "description",
+        "license",
+        "allowed-tools",
+        "metadata",
+        "compatibility",
+        "argument-hint",
+        "model",
+        "disable-model-invocation",
+    }
+    assert {"name", "description"} <= set(data) <= allowed
     assert data["name"] == "skill-designer"
 
 
 def test_description_mentions_create_audit_and_pattern_language():
     description = parse_frontmatter(read(SKILL_MD_PATH))["description"]
     for phrase in [
-        "Create or audit agent skills",
+        "audits existing ones",
         "Tool Wrapper",
         "Generator",
         "Reviewer",

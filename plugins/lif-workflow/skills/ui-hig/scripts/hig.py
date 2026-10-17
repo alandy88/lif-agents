@@ -15,10 +15,13 @@ BASE = "https://developer.apple.com/tutorials/data/design/human-interface-guidel
 def fetch(slug):
     url = f"{BASE}/{slug}.json" if slug else f"{BASE}.json"
     try:
+        # 30 s: a page is one small JSON file; longer means the network is the problem.
         with urllib.request.urlopen(url, timeout=30) as resp:
             return json.load(resp)
     except urllib.error.HTTPError as err:
         sys.exit(f"hig.py: no page '{slug}' ({err.code}); run hig.py with no slug for the index")
+    except (urllib.error.URLError, TimeoutError) as err:
+        sys.exit(f"hig.py: cannot reach developer.apple.com ({getattr(err, 'reason', err)}); check the network")
 
 
 def slug_of(identifier):

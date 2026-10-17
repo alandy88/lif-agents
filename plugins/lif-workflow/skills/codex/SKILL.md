@@ -1,6 +1,6 @@
 ---
 name: codex
-description: "Use when fanning out work to Codex CLI — hand a plan to Codex for implementation, or hand a finished change to Codex for independent review. Triggers: /codex, \"fanout to codex\", \"have codex implement this\", \"have codex review this\"."
+description: "Fans work out to the Codex CLI: hands a plan to Codex to implement in its own worktree, or hands a finished change to Codex for an independent review with structured findings. Use when fanning out work to Codex. Triggers: /codex, \"fanout to codex\", \"have codex implement this\", \"have codex review this\"."
 argument-hint: "[implement <plan-file>|review <range|pr>]"
 allowed-tools: Read, Glob, Grep, Write, Edit, Bash, TodoWrite
 ---
@@ -19,6 +19,9 @@ Fan work out to a Codex CLI session. Two modes:
 The value of this skill is the **handoff doc**: you have the conversation
 context, Codex does not. A thin handoff produces a bad fanout.
 
+For a second opinion from Claude instead, use `cc-reviewer`; to bring a branch in
+line with the repo's standards, use `issue-review`.
+
 ## Shared mechanics (both modes)
 
 1. Write the handoff as a markdown file in the session scratchpad directory
@@ -31,22 +34,21 @@ context, Codex does not. A thin handoff produces a bad fanout.
 4. Iterate with `codex exec resume --last "<feedback>"` — never start a fresh
    session for a follow-up round; the resumed session keeps full context.
 
-Model selection (override only if the user asks):
+Model: `gpt-6-astra` at `medium` effort for every mode, unless the user asks
+otherwise. The pin matches the `gpt` agent in `remote/src/lib/profiles.mts`; change
+both together. Raise effort to `high` only for a review where `medium` measurably
+missed findings.
 
-| Task | Model | Effort |
-|---|---|---|
-| implement, code review, plan / spec review | `gpt-6-astra` | medium |
-
-These match the `gpt` agent in `remote/src/lib/profiles.mts`; change both together.
-Raise effort to `high` only for a review where `medium` measurably missed findings.
+`--skip-git-repo-check` in both commands keeps Codex from refusing to start with
+"Not inside a trusted directory".
 
 ## Mode: implement
 
 1. **Materialize the plan** into a handoff doc — use
    [references/handoff-implement.md](references/handoff-implement.md) as the
-   template, written to the brief rules in `prompt-optimize`
-   (`references/rewrite-rules.md`). Acceptance criteria are runnable commands
-   (tests, typecheck), not prose. If there is no plan yet, stop and say so — this skill fans out
+   template, written to the brief rules in
+   `../prompt-optimize/references/rewrite-rules.md` (from this skill's folder).
+   Acceptance criteria are runnable commands (tests, typecheck), not prose. If there is no plan yet, stop and say so — this skill fans out
    existing plans; it does not invent them.
 2. **Isolate by default**: create a worktree and point Codex at it.
    ```bash
@@ -55,7 +57,7 @@ Raise effort to `high` only for a review where `medium` measurably missed findin
    Skip only if the user explicitly asks for in-place (`--in-place`).
 3. **Run** (background):
    ```bash
-   codex exec -C "<worktree>" --sandbox workspace-write --full-auto \
+   codex exec -C "<worktree>" --sandbox workspace-write \
      -m gpt-6-astra -c model_reasoning_effort="medium" \
      --skip-git-repo-check \
      --output-last-message "<scratchpad>/codex-out.md" \
@@ -75,18 +77,19 @@ Raise effort to `high` only for a review where `medium` measurably missed findin
 ## Mode: review
 
 1. **Resolve the changeset**: working diff (`HEAD`), branch range
-   (`master..HEAD`), or PR (`gh pr diff <n>` to confirm it exists, then pass
-   the range). Give Codex the **range**, not the inlined diff — it is inside
+   (`<default>..HEAD`, with `<default>` from
+   `gh repo view --json defaultBranchRef -q .defaultBranchRef.name`), or PR
+   (`gh pr diff <n>` to confirm it exists, then pass the range). Give Codex the **range**, not the inlined diff — it is inside
    the repo read-only and explores surrounding context itself.
 2. **Write the handoff** — use
    [references/handoff-review.md](references/handoff-review.md). The critical
    section is *intent*: what was built and why, which only you know.
 3. **Run** (background if the diff is large):
    ```bash
-   codex exec -C "<repo>" --sandbox read-only --full-auto \
+   codex exec -C "<repo>" --sandbox read-only \
      -m gpt-6-astra -c model_reasoning_effort="medium" \
      --skip-git-repo-check \
-     --output-schema "<skill-dir>/references/findings-schema.json" \
+     --output-schema "<this skill's folder>/references/findings-schema.json" \
      --output-last-message "<scratchpad>/codex-findings.json" \
      - < "<scratchpad>/handoff.md"
    ```

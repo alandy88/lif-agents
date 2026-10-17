@@ -1,14 +1,21 @@
 # Subagent briefs
 
+## Contents
+- Builder
+- Reviewer
+- Breaker
+- Tester
+- Findings Tester
+- Retro
+
 Each subagent starts with no context. Its brief is everything it knows about the
 slice, so fill every `<placeholder>` from `plan.md` and the repo, and write it to
 `$RUN/briefs/<role>-<n>.md` before dispatch. The standing rules for the Builder,
 Reviewer, Breaker and Tester (method, fix ladder, report format, learnings line) live
 in their agent files under `agents/`, so a brief carries only what changes per
 dispatch. Every `<context>` names the worktree and `Learnings: <$RUN>/learnings.jsonl`,
-because the agent's footer points there. The sections follow the brief rules in
-`prompt-optimize` (`references/rewrite-rules.md`): state the goal and its reason, use
-calm wording, and end on a checkable Done-when. The Orchestrator checks the work, so
+because the agent's footer points there. Each brief states the goal and its reason,
+uses calm wording, and ends on a checkable Done-when. The Orchestrator checks the work, so
 no brief asks a subagent to double-check itself.
 
 Dispatch each role by its agent type, and pass no `model`: the agent file sets it.
@@ -119,8 +126,9 @@ Test commands: <unit>, <integration>, <e2e>.
 
 ## Retro
 
-Dispatch with `model: "sonnet"`; Retro has no agent file because the `retro` skill
-already holds its rules.
+Dispatch with `model: "sonnet"`; Retro has no agent file because `retro/SKILL.md`
+already holds its rules. Fill `<retro skill path>` with the absolute path of
+`../retro/SKILL.md` from the shipit skill's folder; the subagent cannot resolve it.
 
 ```text
 <goal>
@@ -135,15 +143,15 @@ Vault: $LIF_NOTES_VAULT. Read it; do not edit it.
 </context>
 
 <instructions>
-Follow the `retro` skill up to and including its proposal. Leave its After
-approval section to the Orchestrator. Work only inside the worktree.
+Read <retro skill path> and follow it up to and including its proposal. Leave its
+After approval section to the Orchestrator. Work only inside the worktree.
 </instructions>
 
 <done_when>
-The `retro` skill's Done-when holds.
+That file's Done-when holds.
 </done_when>
 
 <report>
-Lead with the counts the `retro` skill asks for. Then the path to retro.md.
+Lead with the counts that file's Report section asks for. Then the path to retro.md.
 </report>
 ```

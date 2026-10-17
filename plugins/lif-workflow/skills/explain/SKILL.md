@@ -1,11 +1,11 @@
 ---
 name: explain
 description: >
-  Use when the user runs /explain <topic|code|file|concept> or asks to
-  "explain this plainly", "explain in STE", or "make this readable". Writes a
-  structured, layered explanation in ASD-STE100 Simplified Technical English:
-  short sentences, approved words, one topic per paragraph, overview first,
-  detail below.
+  Writes a layered explanation of a topic, concept, file, code selection or
+  error in ASD-STE100 Simplified Technical English: short sentences, approved
+  words, one topic per paragraph, overview first, detail below. Use when the
+  user runs /explain or asks to "explain this plainly", "explain in STE", or
+  "make this readable".
 ---
 
 # Explain

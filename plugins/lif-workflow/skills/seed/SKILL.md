@@ -1,7 +1,7 @@
 ---
 name: seed
 disable-model-invocation: true
-description: "Convert a freeform idea into a spike-ready GitHub issue draft, then post on confirmation."
+description: "Drafts a spike-ready GitHub issue from a freeform idea after a short, bounded code search, and posts it with the seed label once the user confirms. Use when the user has a rough idea to capture as an issue, or runs /seed."
 argument-hint: "<idea text>"
 allowed-tools: Bash(gh issue create:*), Read, Grep, Write
 ---

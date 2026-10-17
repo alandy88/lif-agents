@@ -1,26 +1,31 @@
 ---
 name: morning-briefing
 disable-model-invocation: true
-description: "Use when the user says \"morning briefing\", \"triage inbox\", \"check email\", \"evening briefing\", \"what happened today\", or \"end of day\"."
+description: "Builds the day's briefing note in the lif-notes vault from Google Calendar and Gmail: triages unread mail into tiers, carries open items forward from earlier notes, flags invoices and follow-ups, and appends an evening recap. Use when the user says \"morning briefing\", \"triage inbox\", \"check email\", \"evening briefing\", \"what happened today\", or \"end of day\"."
 ---
 
 # Morning Briefing
+
+Needs the `gws` CLI; its auth is in `$LIF_NOTES_VAULT/system/environment.md`.
+Paths below are under `$LIF_NOTES_VAULT`. Read and write notes with the Read,
+Write and Edit tools, as the vault's own scheduled briefing does.
+
+Before you write a note, follow the vault-write steps in the vault's
+`AGENTS.md` (Git status and a fast-forward pull first, then after the write
+the vault lint: `python3 "$LIF_NOTES_VAULT/system/scripts/lint-vault.py"`).
+Do not commit or push unless the user says so.
 
 ## Workflow
 
 ### Morning Briefing (full)
 
-1. **Calendar** -- Fetch today's and tomorrow's events (see CLAUDE.md for DST offset calculation):
+1. **Calendar** -- Fetch today's and tomorrow's events. The timezone and the DST offset rule are in `personal/profile.md`:
 
-```bash
-gws calendar events list --params '{"calendarId":"primary","timeMin":"{today}T00:00:00{offset}","timeMax":"{tomorrow+1}T00:00:00{offset}","singleEvents":true,"orderBy":"startTime"}'
-```
+   ```bash
+   gws calendar events list --params '{"calendarId":"primary","timeMin":"{today}T00:00:00{offset}","timeMax":"{tomorrow+1}T00:00:00{offset}","singleEvents":true,"orderBy":"startTime"}'
+   ```
 
-2. **State scan** -- Read the last 7 daily notes to build continuity state. For each file `daily/YYYY-MM-DD.md` within the past 7 days:
-
-```bash
-obsidian read file="YYYY-MM-DD"
-```
+2. **State scan** -- Read each `daily/YYYY-MM-DD.md` from the past 7 days that exists (the vault keeps only the current ISO week's dailies) to build continuity state.
 
 Parse all lines containing `<!-- gmail:` to extract:
 - **actioned_ids** (Set): Gmail message IDs from lines matching `- [x]` (checked checkbox). Collect from ALL 7 days.
@@ -33,25 +38,17 @@ For each pending item, record:
 
 If no daily notes exist in the 7-day window, set both to empty (fresh start -- skip to step 3 with no filtering).
 
-**Gmail sync:** For each ID in actioned_ids, mark as read in Gmail:
-
-```bash
-gws gmail users messages modify --params '{"userId":"me","id":"{id}"}' --json '{"removeLabelIds":["UNREAD"]}'
-```
-
-This keeps Gmail in sync with vault state -- checked items no longer show as unread.
-
 3. **Email triage + merge** -- Get unread inbox messages:
 
-```bash
-gws gmail users messages list --params '{"userId":"me","q":"is:unread is:inbox","maxResults":50}'
-```
+   ```bash
+   gws gmail users messages list --params '{"userId":"me","q":"is:unread is:inbox","maxResults":50}'
+   ```
 
-For each message, fetch metadata (the response includes `labelIds` for tier classification):
+   For each message, fetch metadata (the response includes `labelIds` for tier classification):
 
-```bash
-gws gmail users messages get --params '{"userId":"me","id":"{id}","format":"metadata","metadataHeaders":["From","Subject","Date"]}'
-```
+   ```bash
+   gws gmail users messages get --params '{"userId":"me","id":"{id}","format":"metadata","metadataHeaders":["From","Subject","Date"]}'
+   ```
 
 **MERGE with scanned state (from step 2):**
 
@@ -62,33 +59,37 @@ For each Gmail message:
 
 For each item in **pending_items** whose `gmail_id` is NOT in the Gmail inbox results → **drop it** (email was archived or removed externally, no longer needs attention).
 
-For Tier 1, Tier 2, and new Tier 3 messages, fetch the full body:
+**Gmail sync (asks first):** Unread messages whose `id` is in **actioned_ids** were checked off in the vault but still show as unread in Gmail. If there are any, show the user their count and subjects and ask once whether to mark them read. Only on a yes, for each:
 
 ```bash
-gws gmail users messages get --params '{"userId":"me","id":"{id}","format":"full"}'
+gws gmail users messages modify --params '{"userId":"me","id":"{id}"}' --json '{"removeLabelIds":["UNREAD"]}'
 ```
+
+On a no, change nothing in Gmail. In quick mode (Triage Inbox), skip this.
+
+For Tier 1, Tier 2, and new Tier 3 messages, fetch the full body:
+
+   ```bash
+   gws gmail users messages get --params '{"userId":"me","id":"{id}","format":"full"}'
+   ```
 
 Write a 1-2 sentence summary for each new email. Flag overdue items explicitly (e.g., "**OVERDUE -- action needed**").
 
-4. **Follow-ups** -- Find follow-up items from today's note under `## Follow-ups Due`:
+4. **Follow-ups** -- Email follow-ups live under `## Follow-ups` in `system/now.md`; `email-actions` writes them there. Parse its unchecked items that carry a Gmail ID (`- [ ] ... due DATE <!-- gmail:ID -->`) and keep those where `due` <= today. Copy them into today's `## Follow-ups Due`; leave `system/now.md` unchanged. Skip items without a Gmail ID: they are standing follow-ups, not email ones.
 
-```bash
-obsidian read file="YYYY-MM-DD"
-```
-
-Parse unchecked follow-up items (`- [ ] ... <!-- gmail:ID -->`). Filter for items where `due` <= today. Carried-forward follow-ups from step 2 are already included -- only add NEW follow-ups not yet in the note.
+Carried-forward follow-ups from step 2 are already included -- only add follow-ups whose Gmail ID is not yet in the note.
 
 5. **Invoice scan** -- Search for recent emails matching:
 
-```bash
-gws gmail users messages list --params '{"userId":"me","q":"subject:(invoice OR bill OR payment OR \"request for payment\" OR overdue OR renewal) newer_than:7d","maxResults":20}'
-```
+   ```bash
+   gws gmail users messages list --params '{"userId":"me","q":"subject:(invoice OR bill OR payment OR \"request for payment\" OR overdue OR renewal) newer_than:7d","maxResults":20}'
+   ```
 
-For each result, fetch metadata:
+   For each result, fetch metadata:
 
-```bash
-gws gmail users messages get --params '{"userId":"me","id":"{id}","format":"metadata","metadataHeaders":["From","Subject","Date"]}'
-```
+   ```bash
+   gws gmail users messages get --params '{"userId":"me","id":"{id}","format":"metadata","metadataHeaders":["From","Subject","Date"]}'
+   ```
 
 **MERGE with scanned state:** Apply the same actioned_ids / pending_items logic as email triage:
 - If `id` in actioned_ids → skip (already paid/dismissed)
@@ -99,7 +100,7 @@ Flag any NOT from known auto-pay providers (see [references/tier-classification.
 
 Output format: `- [ ] **Provider** — $amount due DATE <!-- gmail:ID -->`.
 
-6. **Generate** `daily/YYYY-MM-DD.md` using the daily-briefing template. Fill in ALL sections -- including "Invoices / Payments" and "Follow-ups Due". Replace `{{date}}` placeholders.
+6. **Generate** `daily/YYYY-MM-DD.md` from the template `system/templates/daily-briefing.md`. Fill in ALL sections -- including "Invoices / Payments" and "Follow-ups Due". Replace `{{date}}` placeholders.
 
 **Email triage line format** (Tier 1, 2, 3):
 ```
@@ -123,13 +124,9 @@ Markers (prepend/append to the line text, not inside the checkbox):
 - [ ] Subject — from — due DATE <!-- gmail:MESSAGE_ID -->
 ```
 
-**Tier 4** — count only, no gmail IDs needed (same as current behavior).
+**Tier 4** — count only, no gmail IDs needed.
 
-Write via obsidian-cli (not Write tool -- vault guard blocks direct file access):
-
-```bash
-obsidian create name="YYYY-MM-DD" path="daily/YYYY-MM-DD.md" content="<full briefing content>" silent overwrite
-```
+Write the note with the Write tool.
 
 **Re-run behavior:** When overwriting today's existing note, preserve any content the user added manually (Log entries, Wins, Notes, Priority List items). Read existing note first, extract user-added content from those sections, and merge it into the new output.
 
@@ -145,12 +142,8 @@ Focus on recap and tomorrow prep rather than triage:
    - Checked items (`- [x]`) = actioned today
    - Unchecked items (`- [ ]`) = still pending
    Report: "X actioned, Y still pending". List any unchecked Tier 1 items by name as "**Tier 1 still unactioned:**".
-4. **Follow-ups due tomorrow** -- scan today's note `## Follow-ups Due` for unchecked items with `due` = tomorrow
-5. **Append** to existing `daily/YYYY-MM-DD.md` under a `## Evening Update` section (do NOT overwrite morning content). If no morning briefing exists, generate the full briefing first (step 6 above). Use obsidian-cli -- vault guard blocks direct Edit/Write:
-
-```bash
-obsidian append file="YYYY-MM-DD" content="## Evening Update\n\n<content>"
-```
+4. **Follow-ups due tomorrow** -- scan the email follow-ups in `system/now.md` (as in morning step 4) for unchecked items with `due` = tomorrow
+5. **Append** a `## Evening Update` section to the end of today's `daily/YYYY-MM-DD.md` with the Edit tool (do NOT overwrite morning content). If no morning briefing exists, generate the full briefing first (step 6 above).
 6. **Print** terminal summary: events completed, events tomorrow, actioned count, pending count, follow-ups due
 
 ### Triage Inbox (quick mode)

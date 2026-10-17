@@ -19,6 +19,7 @@
 | `herdr-` | Herdr terminal-workspace layout over the local repos | `herdr-workspace` |
 | `ui-` | UI and UX design, audit, and enhancement | `ui-hig` |
 | `prompt-` | Rewriting prompts and task briefs for agents | `prompt-optimize` |
+| `cc-` | Claude Code itself: its docs and its CLI (`cc` is the shell launcher for it) | `cc-docs`, `cc-reviewer` |
 
 ## Rules
 
@@ -67,8 +68,8 @@ store; skills that must resolve from any repo ship in the `lif-workflow` plugin.
 | `harem-agent-creator` | — | lif-openclaw-agents `.agents/skills/` |
 | `new-agent-setup` | — | lif-openclaw-agents `.agents/skills/` |
 | `backlog` | — | lif-agents `plugins/lif-workflow/` |
-| `claude-code-docs` | — | lif-agents `plugins/lif-workflow/` |
-| `claude-code-reviewer` | — | lif-agents `plugins/lif-workflow/` |
+| `cc-docs` | cc | lif-agents `plugins/lif-workflow/` |
+| `cc-reviewer` | cc | lif-agents `plugins/lif-workflow/` |
 | `codex` | — | lif-agents `plugins/lif-workflow/` |
 | `explain` | — | lif-agents `plugins/lif-workflow/` |
 | `handoff` | — | lif-agents `plugins/lif-workflow/` |

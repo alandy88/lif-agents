@@ -12,7 +12,7 @@ context. Your final response must conform to the provided JSON schema.
 ## Changeset
 
 <!-- The command that shows the diff, e.g.:
-     git diff main..HEAD
+     git diff <default branch>...HEAD
      Plus branch/PR identifiers. -->
 
 ## Spec / plan

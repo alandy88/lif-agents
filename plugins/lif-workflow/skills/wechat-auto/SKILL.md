@@ -1,28 +1,30 @@
 ---
 name: wechat-auto
 disable-model-invocation: true
-description: "Automate WeChat desktop (v4.x) — send/read messages, images via UI Automation. CLI for agent consumption."
+description: "Drives the WeChat desktop app (v4.x) on Windows through UI Automation with an AutoHotkey v2 command-line script: checks status, opens a chat, sends text or images, reads recent messages, or screenshots a chat. Use when the user asks to send something to a WeChat contact or to read a WeChat chat on the Windows workstation."
 argument-hint: "<command> [options]"
 allowed-tools: PowerShell(* wechat-cli* *)
 ---
 
+# wechat-auto
+
+Windows only. `scripts/wechat-cli.ahk` is the command-line script; `scripts/lib/`
+holds the modules it includes.
+
 ## Setup
 
-AutoHotkey v2 executable: `C:\Users\peter\AppData\Local\Programs\AutoHotkey\v2\AutoHotkey64.exe`
+- AutoHotkey v2 at `C:/Users/peter/AppData/Local/Programs/AutoHotkey/v2/AutoHotkey64.exe`.
+- WeChat desktop open and logged in, not minimized to the tray.
+- Run from PowerShell. Bash/MSYS2 mangles Windows paths when it starts
+  AutoHotkey, and the script then fails with "script not found".
 
-**Prerequisite:** WeChat desktop must be open and logged in (not minimized to tray).
-
-**Important:** Always use PowerShell for invocation. Bash/MSYS2 mangles Windows paths when spawning AHK — causes silent "script not found" failures.
-
-## Invocation
-
-Define helper once per session. All examples below use it.
+Set `$SKILL_DIR` to this skill's folder, then define the helper once per session:
 
 ```powershell
 function Invoke-WeChatCLI {
     param([string[]]$Arguments)
-    $ahk = "C:\Users\peter\AppData\Local\Programs\AutoHotkey\v2\AutoHotkey64.exe"
-    $cli = "$SKILL_DIR\scripts\wechat-cli.ahk"   # substitute actual path
+    $ahk = "C:/Users/peter/AppData/Local/Programs/AutoHotkey/v2/AutoHotkey64.exe"
+    $cli = [System.IO.Path]::GetFullPath("$SKILL_DIR/scripts/wechat-cli.ahk")
     $stdout = [System.IO.Path]::GetTempFileName()
     $stderr = [System.IO.Path]::GetTempFileName()
     # Quote every argument so values with spaces survive Start-Process's re-split.
@@ -38,91 +40,73 @@ function Invoke-WeChatCLI {
 }
 ```
 
-### Result file
+Every command also writes its result as JSON to `$env:TEMP/wechat-cli-result.json`
+(or the path in `WECHAT_CLI_RESULT`). Read it after each command.
 
-Every invocation writes structured JSON to `%TEMP%\wechat-cli-result.json` (override with `WECHAT_CLI_RESULT` env var). Read after each command for machine-parseable output:
+## Before you send
 
-```powershell
-Get-Content "$env:TEMP\wechat-cli-result.json" -Encoding UTF8
-```
+`send` posts to a real contact. Show the user the recipient and the exact text
+or the list of image files, and run `send` only after a yes. For a test, send
+to `文件传输助手` (File Transfer), which only the user sees.
 
 ## Commands
 
 ```powershell
-# Check WeChat accessible
-Invoke-WeChatCLI status
-
-# Navigate to chat
-Invoke-WeChatCLI navigate, --chat, "张三"
-
-# Send text message
+Invoke-WeChatCLI status                                          # is WeChat reachable
+Invoke-WeChatCLI navigate, --chat, "张三"                         # open a chat
 Invoke-WeChatCLI send, --to, "张三", --text, "你好"
-
-# Send single image
-Invoke-WeChatCLI send, --to, "张三", --image, "C:\path\to\photo.png"
-
-# Send folder of images (auto-batched 9 per send)
-Invoke-WeChatCLI send, --to, "张三", --image-dir, "C:\path\to\folder"
-
-# Read last N messages (scrolls to load more)
-Invoke-WeChatCLI history, --chat, "张三", --limit, 10
-
-# Screenshot visible chat area
-Invoke-WeChatCLI history, --chat, "张三", --screenshot
-
-# JSON output
-Invoke-WeChatCLI history, --chat, "张三", --format, json
+Invoke-WeChatCLI send, --to, "张三", --image, "C:/path/to/photo.png"
+Invoke-WeChatCLI send, --to, "张三", --image-dir, "C:/path/to/folder"   # 9 images per message
+Invoke-WeChatCLI history, --chat, "张三", --limit, 30, --format, json   # last 30 messages, with senders
+Invoke-WeChatCLI history, --chat, "张三", --screenshot                  # PNG of the visible chat
 ```
 
-## Agent Patterns
+To check that a message arrived, run `history` on the same chat with `--limit 3`.
 
-### "Send all images in folder X to person Y"
+## Options
 
-```powershell
-Invoke-WeChatCLI send, --to, "Y", --image-dir, "X"
-```
+| Option | Default | Used by |
+|---|---|---|
+| `--format toon\|json\|text` | `toon` | `history` output and error messages; `status`, `navigate` and `send` always print toon |
+| `--delay <ms>` | 1200, jittered ±30% | `send` |
+| `--limit <n>` | 20 | `history` |
+| `--save-images` | off | `history`: save the images in range to the save folder |
+| `--screenshot` | off | `history` |
+| `--save-dir <path>` | `$env:TEMP/wechat-cli` | `history` |
+| `--timeout <ms>` | 30000 | all; exit code 5 when reached |
 
-### "Read what Z said and summarize"
+`--quiet` and `--dry-run` are accepted and have no effect. Unknown options are
+dropped without a warning, so check the spelling.
 
-```powershell
-Invoke-WeChatCLI history, --chat, "Z", --limit, 30, --format, json
-# Then read result file for structured data with sender attribution
-Get-Content "$env:TEMP\wechat-cli-result.json" -Encoding UTF8
-```
-
-### "Send text then check it arrived"
-
-```powershell
-Invoke-WeChatCLI send, --to, "文件传输助手", --text, "hello"
-Invoke-WeChatCLI history, --chat, "文件传输助手", --limit, 3
-```
-
-## Global Options
-
-- `--format toon|json|text` (default: toon)
-- `--delay <ms>` (default: 1200, jittered ±30%)
-- `--quiet` — suppress progress, only result
-- `--save-dir <path>` (default: %TEMP%\wechat-cli)
-- `--timeout <ms>` (default: 30000)
-- `--save-images` — save all images in history range to save-dir
-- `--screenshot` — capture visible chat area as PNG
-
-## Exit Codes
+## Exit codes
 
 | Code | Meaning |
-|------|---------|
+|---|---|
 | 0 | Success |
-| 1 | WeChat not found |
+| 1 | WeChat window not found or cannot be focused, or navigation failed |
 | 2 | Chat not found |
-| 3 | Send/read failed |
-| 4 | Invalid args |
+| 3 | Send or read failed, including a rate-limit refusal |
+| 4 | Invalid arguments, or the image file or folder does not exist |
 | 5 | Timeout |
-| 6 | Another instance running |
+| 6 | Another instance is running |
 
-## Safety
+## What the safety code does and does not do
 
-- Rate limits: 30/contact/hr, 150 global/hr. `文件传输助手` exempt.
-- Mutex lock prevents concurrent instances. Auto-expires 60s.
-- Jittered delays avoid bot-like timing.
-- Script does NOT steal window focus — uses UIA and PostMessage for all interaction. Safe to run from background process.
-- EnsureFocus guard activates WeChat only when Send() keystroke is needed; returns focus after.
+- One instance at a time, through the lock file `$env:TEMP/wechat-cli.lock`. A
+  lock older than 60 seconds counts as stale and is replaced.
+- Delays between actions are jittered ±30%.
+- The rate limits (30 sends per contact and 150 in total per hour;
+  `文件传输助手` exempt) are counted in memory and reset when the command exits.
+  They only cap sends inside one `send` command; across commands there is no
+  limit, so pace repeated sends yourself.
+- WeChat is brought to the front for navigation, sending and reading history,
+  and the window that was active before is not restored. Warn the user before a
+  run if they are working in another window.
+- `send --image-dir` exits 0 even when some or all batches failed. Compare
+  `messagesSent` in the result file with the number of images in the folder.
+
+## Tests
+
+`tests/run-all.ahk --unit-only` runs the output-format unit tests without
+WeChat. Without `--unit-only` it also runs end-to-end suites that drive the live
+WeChat window and send to `文件传输助手`; run those only when the user asks.

@@ -1,5 +1,12 @@
 # Tracking and harvesting
 
+## Contents
+- status
+- collect
+- land
+- abandon
+- Recovering a broken task
+
 The loop is `status` → `collect` → `land` or `abandon`. `collect` decides
 nothing — show its output to the user and let them choose.
 

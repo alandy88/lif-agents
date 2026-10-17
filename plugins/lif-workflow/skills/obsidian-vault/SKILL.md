@@ -1,55 +1,36 @@
 ---
 name: obsidian-vault
 disable-model-invocation: true
-description: "Reference conventions for navigating and writing notes in the lif-notes Obsidian vault."
+description: "Points a session in any repo at the lif-notes Obsidian vault's own contract before it reads or writes notes there: where the vault is, which files hold the rules, and which folders need care. Use when working with lif-notes notes from outside the vault, or when the user asks where a note belongs or how to write one."
 argument-hint: "[path-or-topic]"
 allowed-tools: Read, Glob, Grep, Write
 ---
 
 # obsidian-vault
 
-Use this as the canonical vault navigation and note-shape reference for lif-notes.
+The vault is at `$LIF_NOTES_VAULT`. If the variable is unset, source
+`~/.config/lif-host.sh` when it exists; otherwise ask the user for the path.
+Use absolute paths under it: a session in another repo cannot use paths
+relative to the vault.
 
-## Core principle
+The vault's rules live in the vault, not here. Inside the vault its
+`AGENTS.md` loads by itself; from any other repo, read these before you act:
 
-Each note is a single unit of learning. Keep notes atomic. Do not merge unrelated ideas into omnibus pages.
+| Question | File, under `$LIF_NOTES_VAULT` |
+|---|---|
+| What goes where, log buckets, write and commit rules | `AGENTS.md` |
+| Frontmatter fields and sensitivity tiers | `docs/agents/frontmatter.md` |
+| Which note belongs to which repo | `notes/projects/knowledge-boundary.md` |
 
-## Vault layout
+Rules that matter most from outside the vault, all stated in those files:
 
-Vault root comes from `$LIF_NOTES_VAULT` (default `~/github/personal/lif-notes` on Linux/macOS, `D:\Git\lif-notes` on Windows).
-
-Main domains:
-- `daily/`
-- `work/`
-- `personal/`
-- `system/`
-
-Shared reference area:
-- `notes/`
-
-Prefer placing new notes inside the correct domain rather than the root.
-
-## Naming
-
-- Prefer clear human names.
-- Title Case is encouraged for hand-written evergreen notes.
-- Existing kebab-case or machine-generated naming in a folder is valid; follow local convention.
-
-## Linking
-
-- Use wikilinks aggressively (`[[Note Name]]`) to connect related notes.
-- Create index notes as hubs when a topic grows.
-- Prefer backlinks-driven indexes over manually maintained append-only lists.
-
-## Discovery workflow (tool-first)
-
-1. Use `Glob` to locate candidate notes by folder and extension.
-2. Use `Grep` to narrow by headings, wikilinks, or keywords.
-3. Use `Read` only on the shortlisted notes.
-4. Use `Write` for focused updates that preserve atomicity.
-
-## Editing rules
-
-- Preserve existing frontmatter schema when present.
-- Keep section headings stable unless the user asks to restructure.
-- If a note mixes topics, split into separate notes and cross-link.
+- `personal/` notes are red: vault-only, never quoted outside it. `work/`,
+  `daily/` and other notes carry their own tier in frontmatter; read
+  `docs/agents/frontmatter.md` before you open them.
+- Capture means proposing the edit and waiting for a yes; never write a note
+  silently.
+- For an approved write, follow the vault-write steps in `AGENTS.md`: Git
+  status and a fast-forward pull first, the vault lint after
+  (`python3 "$LIF_NOTES_VAULT/system/scripts/lint-vault.py"`, report-only), and
+  no commit or push without the user's yes.
+- In an existing note, keep its frontmatter and its folder's naming style.

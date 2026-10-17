@@ -1,8 +1,8 @@
 ---
 name: issue-review
-description: "Use when reviewing the code changes on a branch for clarity, consistency, and maintainability without changing behavior — apply the repo's standards to the diff, run typecheck + tests, then commit only if something improved. Triggers: /issue-review, \"review this branch\", \"clean up the diff\", \"refine before merge\"."
+description: "Reviews the changes on a branch for clarity, consistency and maintainability without changing behaviour: applies the repo's standards to the diff, runs typecheck and tests, and commits only if something improved. Use when reviewing or refining a branch before merge. Triggers: /issue-review, \"review this branch\", \"clean up the diff\", \"refine before merge\"."
 argument-hint: "[issue-number]"
-allowed-tools: Read, Glob, Grep, Edit, Write, Bash, Skill, TodoWrite
+allowed-tools: Read, Glob, Grep, Edit, Write, Bash, TodoWrite
 ---
 
 # issue-review
@@ -11,7 +11,9 @@ allowed-tools: Read, Glob, Grep, Edit, Write, Bash, Skill, TodoWrite
 
 Review the changes a branch makes against the default branch and bring them in
 line with the repo's standards, without changing what the code does. This is
-the interactive counterpart to the swarm-pi `review-prompt` template.
+the interactive counterpart to the swarm's `review-prompt.md` (lif-studio
+`.sandcastle/templates/implement/`). For an outside opinion that changes nothing, use
+`codex` review mode or `cc-reviewer` instead.
 
 Behaviour stays identical because the implementer's tests define it. A
 behaviour change hidden inside a cleanup commit is the hardest kind to bisect.
@@ -44,8 +46,7 @@ merging them would be shorter.
 
 1. Edit the branch directly for every finding that keeps behaviour identical.
 2. Run the typecheck and test commands.
-3. Commit as `refactor: <what was aligned>`. The `RALPH: Review -` prefix is for
-   swarm runs only.
+3. Commit as `refactor: <what was aligned>`.
 
 When the diff already meets the standards, change nothing and say so.
 
