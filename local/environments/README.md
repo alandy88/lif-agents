@@ -125,7 +125,7 @@ installed on yet has no README to write, so it holds only a `.gitkeep`.
 | Name | Machine | Overlay state |
 |---|---|---|
 | `windows-5090` | the Windows side of the RTX 5090 box | hand-placed in `%USERPROFILE%\.config\`, see its README |
-| `linux-5090` | the Ubuntu side of the same 5090 box (`peter-5090-linux`) | authored on the machine; `host.sh` and `host.lua`. Exports `LIF_STUDIO_ROOT`, `LIF_WORKBENCH_ROOT`, `COMFYUI_LIF_NODES_ROOT`, `LIF_NOTES_VAULT` for every shell; firstmate is reached over the ssh bridge |
+| `linux-5090` | the Ubuntu side of the same 5090 box (`peter-5090-linux`) | authored on the machine; `host.sh` and `host.lua`. Exports `LIF_STUDIO_ROOT`, `LIF_WORKBENCH_ROOT`, `COMFYUI_LIF_NODES_ROOT`, `LIF_NOTES_VAULT`, `LIF_BUILDING_BLOCKS_ROOT` for every shell; firstmate is reached over the ssh bridge |
 | `macbookpro-work` | the work MacBook Pro | authored on the machine; sets `font_size`, `LIF_NOTES_DIR`, `LIF_GITHUB_DIR` and the machine-local extras, the rest deliberately unset |
 | `macmini` | the Mac mini (`peter-macmini`) | authored on the machine; the firstmate host, see its README |
 | `wsl` | the WSL box | empty slot; the installing agent authors it on the machine. Dormant: it hosted firstmate until that moved to `macmini`, and still carries a checkout at the same commit |
