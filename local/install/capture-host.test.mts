@@ -121,9 +121,9 @@ function promptFor(action: string, kind = "claude"): string {
   return text.replace(reply["file"] as string, "");
 }
 
-test("the explain prompt names the explain skill and asks for no file", () => {
+test("the explain prompt asks for a plain explanation and no file", () => {
   const text = promptFor("explain");
-  assert.ok(text.includes("lif-workflow:explain"));
+  assert.match(text, /explain/i);
   assert.match(text, /read/i);
   assert.match(text, /write no file|do not write/i);
 });

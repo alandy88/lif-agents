@@ -12,7 +12,7 @@
     {
       "name": "lif-workflow",
       "source": "./plugins/lif-workflow",
-      "description": "Session handoff, planning, backlog, issue and PR loops, Codex fanout, and safety hooks. Repo-bound skills live in each repo's .agents/skills instead."
+      "description": "Session handoff, issue and PR loops, and safety hooks. Repo-bound skills live in each repo's .agents/skills instead."
     }
   ]
 }

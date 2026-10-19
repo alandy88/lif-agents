@@ -56,7 +56,7 @@ where it lands: [local/README.md](local/README.md).
 ### Workflow plugin (lif-workflow)
 
 `plugins/lif-workflow/` is a Claude Code plugin with the skills that must work from any
-repo (session handoff, planning, backlog, issue and PR loops, Codex fanout) plus the
+repo (session handoff, issue and PR loops) plus the
 PreToolUse/PostToolUse safety and formatting hooks. See
 [plugins/AGENTS.md](plugins/AGENTS.md) for install and update commands.
 

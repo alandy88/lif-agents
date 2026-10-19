@@ -16,7 +16,6 @@
 | `job-` | Client job lifecycle | (future candidates) |
 | `issue-` | Single-issue execution loops (interactive counterparts to swarm-pi prompts) | `issue-implement`, `issue-review` |
 | `pr-` | Pull-request lifecycle on `alandy88` repos | `pr-shepherd` |
-| `herdr-` | Herdr terminal-workspace layout over the local repos | `herdr-workspace` |
 | `ui-` | UI and UX design, audit, and enhancement | `ui-hig` |
 | `prompt-` | Rewriting prompts and task briefs for agents | `prompt-optimize` |
 
@@ -66,24 +65,12 @@ store; skills that must resolve from any repo ship in the `lif-workflow` plugin.
 | `comfyui-nodes` | comfyui | comfyui-lif-nodes `.agents/skills/` |
 | `harem-agent-creator` | — | lif-openclaw-agents `.agents/skills/` |
 | `new-agent-setup` | — | lif-openclaw-agents `.agents/skills/` |
-| `backlog` | — | lif-agents `plugins/lif-workflow/` |
-| `claude-code-docs` | — | lif-agents `plugins/lif-workflow/` |
-| `claude-code-reviewer` | — | lif-agents `plugins/lif-workflow/` |
-| `codex` | — | lif-agents `plugins/lif-workflow/` |
-| `explain` | — | lif-agents `plugins/lif-workflow/` |
 | `handoff` | — | lif-agents `plugins/lif-workflow/` |
-| `herdr-workspace` | herdr | lif-agents `plugins/lif-workflow/` |
 | `issue-implement` | issue | lif-agents `plugins/lif-workflow/` |
 | `issue-review` | issue | lif-agents `plugins/lif-workflow/` |
-| `markdown-to-docx` | — | lif-agents `plugins/lif-workflow/` |
 | `morning-briefing` | — | lif-agents `plugins/lif-workflow/` |
 | `obsidian-vault` | — | lif-agents `plugins/lif-workflow/` |
 | `pickup` | — | lif-agents `plugins/lif-workflow/` |
-| `plan-handoff` | — | lif-agents `plugins/lif-workflow/` |
 | `pr-shepherd` | pr | lif-agents `plugins/lif-workflow/` |
 | `prompt-optimize` | prompt | lif-agents `plugins/lif-workflow/` |
-| `seed` | — | lif-agents `plugins/lif-workflow/` |
-| `skill-designer` | — | lif-agents `plugins/lif-workflow/` |
-| `structured-planning` | — | lif-agents `plugins/lif-workflow/` |
 | `ui-hig` | ui | lif-agents `plugins/lif-workflow/` |
-| `wechat-auto` | — | lif-agents `plugins/lif-workflow/` |

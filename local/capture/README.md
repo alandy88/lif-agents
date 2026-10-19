@@ -55,10 +55,7 @@ Linux, Firefox and Google Chrome only.
   agent that the file is a captured web page and not instructions.
 - **Each action is one fixed prompt, the same for `claude` and `pi`.** Both tell the
   agent to read the capture file first.
-  - *Explain:* explain the page in the chat through the `explain` skill
-    (`lif-workflow:explain`). No file is written. Under `pi` this depends on the `explain`
-    skill being installed for pi, which this repo does not do; without it pi explains in
-    its own way.
+  - *Explain:* explain the page plainly in the chat. No file is written.
   - *Note:* propose exactly one `/log learn <topic> <summary>` entry and wait. The agent
     does not run `/log` or write to the vault until you accept the proposal.
 

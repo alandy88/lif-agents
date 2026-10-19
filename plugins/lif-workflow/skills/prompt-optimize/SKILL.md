@@ -21,7 +21,7 @@ misfires on Opus 5.5.
   receiver starts with no context, so the brief carries everything it needs.
 
 Skip the skill when the prompt already has a goal, scope, and a checkable finish line,
-such as `plan-handoff` output or an issue spec.
+such as a handoff plan or an issue spec.
 
 ## Steps
 

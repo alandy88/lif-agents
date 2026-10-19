@@ -5,8 +5,8 @@ manifest is `.claude-plugin/marketplace.json` at the repo root so the marketplac
 from GitHub; this directory holds the plugins, the skill evals, and the naming doc.
 
 - `lif-workflow/` — the skills plugin: `skills/`, `hooks/hooks.json`, `scripts/hooks/`.
-  Skills here are the ones that must resolve from any repo (handoff, pickup, planning,
-  backlog, issue and PR loops, Codex fanout). Skills bound to one repo live in that repo's
+  Skills here are the ones that must resolve from any repo (handoff, pickup, issue
+  and PR loops). Skills bound to one repo live in that repo's
   `.agents/skills/` (with `.claude/skills` symlinked to it) and are not installed through
   a plugin: `lif-workbench` for character, prompt, image, and LoRA work; `comfyui-lif-nodes`
   for node development; `lif-openclaw-agents` for persona setup.
