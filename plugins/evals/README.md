@@ -14,10 +14,7 @@ pytest evals/
 pytest evals/ --full
 
 # Single skill
-pytest evals/skills/skill-designer/ -v
-
-# Single scenario
-pytest evals/skills/skill-designer/test_skill_designer.py::test_create_runs_interview_before_drafting -v
+pytest evals/skills/image/ -v
 ```
 
 ## Adding a New Eval

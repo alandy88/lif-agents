@@ -111,8 +111,8 @@ function render(capture: Capture): string {
 // data-only warning as its argument.
 const TASKS = {
   explain:
-    "Read the capture file, then explain the page it holds plainly, using the explain skill " +
-    "(lif-workflow:explain). The subject is the page, not the file path. " +
+    "Read the capture file, then explain the page it holds plainly. " +
+    "The subject is the page, not the file path. " +
     "Reply in the chat and write no file.",
   note:
     "Read the capture file, then propose in the chat exactly one /log learn <topic> <summary> " +
