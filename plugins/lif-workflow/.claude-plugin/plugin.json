@@ -1,7 +1,7 @@
 {
   "name": "lif-workflow",
-  "version": "1.16.0",
-  "description": "Cross-repository workflow for LIF coding agents: session handoff (handoff, pickup), single-issue and PR loops (issue-implement, issue-review, pr-shepherd), Apple HIG UI design and audit (ui-hig), prompt rewriting for Opus 5.5 (prompt-optimize), vault conventions (obsidian-vault), personal utilities (morning-briefing), and PreToolUse/PostToolUse safety and formatting hooks.",
+  "version": "1.17.0",
+  "description": "Cross-repository workflow for LIF coding agents: session handoff (handoff, pickup), single-issue and PR loops (issue-implement, issue-review, pr-shepherd), Apple HIG UI design and audit (ui-hig), prompt rewriting for Opus 5.5 (prompt-optimize), vault conventions (obsidian-vault), personal utilities (morning-briefing), a read-only Haiku search subagent (finder), and PreToolUse/PostToolUse safety and formatting hooks.",
   "author": {
     "name": "Peter Yu",
     "email": "hyu067@gmail.com"
