@@ -26,6 +26,10 @@ PowerShell overlays do too. `host.sh` is sourced as shell code and must be
 syntactically valid. Templates with the full key list:
 `local/hosts/lif-host.{lua,sh,ps1}.example`.
 
+An environment may also hold machine-only extras that no installer reads, each
+explained by a `README.md` in its directory. `linux-5090/plasmoids/` is one: a
+Plasma panel widget wired to that machine's sensors.
+
 Select an environment with `local/install/install.sh --env <name>`. The installer
 records the name in `$XDG_CONFIG_HOME/lif-env`, so later runs on that machine
 need no `--env`; failing that it detects `wsl` under WSL. It deliberately does

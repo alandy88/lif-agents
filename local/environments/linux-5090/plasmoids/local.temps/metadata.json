@@ -1,0 +1,11 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "KPlugin": {
+        "Id": "local.temps",
+        "Name": "Temps",
+        "Description": "CPU, GPU and water temperatures with icons",
+        "Icon": "sensors-temperature-symbolic",
+        "Version": "1.0"
+    }
+}
