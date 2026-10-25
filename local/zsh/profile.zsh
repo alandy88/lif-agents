@@ -358,3 +358,14 @@ if [ -n "${ZSH_VERSION:-}" ]; then
     autoload -Uz compinit
     compinit
 fi
+
+# --- zoxide ---
+# `z <part>` jumps to a visited directory, `zi` picks one with fzf. After
+# compinit, which zoxide's zsh init expects to have already run.
+if command -v zoxide >/dev/null 2>&1; then
+    if [ -n "${ZSH_VERSION:-}" ]; then
+        eval "$(zoxide init zsh)"
+    elif [ -n "${BASH_VERSION:-}" ]; then
+        eval "$(zoxide init bash)"
+    fi
+fi
