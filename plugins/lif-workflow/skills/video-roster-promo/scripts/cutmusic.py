@@ -21,7 +21,9 @@ t0 = phase + start * beat
 n = s(round(nb * beat * 30) / 30)
 if '--loop' in sys.argv:
     a = y[s(t0):s(t0 + (nb - 4) * beat)].copy()
-    b = y[s(t0 - 4 * beat):s(t0)].copy()
+    # the end bar takes exactly the samples left to fill, ending on the one before t0: the replay seam stays
+    # sample-continuous, and frame rounding lands on the splice at a's end instead
+    b = y[s(t0) - (n - len(a)):s(t0)].copy()
     f = np.linspace(0, 1, s(0.003))[:, None]   # 3 ms fades at the splice keep the grid exact
     a[-len(f):] *= 1 - f; b[:len(f)] *= f
     out = np.concatenate([a, b])
