@@ -18,6 +18,7 @@
 | `pr-` | Pull-request lifecycle on `alandy88` repos | `pr-shepherd` |
 | `ui-` | UI and UX design, audit, and enhancement | `ui-hig` |
 | `prompt-` | Rewriting prompts and task briefs for agents | `prompt-optimize` |
+| `video-` | Producing short videos from illustrations and music | `video-roster-promo` |
 
 ## Rules
 
@@ -74,3 +75,4 @@ store; skills that must resolve from any repo ship in the `lif-workflow` plugin.
 | `pr-shepherd` | pr | lif-agents `plugins/lif-workflow/` |
 | `prompt-optimize` | prompt | lif-agents `plugins/lif-workflow/` |
 | `ui-hig` | ui | lif-agents `plugins/lif-workflow/` |
+| `video-roster-promo` | video | lif-agents `plugins/lif-workflow/` |
