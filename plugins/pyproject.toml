@@ -1,5 +1,0 @@
-[tool.pytest.ini_options]
-testpaths = ["evals"]
-markers = [
-    "e2e: end-to-end tests hitting real APIs (require accounts and network)",
-]
