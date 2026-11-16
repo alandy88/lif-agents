@@ -2,8 +2,8 @@
 
 **You are here because someone cloned this repo on a machine and asked you to
 install it.** This file is the entrypoint for that. It covers the terminal
-setup: WezTerm, Starship, Herdr, the shell profile, and Pi's managed status
-footer and quiet-tools extension.
+setup: WezTerm, Starship, Herdr, the shell profile, Pi's managed status
+footer and quiet-tools extension, and the global agent rules.
 
 **Do not run `npm i -D github:alandy88/lif-agents`.** The README's kit section
 belongs to `@lif/sandcastle-kit`, a JavaScript package other repos
@@ -177,6 +177,10 @@ touching the destination. It:
 - installs `local/pi/extensions/quiet-tools.ts` at the same global extension
   directory. Built-in text tool rows are hidden by default; `/quiet-tools off`
   reveals them. Coverage and limitations: [Quiet tools](../README.md#quiet-tools-in-pi).
+- links `local/agents/AGENTS.md` to `~/.agents/AGENTS.md` and `local/agents/CLAUDE.md`
+  to `~/.claude/CLAUDE.md`: the global rules every agent session loads. A real file
+  there is backed up first; a symlink pointing elsewhere is kept. The files name
+  paths through `$LIF_NOTES_VAULT`, so one copy serves every machine.
 - records the environment name in `$XDG_CONFIG_HOME/lif-env`, last, so a run
   that failed partway does not record a name it never finished installing
 

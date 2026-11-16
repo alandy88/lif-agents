@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
 # Install the terminal setup on macOS or WSL: WezTerm, Starship, the zsh
-# profile, Herdr's config, and the selected environment's overlay.
+# profile, Herdr's config, the global agent rules, and the selected
+# environment's overlay.
 #
 # Unix counterpart to install.ps1. Windows cannot symlink files without
 # Developer Mode or admin, so install.ps1 redirects with env vars instead;
@@ -345,6 +346,12 @@ link_managed "$local_root/bin/lif-bws" "$HOME/.local/bin/lif-bws"
 
 echo "Orca hub launcher"
 link_managed "$local_root/bin/lif-hub" "$HOME/.local/bin/lif-hub"
+
+echo "Agent rules"
+# The global agent rules. ~/.claude/CLAUDE.md imports ~/.agents/AGENTS.md.
+# Linked, so an edit in either place is an edit to the checkout.
+link_managed "$local_root/agents/AGENTS.md" "$HOME/.agents/AGENTS.md"
+link_managed "$local_root/agents/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
 
 echo "Environment overlay ($host)"
 # wezterm.lua reads ~/.config/lif-host.lua by an absolute path built from

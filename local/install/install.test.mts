@@ -45,6 +45,7 @@ function scaffold(name: string): { root: string; repo: string; home: string } {
     "herdr",
     "pi/extensions",
     "bin",
+    "agents",
     `environments/${ENV_NAME}`,
     "install",
   ]) {
@@ -56,6 +57,8 @@ function scaffold(name: string): { root: string; repo: string; home: string } {
   writeFileSync(join(repo, "local/starship/starship.toml"), "# starship\n");
   writeFileSync(join(repo, "local/zsh/profile.zsh"), "# zsh\n");
   writeFileSync(join(repo, "local/bin/lif-bws"), "#!/bin/sh\n");
+  writeFileSync(join(repo, "local/agents/AGENTS.md"), "# rules\n");
+  writeFileSync(join(repo, "local/agents/CLAUDE.md"), "@~/.agents/AGENTS.md\n");
   writeFileSync(join(repo, "local/herdr/config.toml"), "default_shell = '@LIF_HERDR_DEFAULT_SHELL@'\n");
   writeFileSync(join(repo, `local/environments/${ENV_NAME}/host.lua`), "-- current overlay\n");
   writeFileSync(join(repo, `local/environments/${ENV_NAME}/host.sh`), "# current overlay\n");
@@ -302,4 +305,25 @@ test("preview reports the footer backup without creating it", () => {
   assert.equal(readFileSync(destination, "utf8"), "captain's previous footer\n");
   assert.equal(existsSync(`${destination}.pre-lif-terminal.bak`), false);
   rmSync(root, { recursive: true, force: true });
+});
+
+test("links the global agent rules, backing up a real file first", () => {
+  const { root, repo, home } = scaffold("agent-rules");
+  try {
+    const rules = join(home, ".agents/AGENTS.md");
+    const claude = join(home, ".claude/CLAUDE.md");
+    mkdirSync(dirname(rules), { recursive: true });
+    writeFileSync(rules, "# old rules\n");
+
+    const preview = install(repo, home, "--dry-run");
+    assert.match(preview, /would bak .*\.agents\/AGENTS\.md\.pre-lif-terminal\.bak/);
+    assert.match(preview, /would link .*\.claude\/CLAUDE\.md/);
+    assert.equal(readFileSync(rules, "utf8"), "# old rules\n");
+
+    install(repo, home);
+    assert.equal(readlinkSync(rules), join(repo, "local/agents/AGENTS.md"));
+    assert.equal(readlinkSync(claude), join(repo, "local/agents/CLAUDE.md"));
+    assert.equal(readFileSync(`${rules}.pre-lif-terminal.bak`, "utf8"), "# old rules\n");
+    assert.match(install(repo, home), /ok .*\.agents\/AGENTS\.md/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });

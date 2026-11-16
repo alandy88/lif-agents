@@ -98,6 +98,11 @@ Write-Host "Noninteractive BWS wrapper" -ForegroundColor Cyan
 Set-ManagedFile (Join-Path $localRoot 'bin\lif-bws.ps1') (Join-Path $HOME '.local\bin\lif-bws.ps1')
 Set-ManagedFile (Join-Path $localRoot 'bin\lif-bws.cmd') (Join-Path $HOME '.local\bin\lif-bws.cmd')
 
+Write-Host "Agent rules" -ForegroundColor Cyan
+# Copied, not linked: edit them in the checkout, then re-run this script.
+Set-ManagedFile (Join-Path $localRoot 'agents\AGENTS.md') (Join-Path $HOME '.agents\AGENTS.md')
+Set-ManagedFile (Join-Path $localRoot 'agents\CLAUDE.md') (Join-Path $HOME '.claude\CLAUDE.md')
+
 Write-Host "PowerShell profile" -ForegroundColor Cyan
 $profileScript = Join-Path $localRoot 'pwsh\profile.ps1'
 $escapedProfileScript = $profileScript.Replace("'", "''")

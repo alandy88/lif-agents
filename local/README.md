@@ -2,8 +2,8 @@
 
 Terminal config: WezTerm + Herdr + Starship + a shell profile — pwsh 7 on
 Windows, zsh on macOS and WSL. Every environment uses all four; only the shell
-profile differs. Pi's status footer and quiet-tools extension are managed alongside those four terminal
-components. The firstmate helpers run locally on the host that carries the
+profile differs. Pi's status footer and quiet-tools extension, and the global agent rules in `agents/`,
+are managed alongside those four terminal components. The firstmate helpers run locally on the host that carries the
 firstmate checkout; the pwsh profile reaches that host over ssh, because the
 Windows box does not carry one.
 
@@ -23,6 +23,8 @@ directory unless stated otherwise.
 | `zsh/profile.zsh` | — | `~/.config/lif-shell.zsh`, sourced from `~/.zshrc` |
 | `pi/extensions/pi-status-footer.ts` | `%USERPROFILE%\.pi\agent\extensions\pi-status-footer.ts` | `~/.pi/agent/extensions/pi-status-footer.ts` |
 | `pi/extensions/quiet-tools.ts` | `%USERPROFILE%\.pi\agent\extensions\quiet-tools.ts` | `~/.pi/agent/extensions/quiet-tools.ts` |
+| `agents/AGENTS.md` | copied to `%USERPROFILE%\.agents\AGENTS.md` | `~/.agents/AGENTS.md` |
+| `agents/CLAUDE.md` | copied to `%USERPROFILE%\.claude\CLAUDE.md` | `~/.claude/CLAUDE.md` |
 | `hosts/*.example` | templates for the environment overlay (see below) | same |
 
 Redirect env vars rather than symlinks on Windows: Windows symlinks need
